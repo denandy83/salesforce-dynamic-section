@@ -1,0 +1,56 @@
+/* CONTAINER */
+.nd-card {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border: 1px solid #e5e5e5;
+    margin-bottom: 1rem;
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* 3. THE COMPACT HEADER */
+.nd-header {
+    padding: 0.35rem 0.75rem; /* Tighter vertical padding */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 2rem; /* Ensures it doesn't get too crushed */
+}
+
+/* Adjust the title size to match the smaller bar */
+.nd-header-title {
+    color: white;
+    font-size: 0.9rem; /* Slightly smaller font */
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+}
+/* BODY */
+.nd-body {
+    padding: 1rem;
+    background-color: #ffffff;
+}
+
+/* ROWS */
+.nd-field-row {
+    border-bottom: 1px solid #f3f3f3;
+    padding: 0.5rem 0;
+}
+
+/* WARNING STRIP */
+.nd-alert-strip {
+    border-left: 4px solid;
+    padding-left: 12px;
+    background-color: #fafafa;
+    border-radius: 0 4px 4px 0;
+}
+
+/* --- THE FIX: CUSTOM LABELS --- */
+.nd-custom-label {
+    font-size: 0.75rem;
+    color: #444444;       /* Dark Grey */
+    font-weight: 800;     /* Extra Bold */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}

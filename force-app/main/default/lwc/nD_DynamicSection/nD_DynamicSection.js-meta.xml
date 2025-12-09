@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>59.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>ND Dynamic Section</masterLabel>
+    <targets>
+        <target>lightning__RecordPage</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__RecordPage">
+            <property name="ND_sectionTitle" type="String" label="Title" default="Details"/>
+            <property name="ND_iconName" type="String" label="Icon Name" default="utility:warning"/>
+            <property name="ND_headerBackgroundColor" type="String" label="Header Background Color" default="#005FB2"/>
+            <property name="ND_headerTextColor" type="String" label="Header Text Color" default="#FFFFFF"/>
+            <property name="ND_startCollapsed" type="Boolean" label="Collapse by Default"/>
+            
+            <property name="ND_jsonConfigString" type="String" label="Field JSON Configuration" 
+                      description='Example: [{ "apiName": "Priority" }]'/>
+            
+            <property name="ND_headerLogicField" type="String" label="Dynamic Header: Trigger Field"/>
+            <property name="ND_headerLogicValue" type="String" label="Dynamic Header: Trigger Value"/>
+            <property name="ND_headerActiveColor" type="String" label="Dynamic Header: Active Color"/>
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

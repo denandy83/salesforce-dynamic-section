@@ -1,0 +1,68 @@
+<template>
+    <div class="nd-component-wrapper">
+        <article class="nd-card">
+            
+            <div class="nd-header" style={ND_headerStyle} onclick={ND_toggleSection}>
+                <div class="slds-media slds-media_center">
+                    <div class="slds-media__figure">
+                        <lightning-icon icon-name={ND_iconName} size="x-small" variant="inverse"></lightning-icon>
+                    </div>
+                    <div class="slds-media__body">
+                        <span class="nd-header-title" style={ND_titleStyle}>
+                            {computedTitle}
+                        </span>
+                    </div>
+                </div>
+                <lightning-icon icon-name={ND_chevronIcon} size="x-small" variant="inverse"></lightning-icon>
+            </div>
+
+            <div if:true={ND_isOpen} class="nd-body">
+                <lightning-record-edit-form record-id={recordId} object-api-name={objectApiName} onsuccess={ND_handleSuccess}>
+                    <div class="slds-grid slds-wrap slds-gutters_small">
+                        
+                        <template for:each={ND_finalFieldList} for:item="fieldConfig">
+                            <template if:true={fieldConfig.isVisible}>
+                                <div key={fieldConfig.key} class="slds-col slds-size_1-of-2 nd-field-row">
+                                    <div style={fieldConfig.style}>
+                                        
+                                        <template if:true={fieldConfig.customLabel}>
+                                            <div class="nd-custom-label">{fieldConfig.customLabel}</div>
+                                            <template if:false={fieldConfig.editable}>
+                                                <lightning-output-field field-name={fieldConfig.apiName} variant="label-hidden"></lightning-output-field>
+                                            </template>
+                                            <template if:true={fieldConfig.editable}>
+                                                <lightning-input-field field-name={fieldConfig.apiName} variant="label-hidden" onchange={ND_handleFieldChange}></lightning-input-field>
+                                            </template>
+                                        </template>
+
+                                        <template if:false={fieldConfig.customLabel}>
+                                            <template if:false={fieldConfig.editable}>
+                                                <lightning-output-field field-name={fieldConfig.apiName} variant="label-stacked"></lightning-output-field>
+                                            </template>
+                                            <template if:true={fieldConfig.editable}>
+                                                <lightning-input-field field-name={fieldConfig.apiName} variant="label-stacked" onchange={ND_handleFieldChange}></lightning-input-field>
+                                            </template>
+                                        </template>
+
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+
+                        <template if:true={isDirty}>
+                            <div class="slds-col slds-size_1-of-1 slds-p-top_medium slds-text-align_right">
+                                <lightning-button 
+                                    variant="brand" 
+                                    type="submit" 
+                                    label="Save" 
+                                    icon-name="utility:save">
+                                </lightning-button>
+                            </div>
+                        </template>
+
+                    </div>
+                </lightning-record-edit-form>
+            </div>
+        </article>
+    </div>
+</template>
