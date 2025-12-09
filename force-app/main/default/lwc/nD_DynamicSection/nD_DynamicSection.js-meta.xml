@@ -14,12 +14,13 @@
             <property name="ND_headerTextColor" type="String" label="Header Text Color" default="#FFFFFF"/>
             <property name="ND_startCollapsed" type="Boolean" label="Collapse by Default"/>
             
-            <property name="ND_jsonConfigString" type="String" label="Field JSON Configuration" 
-                      description='Example: [{ "apiName": "Priority" }]'/>
+            <property name="ND_jsonConfigString" type="String" label="Field JSON Configuration" />
             
             <property name="ND_headerLogicField" type="String" label="Dynamic Header: Trigger Field"/>
             <property name="ND_headerLogicValue" type="String" label="Dynamic Header: Trigger Value"/>
-            <property name="ND_headerActiveColor" type="String" label="Dynamic Header: Active Color"/>
+            <property name="ND_headerActiveColor" type="String" label="Dynamic Header: Active BG Color"/>
+            <property name="ND_headerActiveTextColor" type="String" label="Dynamic Header: Active Text Color" 
+                      description="Optional. Color of text when trigger is active."/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

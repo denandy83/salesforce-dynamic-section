@@ -12,14 +12,13 @@ export default class ND_DynamicSection extends LightningElement {
     @api ND_headerBackgroundColor = '#005FB2';
     @api ND_headerTextColor = '#FFFFFF';
     @api ND_startCollapsed = false;
-    
-    // JSON Config
     @api ND_jsonConfigString = ''; 
 
     // Dynamic Header Logic Props
     @api ND_headerLogicField;
     @api ND_headerLogicValue;
     @api ND_headerActiveColor;
+    @api ND_headerActiveTextColor; // NEW
 
     // --- 2. INTERNAL STATE ---
     @track ND_isOpen = true;
@@ -41,6 +40,34 @@ export default class ND_DynamicSection extends LightningElement {
         }
     }
 
+    // Centralized Logic: Returns TRUE if we should switch colors
+    get isHeaderActive() {
+        if (!this.ND_headerLogicField || !this.ND_recordData || !this.ND_headerActiveColor) {
+            return false;
+        }
+
+        const field = this.ND_recordData.fields[this.ND_headerLogicField];
+        if (!field || field.value === undefined) {
+            return false;
+        }
+
+        const rawVal = field.value;
+        
+        // Scenario A: Specific Values (e.g., "Working, Escalated")
+        if (this.ND_headerLogicValue && this.ND_headerLogicValue.trim().length > 0) {
+            const valStr = String(rawVal);
+            const validValues = this.ND_headerLogicValue.split(',').map(v => v.trim());
+            return validValues.includes(valStr);
+        } 
+        
+        // Scenario B: Truthy Check (Strict Zero Rejection)
+        if (rawVal === 0 || rawVal === '0' || rawVal === false || rawVal === null) {
+            return false;
+        }
+        
+        return true; // It's active (1, 5, "Text", True)
+    }
+
     // --- 4. DATA LOADING ---
     get nd_wireFields() {
         if (!this.objectApiName) return [];
@@ -51,18 +78,11 @@ export default class ND_DynamicSection extends LightningElement {
         }
 
         this.configObject.forEach(item => {
-            if (item.apiName) {
-                fieldsToLoad.add(`${this.objectApiName}.${item.apiName}`);
-            }
-            if (item.showIfField) {
-                fieldsToLoad.add(`${this.objectApiName}.${item.showIfField}`);
-            }
+            if (item.apiName) fieldsToLoad.add(`${this.objectApiName}.${item.apiName}`);
+            if (item.showIfField) fieldsToLoad.add(`${this.objectApiName}.${item.showIfField}`);
             if (item.color) {
-                if (item.colorIfField) {
-                    fieldsToLoad.add(`${this.objectApiName}.${item.colorIfField}`);
-                } else if (item.colorIfValue !== undefined) {
-                    fieldsToLoad.add(`${this.objectApiName}.${item.apiName}`);
-                }
+                if (item.colorIfField) fieldsToLoad.add(`${this.objectApiName}.${item.colorIfField}`);
+                else if (item.colorIfValue !== undefined) fieldsToLoad.add(`${this.objectApiName}.${item.apiName}`);
             }
         });
         return Array.from(fieldsToLoad);
@@ -86,36 +106,21 @@ export default class ND_DynamicSection extends LightningElement {
         });
     }
 
-    // UPDATED: Now supports comma-separated values (e.g. "Working, Escalated")
     get ND_headerStyle() {
         let finalColor = this.ND_headerBackgroundColor; 
-
-        if (this.ND_headerLogicField && this.ND_recordData && this.ND_headerActiveColor) {
-            const field = this.ND_recordData.fields[this.ND_headerLogicField];
-            
-            if (field && field.value !== undefined && field.value !== null) {
-                const val = String(field.value); // Convert to string for safe comparison
-                let isMatch = false;
-
-                if (this.ND_headerLogicValue) {
-                    // Split by comma, trim whitespace, and check if value is in list
-                    const validValues = this.ND_headerLogicValue.split(',').map(v => v.trim());
-                    isMatch = validValues.includes(val);
-                } else {
-                    // If blank, just check if field is truthy (not null)
-                    isMatch = !!val; 
-                }
-
-                if (isMatch) {
-                    finalColor = this.ND_headerActiveColor;
-                }
-            }
+        if (this.isHeaderActive) {
+            finalColor = this.ND_headerActiveColor;
         }
         return `background: linear-gradient(135deg, ${finalColor} 0%, ${finalColor} 80%, #000000 100%);`;
     }
 
     get ND_titleStyle() {
-        return `color: ${this.ND_headerTextColor}; font-weight: 600;`;
+        let finalColor = this.ND_headerTextColor;
+        // Only switch text color if active AND a specific text color was provided
+        if (this.isHeaderActive && this.ND_headerActiveTextColor) {
+            finalColor = this.ND_headerActiveTextColor;
+        }
+        return `color: ${finalColor}; font-weight: 600;`;
     }
     
     get ND_chevronIcon() {

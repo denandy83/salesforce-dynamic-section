@@ -30,6 +30,7 @@ When adding this component to a Lightning Page via the App Builder, the followin
 | **Trigger Field** | String | API Name of the field controlling header color. | `Status` |
 | **Trigger Value** | String | Value(s) to match. Supports comma-separated lists. | `Working, Escalated` |
 | **Active Color** | Hex | Color to apply when trigger condition is met. | `#D8000C` |
+| **Active Text Color** | Hex | Color to apply when trigger condition is met. | `white` |
 
 ---
 
