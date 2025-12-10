@@ -169,8 +169,9 @@ export default class ND_DynamicSection extends LightningElement {
             const customStyle = `
                 border-left: 4px solid ${borderColor}; 
                 background-color: transparent;
-                padding-left: 12px; 
-                margin-bottom: 4px;
+                padding-left: 5px; 
+                padding-right: 5px;
+                margin-bottom: 1px;
                 border-radius: 0; 
             `;
 
