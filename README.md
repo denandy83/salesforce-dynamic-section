@@ -1,160 +1,173 @@
-# ND Dynamic Section (LWC)
+# ND Dynamic Section
 
 **Component Type:** Salesforce Lightning Web Component (LWC)  
 **Scope:** Record Pages (Lightning App Builder)  
-**Version:** 2.0  
+**Latest Feature Set:** Dynamic Header Colors, Smart Titles, Multi-Value Logic, Conditional Formatting, Grid Layouts, Validation Handling.
 
-## Overview
+## 1. App Builder Configuration
+These properties are configured in the right-hand sidebar when editing a Lightning Page.
 
-The **ND Dynamic Section** is a configurable container component for Salesforce Record Pages. It enhances standard page layouts by offering:
+| Property | Description | Example Value |
+| :--- | :--- | :--- |
+| **Title** | The text header. Supports Smart Fields (see Section 4). | `Warnings ({Warning_Count__c})` |
+| **Icon Name** | SLDS Icon to display. | `utility:warning` |
+| **Header Background** | Default hex color for the title bar. | `#005FB2` |
+| **Header Text Color** | Hex color for the title text. | `#FFFFFF` |
+| **Collapse by Default** | If checked, the section loads closed. | `False` |
+| **Layout** | **(New)** Choose the grid layout style. | `2 Columns` or `1 Column` |
+| **Field JSON Config** | The script defining the fields (See Section 2). | `[JSON String]` |
+| **Trigger Field** | API Name of the field that triggers a header color change. | `Status` |
+| **Trigger Value** | Value(s) that trigger the change. Supports lists. | `Working, Escalated` |
+| **Active Color** | The color the header switches to when triggered. | `#D8000C` |
 
-* **Dynamic Header Colors:** Change header background based on field values (e.g., Red for "High Priority").
-* **Smart Titles:** Inject record data directly into the section title (e.g., "Risk Analysis (5 Warnings)").
-* **Conditional Visibility:** Hide/Show specific fields based on logic within the section.
-* **Alert Strips:** Visual color-coded strips on specific fields to highlight critical data.
-* **Multi-Value Logic:** Support for triggering alerts on lists of values (e.g., "Working, Escalated").
-
----
-
-## Configuration (App Builder)
-
-When adding this component to a Lightning Page via the App Builder, the following properties are available in the properties pane:
-
-| Property | Type | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **Title** | String | The header text. Supports `{API_Name}` injection. | `Details ({Warning_Count__c})` |
-| **Icon Name** | String | SLDS Icon name. | `utility:warning` |
-| **Header Background** | Hex | Default background color. | `#005FB2` |
-| **Header Text Color** | Hex | Default text color. | `#FFFFFF` |
-| **Field JSON Config** | String | JSON Array defining the body fields. | *(See JSON Configuration)* |
-| **Trigger Field** | String | API Name of the field controlling header color. | `Status` |
-| **Trigger Value** | String | Value(s) to match. Supports comma-separated lists. | `Working, Escalated` |
-| **Active Color** | Hex | Color to apply when trigger condition is met. | `#D8000C` |
-| **Active Text Color** | Hex | Color to apply when trigger condition is met. | `white` |
-
----
-
-## JSON Configuration Guide
-
-The **Field JSON Configuration** property controls the body content. It expects a **JSON Array of Objects**.
+## 2. JSON Configuration Guide
+The **Field JSON Configuration** property controls the body content. It accepts a JSON Array of Objects.
 
 ### Supported Keys
 
-| Key | Required | Type | Description |
-| :--- | :--- | :--- | :--- |
-| `apiName` | **Yes** | String | The API Name of the field to display. |
-| `label` | No | String | Overrides the default Salesforce label. |
-| `editable` | No | Boolean | Set `true` to enable inline editing. Default: `false`. |
-| `showIfField` | No | String | API Name of the field to check for visibility. |
-| `showIfValue` | No | String | The value `showIfField` must match to show this field. |
-| `color` | No | String | Hex code or name (e.g., `"red"`) for the alert strip. |
-| `colorIfField` | No | String | API Name of field to check before applying color. |
-| `colorIfValue` | No | String | The value `colorIfField` must match to apply color. |
+| Key | Type | Description |
+| :--- | :--- | :--- |
+| `apiName` | String | **Required.** The API Name of the field to display. |
+| `label` | String | Optional. Overrides the standard Salesforce field label. |
+| `editable` | Boolean | `true` allows inline editing. Default is `false` (Read-Only). |
+| `colSpan` | Number | **(New)** Set to `2` to make the field span full width (in 2-col layout). |
+| `showIfField` | String | API Name of the field to check for visibility. |
+| `showIfValue` | String | The value `showIfField` must match to make this visible. |
+| `color` | String | Hex code or name (e.g., "red") for the left-border alert strip. |
+| `colorIfField` | String | API Name of the field to check to trigger the color. |
+| `colorIfValue` | String | The value `colorIfField` must match to apply the color. |
 
 ### Configuration Examples
 
-#### 1. Basic Read-Only Field
-```json
-[
-  { "apiName": "Description" }
-]
-```
+**A. Basic Field (Read-Only)**
 
-#### 2. Editable Field with Custom Label
-```json
-[
-  { 
-    "apiName": "Next_Steps__c", 
-    "label": "Technician Notes", 
-    "editable": true 
-  }
-]
-```
+    [
+      { "apiName": "Description" }
+    ]
 
-#### 3. Conditional Visibility
-*Only show "Loss Reason" if "Status" is "Closed Lost".*
-```json
-[
-  {
-    "apiName": "Loss_Reason__c",
-    "showIfField": "Status",
-    "showIfValue": "Closed Lost"
-  }
-]
-```
+**B. Editable Field with Custom Label**
 
-#### 4. Conditional Alert Strip
-*Show a yellow strip next to the date ONLY if "Priority" is "High".*
-```json
-[
-  {
-    "apiName": "Due_Date__c",
-    "color": "#FFCC00",
-    "colorIfField": "Priority",
-    "colorIfValue": "High"
-  }
-]
-```
+    [
+      { 
+        "apiName": "Next_Steps__c", 
+        "label": "Technician Notes", 
+        "editable": true 
+      }
+    ]
 
-#### 5. Phantom Field (For Title Logic)
-*Use this pattern to load data for the Title (e.g., a count) without displaying the field in the list body.*
-```json
-[
-  {
-    "apiName": "Warning_Count__c",
-    "//": "Load the data but hide the field using an impossible condition",
-    "showIfField": "Warning_Count__c",
-    "showIfValue": "HIDE_ME_PLEASE"
-  }
-]
-```
+**C. Layout Control (Full Width)**
+In a "2 Columns" layout, force the Description to take up the whole row.
 
----
+    [
+      { "apiName": "Subject", "editable": true },
+      { "apiName": "Description", "editable": true, "colSpan": 2 }
+    ]
 
-## Dynamic Header Logic
+**D. Conditional Visibility (Hide/Show)**
+Only show "Reason" if "Status" is "Lost".
 
-The header background can change color based on record data. Configure this in the **App Builder** sidebar.
+    [
+      {
+        "apiName": "Loss_Reason__c",
+        "showIfField": "Status",
+        "showIfValue": "Lost"
+      }
+    ]
 
-### Scenario A: Boolean / Checkbox Logic
-*Turn Red if `Is_Escalated__c` is Checked.*
-* **Trigger Field:** `Is_Escalated__c`
-* **Trigger Value:** *(Leave Empty)*
-* **Active Color:** `#D8000C`
+**E. Conditional Alert Strip**
+Show a yellow strip ONLY if "Priority" is "High".
 
-### Scenario B: Single Value Match
-*Turn Red if `Status` is exactly "Working".*
-* **Trigger Field:** `Status`
-* **Trigger Value:** `Working`
-* **Active Color:** `#D8000C`
+    [
+      {
+        "apiName": "Due_Date__c",
+        "color": "#FFCC00",
+        "colorIfField": "Priority",
+        "colorIfValue": "High"
+      }
+    ]
 
-### Scenario C: Multi-Value Match
-*Turn Red if `Status` is "Working" OR "Escalated" OR "High Priority".*
-* **Trigger Field:** `Status`
-* **Trigger Value:** `Working, Escalated, High Priority`
-* **Active Color:** `#D8000C`
+**F. The "Phantom Field" (For Title Data)**
+Use this to load data for the Title (e.g., a count) without showing the field in the list.
 
----
+    [
+      {
+        "apiName": "Warning_Count__c",
+        "//": "Check the field (to load data) but match a value that never happens (to hide it)",
+        "showIfField": "Warning_Count__c",
+        "showIfValue": "HIDE_ME_PLEASE"
+      }
+    ]
 
-## Smart Title Logic
+**G. Real AvioBook Use Case**
+Use this to load multiple custom warning fields with red alerts.
 
-You can inject field values directly into the Section Title using curly braces `{}`.
+    [
+      {
+        "apiName": "AVB_Warn_First_Response__c",
+        "label": "First Response",
+        "color": "red",
+        "colorIfField": "AVB_Warn_First_Response__c"
+      },
+      {
+        "apiName": "AVB_Warn_Analysis_Timeline__c",
+        "label": "Analysis & Timeline",
+        "color": "red",
+        "colorIfField": "AVB_Warn_Analysis_Timeline__c"
+      },
+      {
+        "apiName": "AVB_Warn_Customer_Escalation__c",
+        "label": "Customer Escalated",
+        "color": "red",
+        "colorIfField": "AVB_Warn_Customer_Escalation__c"
+      },
+      {
+        "apiName": "Warning_Count__c",
+        "label": "warns",
+        "showIfField": "Warning_Count__c",
+        "showIfValue": "HIDE_ME_PLEASE"
+      }
+    ]
 
-**Syntax:** `My Title ({API_Name})`
+## 3. Dynamic Header Logic
+The header background can change color based on record data.
 
-**Requirements:**
-1. The field used in the title **must** be loaded by the component.
-2. It must be included in your JSON configuration (either as a visible field or a "Phantom Field" - see Example 5).
+* **Scenario A: Boolean / Checkbox Logic**
+    * *Turn Red if "Is_Escalated__c" is Checked.*
+    * **Trigger Field:** `Is_Escalated__c`
+    * **Trigger Value:** (Leave Empty)
+    * **Active Color:** `#D8000C`
 
-**Example:**
-* **App Builder Title:** `Risk Analysis ({Warning_Count__c} Warnings)`
-* **JSON:** Must include `{"apiName": "Warning_Count__c" ...}`
-* **Result:** `Risk Analysis (5 Warnings)`
+* **Scenario B: Single Value Match**
+    * *Turn Red if "Status" is exactly "Working".*
+    * **Trigger Field:** `Status`
+    * **Trigger Value:** `Working`
+    * **Active Color:** `#D8000C`
 
----
+* **Scenario C: Multi-Value Match**
+    * *Turn Red if "Status" is "Working" OR "Escalated" OR "High Priority".*
+    * **Trigger Field:** `Status`
+    * **Trigger Value:** `Working, Escalated, High Priority`
+    * **Active Color:** `#D8000C`
 
-## Troubleshooting
+## 4. Smart Title Logic
+You can inject field values directly into the Section Title.
 
-| Issue | Solution |
-| :--- | :--- |
-| **Title shows `()` instead of `(5)`** | Ensure the field in the `{}` is present in your Field JSON. If you don't want it visible in the list, use the "Phantom Field" config. |
-| **Header color won't change** | Check for typos in the **Trigger Field** API Name. Ensure **Trigger Value** does NOT contain curly braces (e.g., use `Working`, not `{Working}`). |
+* **Syntax:** Use curly braces `{API_Name}` inside the Title property.
+* **Requirement:** The field used in the title must be loaded by the component. You must include it in your JSON configuration (either as a visible field or a "Phantom Field" per Example F above).
+* **Example:**
+    * **App Builder Title:** `Risk Analysis ({Warning_Count__c} Warnings)`
+    * **Field JSON:** Includes `{"apiName": "Warning_Count__c" ...}`
+    * **Result on Page:** `Risk Analysis (5 Warnings)`
+
+## 5. Troubleshooting
+
+* **Issue:** Title shows `()` instead of `(5)`.
+    * **Fix:** Ensure `Warning_Count__c` is present in your Field JSON. If you don't want to see it in the list, use the "Phantom Field" configuration (Example F).
+    * **Fix:** Ensure the field API name in the Title `{Curly_Braces}` matches the JSON exactly.
+
+* **Issue:** Header color won't change.
+    * **Fix:** Check for typos in the "Trigger Field" API Name.
+    * **Fix:** Ensure "Trigger Value" does not contain curly braces. It should be raw text (e.g., `Working`).
+
+* **Issue:** Error "Priority cannot be High..." when saving.
+    * **Fix:** Validation Rules appear at the very top of the section in a red box. If you cannot save, scroll up to the top of the card to read the specific error message.

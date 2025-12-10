@@ -114,7 +114,7 @@ export default class ND_DynamicSection extends LightningElement {
         return this.ND_isOpen ? 'utility:chevronup' : 'utility:chevrondown';
     }
 
-    // --- 6. FIELD LIST RENDERING (UPDATED FOR LAYOUT) ---
+    // --- 6. FIELD LIST RENDERING ---
     get ND_finalFieldList() {
         const config = this.configObject;
         return config.map(item => {
@@ -137,33 +137,28 @@ export default class ND_DynamicSection extends LightningElement {
                 const logicField = item.colorIfField || (item.colorIfValue !== undefined ? item.apiName : null);
 
                 if (!logicField) {
-                    // Case 1: No condition set, always apply color
                     applyColor = true;
                 } else if (this.ND_recordData && this.ND_recordData.fields[logicField]) {
                     const val = this.ND_recordData.fields[logicField].value;
                     
                     if (item.colorIfValue !== undefined) {
-                        // NEW: Check for comma-separated values
                         const valStr = String(val);
                         const validValues = String(item.colorIfValue).split(',').map(v => v.trim());
                         applyColor = validValues.includes(valStr);
                     } else {
-                        // Old Logic: Truthy check (if colorIfValue is missing, check if field has data)
                         applyColor = !!val; 
                     }
                 }
                 if (applyColor) borderColor = item.color;
             }
 
-            // C. Layout Logic (NEW)
-            // Default to '1-of-2' (50%), unless layout is '1 Column' OR item requests 'span 2'
+            // C. Layout Logic
             let sizeClass = 'slds-size_1-of-2'; 
             
             if (this.ND_layoutType === '1 Column' || item.colSpan === 2) {
-                sizeClass = 'slds-size_1-of-1'; // 100% width
+                sizeClass = 'slds-size_1-of-1'; 
             }
 
-            // Combine into final CSS class
             const cssClass = `slds-col ${sizeClass} nd-field-row`;
 
             const customStyle = `
@@ -180,7 +175,7 @@ export default class ND_DynamicSection extends LightningElement {
                 customLabel: item.label || null, 
                 isVisible: isVisible,
                 style: customStyle,
-                cssClass: cssClass, // Pass the dynamic class to HTML
+                cssClass: cssClass, 
                 editable: item.editable || false,
                 key: item.apiName
             };
@@ -194,6 +189,33 @@ export default class ND_DynamicSection extends LightningElement {
     ND_handleFieldChange(event) {
         this.isDirty = true;
     }
+
+    // --- SUBMIT HANDLER (For Debugging) ---
+    ND_handleSubmit(event) {
+        console.log('ND_DynamicSection: Form submitting...');
+    }
+
+    // --- ERROR HANDLER (New) ---
+ND_handleError(event) {
+    // 1. Log the ENTIRE error object to the console so we can expand it
+    console.log('FULL ERROR DETAILS:', JSON.parse(JSON.stringify(event.detail)));
+
+    let message = 'Unknown error';
+    if (event.detail && event.detail.message) {
+        message = event.detail.message;
+    } else if (event.detail && event.detail.detail) {
+        message = event.detail.detail;
+    } else if (event.detail && event.detail.output && event.detail.output.errors && event.detail.output.errors.length > 0) {
+        message = event.detail.output.errors[0].message;
+    }
+
+    const evt = new ShowToastEvent({
+        title: 'Error saving record',
+        message: message,
+        variant: 'error',
+    });
+    this.dispatchEvent(evt);
+}
 
     ND_handleSuccess(event) {
         this.isDirty = false;

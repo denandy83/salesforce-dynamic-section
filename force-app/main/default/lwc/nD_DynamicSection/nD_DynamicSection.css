@@ -69,3 +69,18 @@
     background-color: #fafafa;
     border-radius: 0 4px 4px 0;
 }
+/* --- 6. ERROR MESSAGE COMPACT STYLES --- */
+.nd-error-wrapper {
+    /* 1. Let it grow naturally (No Scrollbars) */
+    height: auto;
+    max-height: none;
+    overflow: visible;
+
+    /* 2. Compact the text size */
+    font-size: 0.75rem; 
+    line-height: 1.25;
+
+    /* 3. Pull it tighter to the header and fields to save space */
+    margin-top: -0.25rem;
+    margin-bottom: 0.5rem;
+}

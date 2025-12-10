@@ -8,19 +8,19 @@
     </targets>
     <targetConfigs>
         <targetConfig targets="lightning__RecordPage">
-            <property name="ND_sectionTitle" type="String" label="Title" default="Details"/>
-            <property name="ND_iconName" type="String" label="Icon Name" default="utility:warning"/>
-            <property name="ND_headerBackgroundColor" type="String" label="Header Background Color" default="#005FB2"/>
-            <property name="ND_headerTextColor" type="String" label="Header Text Color" default="#FFFFFF"/>
-            <property name="ND_startCollapsed" type="Boolean" label="Collapse by Default"/>
+            <property name="ND_sectionTitle" type="String" label="Title" default="Details" description="Title for your header"/>
+            <property name="ND_iconName" type="String" label="Icon Name" default="utility:warning" description="Add a default icon like: utility:check, utility:warning, utility:case, standard:case, action:approval,..."/>
+            <property name="ND_headerBackgroundColor" type="String" label="Header Background Color" default="#005FB2" description="Default background color in hex or between quotes"/>
+            <property name="ND_headerTextColor" type="String" label="Header Text Color" default="#FFFFFF" description="Default text color in hex or between quotes"/>
+            <property name="ND_startCollapsed" type="Boolean" label="Collapse by Default" datasource="manual" description="Check this box to always open collapsed"/>
             
-            <property name="ND_jsonConfigString" type="String" label="Field JSON Configuration" />
+            <property name="ND_jsonConfigString" type="String" label="Field JSON Configuration" description="Refer to confluence for an example config file" />
             
-            <property name="ND_headerLogicField" type="String" label="Dynamic Header: Trigger Field"/>
-            <property name="ND_headerLogicValue" type="String" label="Dynamic Header: Trigger Value"/>
-            <property name="ND_headerActiveColor" type="String" label="Dynamic Header: Active BG Color"/>
+            <property name="ND_headerLogicField" type="String" label="Dynamic Header: Trigger Field" description="Which field without quotes or brackets to trigger the alternate color. For example: AVB_Warn_First_response__c"/>
+            <property name="ND_headerLogicValue" type="String" label="Dynamic Header: Trigger Value" description="Comma separated value(s) on which to trigger the alternate color. Leave empty for true"/>
+            <property name="ND_headerActiveColor" type="String" label="Dynamic Header: Active BG Color" description="Alternate background color in hex or between quotes"/>
             <property name="ND_headerActiveTextColor" type="String" label="Dynamic Header: Active Text Color" 
-                      description="Optional. Color of text when trigger is active."/>
+                      description="Alternate text color in hex or between quotes"/>
             <property name="ND_layoutType" type="String" label="Layout" datasource="1 Column,2 Columns" default="2 Columns"
                       description="Choose the grid layout for the fields."/>
         </targetConfig>

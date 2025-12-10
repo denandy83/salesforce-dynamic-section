@@ -17,7 +17,16 @@
             </div>
 
             <div if:true={ND_isOpen} class="nd-body">
-                <lightning-record-edit-form record-id={recordId} object-api-name={objectApiName} onsuccess={ND_handleSuccess}>
+                <lightning-record-edit-form 
+                    record-id={recordId} 
+                    object-api-name={objectApiName} 
+                    onsuccess={ND_handleSuccess}
+                    onerror={ND_handleError}>
+
+                    <div class="nd-error-wrapper">
+                        <lightning-messages></lightning-messages>
+                    </div>
+
                     <div class="slds-grid slds-wrap slds-gutters_small">
                         
                         <template for:each={ND_finalFieldList} for:item="fieldConfig">
