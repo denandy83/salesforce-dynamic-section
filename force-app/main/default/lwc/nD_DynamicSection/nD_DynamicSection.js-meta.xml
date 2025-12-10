@@ -21,6 +21,8 @@
             <property name="ND_headerActiveColor" type="String" label="Dynamic Header: Active BG Color"/>
             <property name="ND_headerActiveTextColor" type="String" label="Dynamic Header: Active Text Color" 
                       description="Optional. Color of text when trigger is active."/>
+            <property name="ND_layoutType" type="String" label="Layout" datasource="1 Column,2 Columns" default="2 Columns"
+                      description="Choose the grid layout for the fields."/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

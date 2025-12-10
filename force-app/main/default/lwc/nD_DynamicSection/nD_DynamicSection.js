@@ -14,11 +14,14 @@ export default class ND_DynamicSection extends LightningElement {
     @api ND_startCollapsed = false;
     @api ND_jsonConfigString = ''; 
 
-    // Dynamic Header Logic Props
+    // Dynamic Header Props
     @api ND_headerLogicField;
     @api ND_headerLogicValue;
     @api ND_headerActiveColor;
-    @api ND_headerActiveTextColor; // NEW
+    @api ND_headerActiveTextColor;
+
+    // NEW: Layout Prop
+    @api ND_layoutType = '2 Columns';
 
     // --- 2. INTERNAL STATE ---
     @track ND_isOpen = true;
@@ -40,32 +43,25 @@ export default class ND_DynamicSection extends LightningElement {
         }
     }
 
-    // Centralized Logic: Returns TRUE if we should switch colors
     get isHeaderActive() {
-        if (!this.ND_headerLogicField || !this.ND_recordData || !this.ND_headerActiveColor) {
-            return false;
-        }
-
+        if (!this.ND_headerLogicField || !this.ND_recordData || !this.ND_headerActiveColor) return false;
+        
         const field = this.ND_recordData.fields[this.ND_headerLogicField];
-        if (!field || field.value === undefined) {
-            return false;
-        }
+        if (!field || field.value === undefined) return false;
 
         const rawVal = field.value;
         
-        // Scenario A: Specific Values (e.g., "Working, Escalated")
+        // Multi-value check
         if (this.ND_headerLogicValue && this.ND_headerLogicValue.trim().length > 0) {
             const valStr = String(rawVal);
             const validValues = this.ND_headerLogicValue.split(',').map(v => v.trim());
             return validValues.includes(valStr);
         } 
         
-        // Scenario B: Truthy Check (Strict Zero Rejection)
-        if (rawVal === 0 || rawVal === '0' || rawVal === false || rawVal === null) {
-            return false;
-        }
+        // Strict Truthy check
+        if (rawVal === 0 || rawVal === '0' || rawVal === false || rawVal === null) return false;
         
-        return true; // It's active (1, 5, "Text", True)
+        return true;
     }
 
     // --- 4. DATA LOADING ---
@@ -73,9 +69,7 @@ export default class ND_DynamicSection extends LightningElement {
         if (!this.objectApiName) return [];
         const fieldsToLoad = new Set();
         
-        if (this.ND_headerLogicField) {
-            fieldsToLoad.add(`${this.objectApiName}.${this.ND_headerLogicField}`);
-        }
+        if (this.ND_headerLogicField) fieldsToLoad.add(`${this.objectApiName}.${this.ND_headerLogicField}`);
 
         this.configObject.forEach(item => {
             if (item.apiName) fieldsToLoad.add(`${this.objectApiName}.${item.apiName}`);
@@ -90,9 +84,7 @@ export default class ND_DynamicSection extends LightningElement {
 
     @wire(getRecord, { recordId: '$recordId', fields: '$nd_wireFields' })
     wiredRecord({ error, data }) {
-        if (data) {
-            this.ND_recordData = data;
-        }
+        if (data) this.ND_recordData = data;
     }
 
     // --- 5. VISUAL LOGIC ---
@@ -108,18 +100,13 @@ export default class ND_DynamicSection extends LightningElement {
 
     get ND_headerStyle() {
         let finalColor = this.ND_headerBackgroundColor; 
-        if (this.isHeaderActive) {
-            finalColor = this.ND_headerActiveColor;
-        }
+        if (this.isHeaderActive) finalColor = this.ND_headerActiveColor;
         return `background: linear-gradient(135deg, ${finalColor} 0%, ${finalColor} 80%, #000000 100%);`;
     }
 
     get ND_titleStyle() {
         let finalColor = this.ND_headerTextColor;
-        // Only switch text color if active AND a specific text color was provided
-        if (this.isHeaderActive && this.ND_headerActiveTextColor) {
-            finalColor = this.ND_headerActiveTextColor;
-        }
+        if (this.isHeaderActive && this.ND_headerActiveTextColor) finalColor = this.ND_headerActiveTextColor;
         return `color: ${finalColor}; font-weight: 600;`;
     }
     
@@ -127,41 +114,57 @@ export default class ND_DynamicSection extends LightningElement {
         return this.ND_isOpen ? 'utility:chevronup' : 'utility:chevrondown';
     }
 
-    // --- 6. FIELD LIST RENDERING ---
+    // --- 6. FIELD LIST RENDERING (UPDATED FOR LAYOUT) ---
     get ND_finalFieldList() {
         const config = this.configObject;
         return config.map(item => {
+            // A. Visibility Logic
             let isVisible = true;
             if (item.showIfField) {
                 if (!this.ND_recordData || !this.ND_recordData.fields[item.showIfField]) {
                     isVisible = false; 
                 } else {
                     const fieldVal = this.ND_recordData.fields[item.showIfField].value;
-                    if (item.showIfValue !== undefined) {
-                        isVisible = (fieldVal === item.showIfValue);
-                    } else {
-                        isVisible = !!fieldVal;
-                    }
+                    if (item.showIfValue !== undefined) isVisible = (fieldVal === item.showIfValue);
+                    else isVisible = !!fieldVal;
                 }
             }
 
+            // B. Color Strip Logic
             let borderColor = 'transparent';
             if (item.color) {
                 let applyColor = false;
                 const logicField = item.colorIfField || (item.colorIfValue !== undefined ? item.apiName : null);
 
                 if (!logicField) {
+                    // Case 1: No condition set, always apply color
                     applyColor = true;
                 } else if (this.ND_recordData && this.ND_recordData.fields[logicField]) {
                     const val = this.ND_recordData.fields[logicField].value;
+                    
                     if (item.colorIfValue !== undefined) {
-                        applyColor = (val === item.colorIfValue);
+                        // NEW: Check for comma-separated values
+                        const valStr = String(val);
+                        const validValues = String(item.colorIfValue).split(',').map(v => v.trim());
+                        applyColor = validValues.includes(valStr);
                     } else {
+                        // Old Logic: Truthy check (if colorIfValue is missing, check if field has data)
                         applyColor = !!val; 
                     }
                 }
                 if (applyColor) borderColor = item.color;
             }
+
+            // C. Layout Logic (NEW)
+            // Default to '1-of-2' (50%), unless layout is '1 Column' OR item requests 'span 2'
+            let sizeClass = 'slds-size_1-of-2'; 
+            
+            if (this.ND_layoutType === '1 Column' || item.colSpan === 2) {
+                sizeClass = 'slds-size_1-of-1'; // 100% width
+            }
+
+            // Combine into final CSS class
+            const cssClass = `slds-col ${sizeClass} nd-field-row`;
 
             const customStyle = `
                 border-left: 4px solid ${borderColor}; 
@@ -176,6 +179,7 @@ export default class ND_DynamicSection extends LightningElement {
                 customLabel: item.label || null, 
                 isVisible: isVisible,
                 style: customStyle,
+                cssClass: cssClass, // Pass the dynamic class to HTML
                 editable: item.editable || false,
                 key: item.apiName
             };

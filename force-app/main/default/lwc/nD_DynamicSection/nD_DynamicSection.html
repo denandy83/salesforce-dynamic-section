@@ -22,7 +22,7 @@
                         
                         <template for:each={ND_finalFieldList} for:item="fieldConfig">
                             <template if:true={fieldConfig.isVisible}>
-                                <div key={fieldConfig.key} class="slds-col slds-size_1-of-2 nd-field-row">
+                                <div key={fieldConfig.key} class={fieldConfig.cssClass}>
                                     <div style={fieldConfig.style}>
                                         
                                         <template if:true={fieldConfig.customLabel}>

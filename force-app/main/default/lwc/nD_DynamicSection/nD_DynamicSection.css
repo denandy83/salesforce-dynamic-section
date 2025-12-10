@@ -1,4 +1,6 @@
-/* CONTAINER */
+/* nD_DynamicSection.css */
+
+/* --- 1. CONTAINER --- */
 .nd-card {
     background-color: white;
     border-radius: 0.5rem;
@@ -8,49 +10,63 @@
     font-family: 'Segoe UI', 'Roboto', sans-serif;
 }
 
-/* 3. THE COMPACT HEADER */
+/* --- 2. HEADER --- */
 .nd-header {
-    padding: 0.35rem 0.75rem; /* Tighter vertical padding */
+    padding: 0.35rem 0.75rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 2rem; /* Ensures it doesn't get too crushed */
+    min-height: 2rem;
 }
 
-/* Adjust the title size to match the smaller bar */
 .nd-header-title {
     color: white;
-    font-size: 0.9rem; /* Slightly smaller font */
+    font-size: 0.9rem;
     font-weight: 600;
     letter-spacing: 0.02em;
     line-height: 1.25;
 }
-/* BODY */
+
+/* --- 3. BODY & FIELD ROWS (Layout/Padding Fix) --- */
 .nd-body {
-    padding: 1rem;
+    padding: 1rem 1rem 0.5rem 1rem;
     background-color: #ffffff;
 }
 
-/* ROWS */
+.slds-gutters_small {
+    margin: 0 -0.4rem;
+}
+
+.slds-col {
+    padding: 0 0.4rem;
+}
+
 .nd-field-row {
     border-bottom: 1px solid #f3f3f3;
     padding: 0.5rem 0;
 }
 
-/* WARNING STRIP */
+/* --- 4. CUSTOM LABELS --- */
+.nd-custom-label {
+    font-size: 0.75rem;
+    color: #444444;       
+    font-weight: 800;     
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+/* --- 5. ALERT STRIP STYLES (Padding Fix Applied) --- */
+/* The div style={fieldConfig.style} is what gets the color bar */
+.nd-field-row > div[style*="border-left"] {
+    /* Apply a small, guaranteed margin to the content wrapper 
+       to ensure it never touches the 4px border-left. */
+    margin-left: 2px; 
+}
+
 .nd-alert-strip {
     border-left: 4px solid;
     padding-left: 12px;
     background-color: #fafafa;
     border-radius: 0 4px 4px 0;
-}
-
-/* --- THE FIX: CUSTOM LABELS --- */
-.nd-custom-label {
-    font-size: 0.75rem;
-    color: #444444;       /* Dark Grey */
-    font-weight: 800;     /* Extra Bold */
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 2px;
 }
