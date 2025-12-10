@@ -3,6 +3,13 @@
 **Component Type:** Salesforce Lightning Web Component (LWC)  
 **Scope:** Record Pages (Lightning App Builder)  
 **Latest Feature Set:** Dynamic Header Colors, Smart Titles, Multi-Value Logic, Conditional Formatting, Grid Layouts, Validation Handling.
+**Screenshots:**
+* Configuration example
+![Configuration Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/ConfigurationExample.png)
+* Main example
+![Main Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/MainExample.png)
+* Sidebar example
+![Sidebar Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/SidebarExample.png)
 
 ## 1. App Builder Configuration
 These properties are configured in the right-hand sidebar when editing a Lightning Page.
@@ -171,7 +178,5 @@ You can inject field values directly into the Section Title.
 
 * **Issue:** Error "Priority cannot be High..." when saving.
     * **Fix:** Validation Rules appear at the very top of the section in a red box. If you cannot save, scroll up to the top of the card to read the specific error message.
-![Configuration Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/ConfigurationExample.png)
-![Main Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/MainExample.png)
-![Sidebar Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/SidebarExample.png)
+
 
