@@ -171,3 +171,7 @@ You can inject field values directly into the Section Title.
 
 * **Issue:** Error "Priority cannot be High..." when saving.
     * **Fix:** Validation Rules appear at the very top of the section in a red box. If you cannot save, scroll up to the top of the card to read the specific error message.
+![Configuration Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/ConfigurationExample.png)
+![Main Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/MainExample.png)
+![Sidebar Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/SidebarExample.png)
+
