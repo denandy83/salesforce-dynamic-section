@@ -3,12 +3,17 @@
 **Component Type:** Salesforce Lightning Web Component (LWC)  
 **Scope:** Record Pages (Lightning App Builder)  
 **Latest Feature Set:** Dynamic Header Colors, Smart Titles, Multi-Value Logic, Conditional Formatting, Grid Layouts, Validation Handling.
+
 **Screenshots:**
+
 * Configuration example
+
 ![Configuration Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/ConfigurationExample.png)
 * Main example
+
 ![Main Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/MainExample.png)
 * Sidebar example
+
 ![Sidebar Example](./force-app/main/default/lwc/nD_DynamicSection/IMG/SidebarExample.png)
 
 ## 1. App Builder Configuration
