@@ -1,6 +1,8 @@
 import { LightningElement, api, wire, track } from 'lwc';
-import { getRecord } from 'lightning/uiRecordApi';
+import { getRecord, updateRecord } from 'lightning/uiRecordApi';
+import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import USER_ID from '@salesforce/user/Id';
 
 export default class ND_DynamicSection extends LightningElement {
     // --- 1. CONFIGURATION PROPERTIES ---
@@ -27,6 +29,22 @@ export default class ND_DynamicSection extends LightningElement {
     @track ND_isOpen = true;
     @track ND_recordData;
     @track isDirty = false;
+    
+    // For Record Type Handling
+    @track _objectInfo;
+    @track selectedRecordTypeId;
+
+    // For Owner Handling (OwnerId is polymorphic — User or Queue — so
+    // lightning-input-field always renders it read-only; we use our own picker)
+    @track selectedOwnerId;
+    @track ownerPickerMode = 'User';
+    @track ownerEditMode = false;
+    ownerDirty = false;
+
+    // Inline notice shown under the owner field (toasts can be missed / hidden in consoles)
+    @track ownerNotice;
+    @track ownerNoticeIsError = false;
+    _ownerNoticeTimer;
 
     connectedCallback() {
         if (this.ND_startCollapsed) {
@@ -82,9 +100,54 @@ export default class ND_DynamicSection extends LightningElement {
         return Array.from(fieldsToLoad);
     }
 
+    @wire(getObjectInfo, { objectApiName: '$objectApiName' })
+    wiredObjectInfo({ error, data }) {
+        if (data) {
+            this._objectInfo = data;
+        } else if (error) {
+            console.error('Error getting object info', error);
+        }
+    }
+
     @wire(getRecord, { recordId: '$recordId', fields: '$nd_wireFields' })
     wiredRecord({ error, data }) {
-        if (data) this.ND_recordData = data;
+        if (data) {
+            this.ND_recordData = data;
+            // Initialize selectedRecordTypeId if not set
+            if (this.ND_recordData.recordTypeId && !this.selectedRecordTypeId) {
+                this.selectedRecordTypeId = this.ND_recordData.recordTypeId;
+            } else if (this.ND_recordData.fields && this.ND_recordData.fields.RecordTypeId && !this.selectedRecordTypeId) {
+                 this.selectedRecordTypeId = this.ND_recordData.fields.RecordTypeId.value;
+            }
+            // Initialize the owner picker with the current owner (00G prefix = Queue)
+            const ownerField = this.ND_recordData.fields ? this.ND_recordData.fields.OwnerId : null;
+            if (ownerField && ownerField.value && !this.selectedOwnerId) {
+                this.selectedOwnerId = ownerField.value;
+                this.ownerPickerMode = String(ownerField.value).startsWith('00G') ? 'Queue' : 'User';
+            }
+        }
+    }
+
+    get recordTypeOptions() {
+        if (!this._objectInfo || !this._objectInfo.recordTypeInfos) return [];
+        return Object.values(this._objectInfo.recordTypeInfos)
+            .filter(rt => rt.available && !rt.master)
+            .map(rt => ({ label: rt.name, value: rt.recordTypeId }));
+    }
+
+    get ownerModeOptions() {
+        return [
+            { label: 'User', value: 'User' },
+            { label: 'Queue', value: 'Queue' }
+        ];
+    }
+
+    get isOwnerModeUser() {
+        return this.ownerPickerMode === 'User';
+    }
+
+    get queueFilter() {
+        return { criteria: [{ fieldPath: 'Type', operator: 'eq', value: 'Queue' }] };
     }
 
     // --- 5. VISUAL LOGIC ---
@@ -161,23 +224,36 @@ export default class ND_DynamicSection extends LightningElement {
 
             const cssClass = `slds-col ${sizeClass} nd-field-row`;
 
+            // D. URL Icon Logic
+            let urlValue = null;
+            if (item.isUrl === true && this.ND_recordData && this.ND_recordData.fields[item.apiName]) {
+                urlValue = this.ND_recordData.fields[item.apiName].value;
+            }
+
             const customStyle = `
-                border-left: 4px solid ${borderColor}; 
+                position: relative;
+                border-left: 4px solid ${borderColor};
                 background-color: transparent;
-                padding-left: 5px; 
-                padding-right: 5px;
+                padding-left: 5px;
+                padding-right: ${urlValue ? '28px' : '5px'};
                 margin-bottom: 1px;
-                border-radius: 0; 
+                border-radius: 0;
             `;
+
+            const isOwner = item.apiName === 'OwnerId';
 
             return {
                 apiName: item.apiName,
-                customLabel: item.label || null, 
+                customLabel: item.label || (isOwner && item.editable ? 'Owner' : null),
                 isVisible: isVisible,
                 style: customStyle,
-                cssClass: cssClass, 
+                cssClass: cssClass,
                 editable: item.editable || false,
-                key: item.apiName
+                key: item.apiName,
+                isRecordType: item.apiName === 'RecordTypeId',
+                isOwner: isOwner,
+                hasUrl: !!urlValue,
+                urlValue: urlValue
             };
         });
     }
@@ -190,9 +266,91 @@ export default class ND_DynamicSection extends LightningElement {
         this.isDirty = true;
     }
 
-    // --- SUBMIT HANDLER (For Debugging) ---
+    ND_handleOpenUrl(event) {
+        event.stopPropagation();
+        let url = event.currentTarget.dataset.url;
+        if (!url) return;
+        if (!/^https?:\/\//i.test(url)) {
+            url = 'https://' + url;
+        }
+        window.open(url, '_blank');
+    }
+
+    ND_handleRecordTypeChange(event) {
+        this.selectedRecordTypeId = event.detail.value;
+        this.isDirty = true;
+    }
+
+    ND_handleOwnerChange(event) {
+        this.selectedOwnerId = event.detail.recordId;
+        if (this.selectedOwnerId) {
+            this.ownerDirty = true;
+            this.isDirty = true;
+            this.ownerEditMode = false;
+        } else {
+            // X-ing out the current owner reveals the User/Queue chooser
+            this.ownerEditMode = true;
+        }
+    }
+
+    ND_handleOwnerModeChange(event) {
+        this.ownerPickerMode = event.detail.value;
+        this.selectedOwnerId = null;
+    }
+
+    get ownerNoticeClass() {
+        return this.ownerNoticeIsError
+            ? 'nd-owner-notice nd-owner-notice_error'
+            : 'nd-owner-notice nd-owner-notice_success';
+    }
+
+    _showOwnerNotice(message, isError) {
+        this.ownerNotice = message;
+        this.ownerNoticeIsError = isError;
+        if (this._ownerNoticeTimer) clearTimeout(this._ownerNoticeTimer);
+        this._ownerNoticeTimer = setTimeout(() => {
+            this.ownerNotice = null;
+        }, isError ? 8000 : 4000);
+    }
+
+    // Saves ownership to the current user immediately, without touching other edits
+    ND_handleTakeOwnership() {
+        updateRecord({ fields: { Id: this.recordId, OwnerId: USER_ID } })
+            .then(() => {
+                this.selectedOwnerId = USER_ID;
+                this.ownerPickerMode = 'User';
+                this.ownerEditMode = false;
+                this.ownerDirty = false;
+                this._showOwnerNotice('✓ You are now the owner', false);
+            })
+            .catch(error => {
+                let message = 'Could not take ownership';
+                if (error.body && error.body.output && error.body.output.errors && error.body.output.errors.length > 0) {
+                    message = error.body.output.errors[0].message;
+                } else if (error.body && error.body.message) {
+                    message = error.body.message;
+                }
+                this._showOwnerNotice(message, true);
+            });
+    }
+
+    // --- SUBMIT HANDLER ---
     ND_handleSubmit(event) {
-        console.log('ND_DynamicSection: Form submitting...');
+        event.preventDefault();       // stop the form from submitting
+        const fields = event.detail.fields;
+        
+        // If we have a selected record type ID, inject it
+        if (this.selectedRecordTypeId) {
+            fields.RecordTypeId = this.selectedRecordTypeId;
+        }
+
+        // Only send OwnerId when the user actually picked a new owner, so saves by
+        // users without transfer permission don't fail on an untouched field
+        if (this.ownerDirty && this.selectedOwnerId) {
+            fields.OwnerId = this.selectedOwnerId;
+        }
+
+        this.template.querySelector('lightning-record-edit-form').submit(fields);
     }
 
     // --- ERROR HANDLER (New) ---
@@ -219,6 +377,8 @@ ND_handleError(event) {
 
     ND_handleSuccess(event) {
         this.isDirty = false;
+        this.ownerDirty = false;
+        this.ownerEditMode = false;
         const evt = new ShowToastEvent({
             title: 'Success',
             message: 'Record updated successfully',

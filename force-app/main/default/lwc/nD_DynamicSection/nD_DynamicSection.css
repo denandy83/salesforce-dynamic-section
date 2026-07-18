@@ -55,6 +55,44 @@
     margin-bottom: 2px;
 }
 
+.nd-take-link {
+    display: block;
+    text-align: right;
+    font-size: 0.7rem;
+    color: #005FB2;
+    cursor: pointer;
+    margin-top: 2px;
+}
+
+.nd-take-link:hover {
+    text-decoration: underline;
+}
+
+.nd-owner-notice {
+    display: block;
+    text-align: right;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.nd-owner-notice_success {
+    color: #2e844a;
+}
+
+.nd-owner-notice_error {
+    color: #ba0517;
+}
+
+.nd-url-icon {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    transform: scale(2);
+    transform-origin: bottom right;
+    --sds-c-icon-color-foreground-default: #005FB2;
+}
+
 /* --- 5. ALERT STRIP STYLES (Padding Fix Applied) --- */
 /* The div style={fieldConfig.style} is what gets the color bar */
 .nd-field-row > div[style*="border-left"] {

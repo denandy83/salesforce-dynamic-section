@@ -21,7 +21,8 @@
                     record-id={recordId} 
                     object-api-name={objectApiName} 
                     onsuccess={ND_handleSuccess}
-                    onerror={ND_handleError}>
+                    onerror={ND_handleError}
+                    onsubmit={ND_handleSubmit}>
 
                     <div class="nd-error-wrapper">
                         <lightning-messages></lightning-messages>
@@ -33,14 +34,83 @@
                             <template if:true={fieldConfig.isVisible}>
                                 <div key={fieldConfig.key} class={fieldConfig.cssClass}>
                                     <div style={fieldConfig.style}>
-                                        
+
+                                        <template if:true={fieldConfig.hasUrl}>
+                                            <lightning-button-icon
+                                                class="nd-url-icon"
+                                                icon-name="utility:new_window"
+                                                variant="bare"
+                                                size="x-small"
+                                                title="Open URL"
+                                                alternative-text="Open URL"
+                                                data-url={fieldConfig.urlValue}
+                                                onclick={ND_handleOpenUrl}>
+                                            </lightning-button-icon>
+                                        </template>
+
                                         <template if:true={fieldConfig.customLabel}>
                                             <div class="nd-custom-label">{fieldConfig.customLabel}</div>
                                             <template if:false={fieldConfig.editable}>
                                                 <lightning-output-field field-name={fieldConfig.apiName} variant="label-hidden"></lightning-output-field>
                                             </template>
                                             <template if:true={fieldConfig.editable}>
-                                                <lightning-input-field field-name={fieldConfig.apiName} variant="label-hidden" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                <template if:true={fieldConfig.isRecordType}>
+                                                    <lightning-combobox
+                                                        name={fieldConfig.apiName}
+                                                        label={fieldConfig.customLabel}
+                                                        value={selectedRecordTypeId}
+                                                        options={recordTypeOptions}
+                                                        onchange={ND_handleRecordTypeChange}
+                                                        variant="label-hidden">
+                                                    </lightning-combobox>
+                                                </template>
+                                                <template if:true={fieldConfig.isOwner}>
+                                                    <div class="slds-grid slds-gutters_xx-small">
+                                                        <template if:true={ownerEditMode}>
+                                                            <div class="slds-col slds-grow-none" style="flex: none; width: 5.2rem;">
+                                                                <lightning-combobox
+                                                                    label="Owner type"
+                                                                    variant="label-hidden"
+                                                                    value={ownerPickerMode}
+                                                                    options={ownerModeOptions}
+                                                                    onchange={ND_handleOwnerModeChange}>
+                                                                </lightning-combobox>
+                                                            </div>
+                                                        </template>
+                                                        <div class="slds-col">
+                                                            <template if:true={isOwnerModeUser}>
+                                                                <lightning-record-picker
+                                                                    label="Owner"
+                                                                    variant="label-hidden"
+                                                                    placeholder="Search Users..."
+                                                                    object-api-name="User"
+                                                                    value={selectedOwnerId}
+                                                                    onchange={ND_handleOwnerChange}>
+                                                                </lightning-record-picker>
+                                                            </template>
+                                                            <template if:false={isOwnerModeUser}>
+                                                                <lightning-record-picker
+                                                                    label="Owner"
+                                                                    variant="label-hidden"
+                                                                    placeholder="Search Queues..."
+                                                                    object-api-name="Group"
+                                                                    filter={queueFilter}
+                                                                    value={selectedOwnerId}
+                                                                    onchange={ND_handleOwnerChange}>
+                                                                </lightning-record-picker>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                    <a class="nd-take-link" onclick={ND_handleTakeOwnership}>take it!</a>
+                                                    <template if:true={ownerNotice}>
+                                                        <div class={ownerNoticeClass}>{ownerNotice}</div>
+                                                    </template>
+                                                </template>
+                                                <template if:false={fieldConfig.isRecordType}>
+                                                    <template if:false={fieldConfig.isOwner}>
+                                                        <lightning-input-field field-name={fieldConfig.apiName} variant="label-hidden" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                    </template>
+                                                </template>
                                             </template>
                                         </template>
 
@@ -49,7 +119,19 @@
                                                 <lightning-output-field field-name={fieldConfig.apiName} variant="label-stacked"></lightning-output-field>
                                             </template>
                                             <template if:true={fieldConfig.editable}>
-                                                <lightning-input-field field-name={fieldConfig.apiName} variant="label-stacked" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                <template if:true={fieldConfig.isRecordType}>
+                                                     <lightning-combobox 
+                                                        name={fieldConfig.apiName}
+                                                        label="Record Type" 
+                                                        value={selectedRecordTypeId}
+                                                        options={recordTypeOptions}
+                                                        onchange={ND_handleRecordTypeChange}
+                                                        variant="label-stacked">
+                                                    </lightning-combobox>
+                                                </template>
+                                                <template if:false={fieldConfig.isRecordType}>
+                                                    <lightning-input-field field-name={fieldConfig.apiName} variant="label-stacked" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                </template>
                                             </template>
                                         </template>
 
