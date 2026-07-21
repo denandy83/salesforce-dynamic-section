@@ -68,6 +68,27 @@
     text-decoration: underline;
 }
 
+.nd-take-link_busy {
+    pointer-events: none;
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* Inline spinner shown next to the Save button while saving */
+.nd-save-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.nd-inline-spinner {
+    position: relative;
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
 .nd-owner-notice {
     display: block;
     text-align: right;
@@ -107,6 +128,214 @@
     background-color: #fafafa;
     border-radius: 0 4px 4px 0;
 }
+/* --- 7. OPEN-PROBLEM MODAL PICKER --- */
+
+/* Trigger that looks like a lookup input */
+.nd-problem-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 2rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #c9c7c5;
+    border-radius: 0.25rem;
+    background: #ffffff;
+    color: #706e6b;
+    font-size: 0.8125rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.nd-problem-trigger:hover {
+    border-color: #005fb2;
+}
+
+.nd-problem-trigger-icon {
+    --sds-c-icon-color-foreground-default: #706e6b;
+}
+
+/* Selected value chip */
+.nd-problem-selected {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.25rem 0.25rem 0.25rem 0.5rem;
+    border: 1px solid #dddbda;
+    border-radius: 0.25rem;
+    background: #f3f2f2;
+    min-height: 2rem;
+}
+
+.nd-problem-selected-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    color: #014486;
+}
+
+.nd-problem-selected-text:hover {
+    text-decoration: underline;
+}
+
+/* isUrl value: clickable link + remove × */
+.nd-url-value {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 2rem;
+}
+
+.nd-url-link {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #0176d3;
+    text-decoration: none;
+    font-size: 0.8125rem;
+}
+
+.nd-url-link:hover {
+    text-decoration: underline;
+}
+
+/* Modal close button — dark icon so it's visible on the white header */
+.nd-modal-close { --sds-c-icon-color-foreground-default: #444444; }
+.nd-modal-close:hover { --sds-c-icon-color-foreground-default: #16161a; }
+
+/* isUrlList: multiple labeled links */
+.nd-links { display: flex; flex-direction: column; gap: 1px; }
+.nd-link-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 2px; border-radius: 5px; min-width: 0;
+}
+.nd-link-row:hover { background: #f3f2f2; }
+.nd-link-ic { flex: none; --sds-c-icon-color-foreground-default: #706e6b; }
+.nd-link-a {
+    flex: 1; min-width: 0; color: #0176d3; text-decoration: none; font-size: .8125rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.nd-link-a:hover { text-decoration: underline; color: #014486; }
+.nd-link-add,
+.nd-link-edit {
+    display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0;
+    padding: 8px; margin-top: 4px; border: 1px solid #dddbda; border-radius: 6px; background: #f7f8fa;
+}
+.nd-link-addinp { width: 100%; }
+.nd-link-add-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.nd-link-addtrigger {
+    display: inline-flex; align-items: center; gap: 5px; margin-top: 4px;
+    background: none; border: 0; color: #0176d3; font-size: .8rem; font-weight: 600;
+    cursor: pointer; padding: 4px 2px; font-family: inherit;
+}
+.nd-link-addtrigger:hover { text-decoration: underline; }
+.nd-link-addtrigger-ic { --sds-c-icon-color-foreground-default: #0176d3; }
+
+/* Filter chips */
+.nd-problem-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.nd-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 1rem;
+    border: 1px solid #c9c7c5;
+    background: #ffffff;
+    color: #706e6b;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+.nd-chip:hover {
+    border-color: #005fb2;
+}
+
+.nd-chip_active {
+    background: #eef4ff;
+    border-color: #005fb2;
+    color: #014486;
+    font-weight: 600;
+}
+
+.nd-chip-icon {
+    --sds-c-icon-color-foreground-default: currentColor;
+}
+
+/* Modal results table */
+.nd-problem-modal-content {
+    min-height: 8rem;
+}
+
+.nd-problem-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.75rem;
+    font-size: 0.8125rem;
+}
+
+.nd-problem-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f3f2f2;
+    color: #444;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-size: 0.6875rem;
+    text-align: left;
+    padding: 0.5rem;
+    border-bottom: 1px solid #dddbda;
+}
+
+.nd-problem-th-num { width: 6rem; }
+.nd-problem-th-status { width: 8rem; }
+
+.nd-problem-trow {
+    cursor: pointer;
+    border-bottom: 1px solid #f3f2f2;
+}
+
+.nd-problem-trow:hover {
+    background: #f3f2f2;
+}
+
+.nd-problem-table td {
+    padding: 0.5rem;
+    vertical-align: top;
+}
+
+.nd-problem-num {
+    font-weight: 600;
+    color: #014486;
+    white-space: nowrap;
+}
+
+.nd-problem-subj-cell {
+    line-height: 1.3;
+}
+
+.nd-problem-status-cell {
+    color: #3e3e3c;
+    white-space: nowrap;
+}
+
+.nd-problem-msg {
+    padding: 0.75rem 0.5rem;
+    color: #706e6b;
+    font-size: 0.8125rem;
+}
+
 /* --- 6. ERROR MESSAGE COMPACT STYLES --- */
 .nd-error-wrapper {
     /* 1. Let it grow naturally (No Scrollbars) */

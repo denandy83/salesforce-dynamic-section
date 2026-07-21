@@ -35,23 +35,67 @@
                                 <div key={fieldConfig.key} class={fieldConfig.cssClass}>
                                     <div style={fieldConfig.style}>
 
-                                        <template if:true={fieldConfig.hasUrl}>
+                                        <template if:true={fieldConfig.hasRecordLink}>
                                             <lightning-button-icon
                                                 class="nd-url-icon"
                                                 icon-name="utility:new_window"
                                                 variant="bare"
                                                 size="x-small"
-                                                title="Open URL"
-                                                alternative-text="Open URL"
-                                                data-url={fieldConfig.urlValue}
-                                                onclick={ND_handleOpenUrl}>
+                                                title="Open record"
+                                                alternative-text="Open record"
+                                                data-id={fieldConfig.recordLinkId}
+                                                onclick={ND_handleOpenRecord}>
                                             </lightning-button-icon>
                                         </template>
 
                                         <template if:true={fieldConfig.customLabel}>
                                             <div class="nd-custom-label">{fieldConfig.customLabel}</div>
+                                            <template if:true={fieldConfig.isUrl}>
+                                                <template if:true={fieldConfig.showUrlLink}>
+                                                    <div class="nd-url-value">
+                                                        <a href={fieldConfig.urlHref} target="_blank" rel="noopener" class="nd-url-link" title={fieldConfig.urlValue}>{fieldConfig.urlValue}</a>
+                                                        <lightning-button-icon icon-name="utility:close" variant="bare" size="x-small"
+                                                            alternative-text="Remove" title="Remove"
+                                                            data-field={fieldConfig.apiName} onclick={ND_handleUrlClear}></lightning-button-icon>
+                                                    </div>
+                                                </template>
+                                                <template if:true={fieldConfig.showUrlInput}>
+                                                    <lightning-input type="url" variant="label-hidden"
+                                                        placeholder={fieldConfig.urlPlaceholder}
+                                                        value={fieldConfig.urlValue}
+                                                        data-field={fieldConfig.apiName}
+                                                        onfocus={ND_handleUrlFocus}
+                                                        onchange={ND_handleUrlInput}></lightning-input>
+                                                </template>
+                                            </template>
+                                            <template if:true={fieldConfig.isUrlList}>
+                                                <div class="nd-links">
+                                                    <template if:true={fieldConfig.urlListHasItems}>
+                                                        <template for:each={fieldConfig.urlListItems} for:item="lnk">
+                                                            <div key={lnk.key} class="nd-link-row">
+                                                                <lightning-icon icon-name="utility:link" size="xx-small" class="nd-link-ic"></lightning-icon>
+                                                                <a class="nd-link-a" href={lnk.href} target="_blank" rel="noopener" title={lnk.url}>{lnk.label}</a>
+                                                                <lightning-button-icon icon-name="utility:edit" variant="bare" size="x-small"
+                                                                    alternative-text="Edit" title="Edit"
+                                                                    data-field={fieldConfig.apiName} data-id={lnk.id} onclick={ND_urlListEditOpen}></lightning-button-icon>
+                                                                <lightning-button-icon icon-name="utility:close" variant="bare" size="x-small"
+                                                                    alternative-text="Remove" title="Remove"
+                                                                    data-field={fieldConfig.apiName} data-id={lnk.id} onclick={ND_urlListRemove}></lightning-button-icon>
+                                                            </div>
+                                                        </template>
+                                                    </template>
+                                                    <button type="button" class="nd-link-addtrigger" data-field={fieldConfig.apiName} onclick={ND_urlListAddOpen}>
+                                                        <lightning-icon icon-name="utility:add" size="xx-small" class="nd-link-addtrigger-ic"></lightning-icon>
+                                                        <span>Add link</span>
+                                                    </button>
+                                                </div>
+                                            </template>
                                             <template if:false={fieldConfig.editable}>
-                                                <lightning-output-field field-name={fieldConfig.apiName} variant="label-hidden"></lightning-output-field>
+                                                <template if:false={fieldConfig.isUrl}>
+                                                    <template if:false={fieldConfig.isUrlList}>
+                                                        <lightning-output-field field-name={fieldConfig.apiName} variant="label-hidden"></lightning-output-field>
+                                                    </template>
+                                                </template>
                                             </template>
                                             <template if:true={fieldConfig.editable}>
                                                 <template if:true={fieldConfig.isRecordType}>
@@ -101,36 +145,126 @@
                                                             </template>
                                                         </div>
                                                     </div>
-                                                    <a class="nd-take-link" onclick={ND_handleTakeOwnership}>take it!</a>
+                                                    <template if:false={isOwnedByCurrentUser}>
+                                                        <a class={takeLinkClass} onclick={ND_handleTakeOwnership}>{takeLinkLabel}</a>
+                                                    </template>
                                                     <template if:true={ownerNotice}>
                                                         <div class={ownerNoticeClass}>{ownerNotice}</div>
                                                     </template>
                                                 </template>
+                                                <template if:true={fieldConfig.isOpenProblem}>
+                                                    <template if:true={fieldConfig.hasSelectedProblem}>
+                                                        <div class="nd-problem-selected">
+                                                            <span class="nd-problem-selected-text" title={fieldConfig.selectedProblemLabel}
+                                                                  data-id={fieldConfig.selectedProblemId} onclick={ND_handleOpenRecord}>{fieldConfig.selectedProblemLabel}</span>
+                                                            <lightning-button-icon icon-name="utility:close" variant="bare" size="x-small"
+                                                                alternative-text="Clear" title="Clear"
+                                                                data-field={fieldConfig.apiName} onclick={ND_handleProblemClear}></lightning-button-icon>
+                                                        </div>
+                                                    </template>
+                                                    <template if:false={fieldConfig.hasSelectedProblem}>
+                                                        <button type="button" class="nd-problem-trigger" data-field={fieldConfig.apiName} onclick={ND_openProblemModal}>
+                                                            <lightning-icon icon-name="utility:search" size="xx-small" class="nd-problem-trigger-icon"></lightning-icon>
+                                                            <span>{fieldConfig.pickerPlaceholder}</span>
+                                                        </button>
+                                                    </template>
+                                                </template>
                                                 <template if:false={fieldConfig.isRecordType}>
                                                     <template if:false={fieldConfig.isOwner}>
-                                                        <lightning-input-field field-name={fieldConfig.apiName} variant="label-hidden" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                        <template if:false={fieldConfig.isOpenProblem}>
+                                                            <template if:false={fieldConfig.isUrl}>
+                                                                <template if:false={fieldConfig.isUrlList}>
+                                                                    <lightning-input-field field-name={fieldConfig.apiName} variant="label-hidden" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                                </template>
+                                                            </template>
+                                                        </template>
                                                     </template>
                                                 </template>
                                             </template>
                                         </template>
 
                                         <template if:false={fieldConfig.customLabel}>
+                                            <template if:true={fieldConfig.isUrl}>
+                                                <template if:true={fieldConfig.showUrlLink}>
+                                                    <div class="nd-url-value">
+                                                        <a href={fieldConfig.urlHref} target="_blank" rel="noopener" class="nd-url-link" title={fieldConfig.urlValue}>{fieldConfig.urlValue}</a>
+                                                        <lightning-button-icon icon-name="utility:close" variant="bare" size="x-small"
+                                                            alternative-text="Remove" title="Remove"
+                                                            data-field={fieldConfig.apiName} onclick={ND_handleUrlClear}></lightning-button-icon>
+                                                    </div>
+                                                </template>
+                                                <template if:true={fieldConfig.showUrlInput}>
+                                                    <lightning-input type="url" variant="label-hidden"
+                                                        placeholder={fieldConfig.urlPlaceholder}
+                                                        value={fieldConfig.urlValue}
+                                                        data-field={fieldConfig.apiName}
+                                                        onfocus={ND_handleUrlFocus}
+                                                        onchange={ND_handleUrlInput}></lightning-input>
+                                                </template>
+                                            </template>
+                                            <template if:true={fieldConfig.isUrlList}>
+                                                <div class="nd-links">
+                                                    <template if:true={fieldConfig.urlListHasItems}>
+                                                        <template for:each={fieldConfig.urlListItems} for:item="lnk">
+                                                            <div key={lnk.key} class="nd-link-row">
+                                                                <lightning-icon icon-name="utility:link" size="xx-small" class="nd-link-ic"></lightning-icon>
+                                                                <a class="nd-link-a" href={lnk.href} target="_blank" rel="noopener" title={lnk.url}>{lnk.label}</a>
+                                                                <lightning-button-icon icon-name="utility:edit" variant="bare" size="x-small"
+                                                                    alternative-text="Edit" title="Edit"
+                                                                    data-field={fieldConfig.apiName} data-id={lnk.id} onclick={ND_urlListEditOpen}></lightning-button-icon>
+                                                                <lightning-button-icon icon-name="utility:close" variant="bare" size="x-small"
+                                                                    alternative-text="Remove" title="Remove"
+                                                                    data-field={fieldConfig.apiName} data-id={lnk.id} onclick={ND_urlListRemove}></lightning-button-icon>
+                                                            </div>
+                                                        </template>
+                                                    </template>
+                                                    <button type="button" class="nd-link-addtrigger" data-field={fieldConfig.apiName} onclick={ND_urlListAddOpen}>
+                                                        <lightning-icon icon-name="utility:add" size="xx-small" class="nd-link-addtrigger-ic"></lightning-icon>
+                                                        <span>Add link</span>
+                                                    </button>
+                                                </div>
+                                            </template>
                                             <template if:false={fieldConfig.editable}>
-                                                <lightning-output-field field-name={fieldConfig.apiName} variant="label-stacked"></lightning-output-field>
+                                                <template if:false={fieldConfig.isUrl}>
+                                                    <template if:false={fieldConfig.isUrlList}>
+                                                        <lightning-output-field field-name={fieldConfig.apiName} variant="label-stacked"></lightning-output-field>
+                                                    </template>
+                                                </template>
                                             </template>
                                             <template if:true={fieldConfig.editable}>
                                                 <template if:true={fieldConfig.isRecordType}>
-                                                     <lightning-combobox 
+                                                     <lightning-combobox
                                                         name={fieldConfig.apiName}
-                                                        label="Record Type" 
+                                                        label="Record Type"
                                                         value={selectedRecordTypeId}
                                                         options={recordTypeOptions}
                                                         onchange={ND_handleRecordTypeChange}
                                                         variant="label-stacked">
                                                     </lightning-combobox>
                                                 </template>
+                                                <template if:true={fieldConfig.isOpenProblem}>
+                                                    <template if:true={fieldConfig.hasSelectedProblem}>
+                                                        <div class="nd-problem-selected">
+                                                            <span class="nd-problem-selected-text" title={fieldConfig.selectedProblemLabel}
+                                                                  data-id={fieldConfig.selectedProblemId} onclick={ND_handleOpenRecord}>{fieldConfig.selectedProblemLabel}</span>
+                                                            <lightning-button-icon icon-name="utility:close" variant="bare" size="x-small"
+                                                                alternative-text="Clear" title="Clear"
+                                                                data-field={fieldConfig.apiName} onclick={ND_handleProblemClear}></lightning-button-icon>
+                                                        </div>
+                                                    </template>
+                                                    <template if:false={fieldConfig.hasSelectedProblem}>
+                                                        <button type="button" class="nd-problem-trigger" data-field={fieldConfig.apiName} onclick={ND_openProblemModal}>
+                                                            <lightning-icon icon-name="utility:search" size="xx-small" class="nd-problem-trigger-icon"></lightning-icon>
+                                                            <span>{fieldConfig.pickerPlaceholder}</span>
+                                                        </button>
+                                                    </template>
+                                                </template>
                                                 <template if:false={fieldConfig.isRecordType}>
-                                                    <lightning-input-field field-name={fieldConfig.apiName} variant="label-stacked" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                    <template if:false={fieldConfig.isOpenProblem}>
+                                                        <template if:false={fieldConfig.isUrl}>
+                                                            <lightning-input-field field-name={fieldConfig.apiName} variant="label-stacked" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                        </template>
+                                                    </template>
                                                 </template>
                                             </template>
                                         </template>
@@ -141,18 +275,121 @@
                         </template>
 
                         <template if:true={isDirty}>
-                            <div class="slds-col slds-size_1-of-1 slds-p-top_medium slds-text-align_right">
-                                <lightning-button 
-                                    variant="brand" 
-                                    type="submit" 
-                                    label="Save" 
-                                    icon-name="utility:save">
+                            <div class="slds-col slds-size_1-of-1 slds-p-top_medium slds-text-align_right nd-save-row">
+                                <template if:true={isSaving}>
+                                    <div class="nd-inline-spinner">
+                                        <lightning-spinner size="x-small" variant="brand" alternative-text="Saving"></lightning-spinner>
+                                    </div>
+                                </template>
+                                <lightning-button
+                                    variant="brand"
+                                    type="submit"
+                                    label={saveButtonLabel}
+                                    icon-name="utility:save"
+                                    disabled={isSaving}>
                                 </lightning-button>
                             </div>
                         </template>
 
                     </div>
                 </lightning-record-edit-form>
+
+                <template if:true={isProblemModalOpen}>
+                    <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="nd-problem-modal-heading"
+                             class="slds-modal slds-fade-in-open">
+                        <div class="slds-modal__container">
+                            <header class="slds-modal__header">
+                                <lightning-button-icon icon-name="utility:close" variant="bare" size="large"
+                                    alternative-text="Close" title="Close"
+                                    class="slds-modal__close nd-modal-close" onclick={ND_closeProblemModal}></lightning-button-icon>
+                                <h2 id="nd-problem-modal-heading" class="slds-modal__title slds-hyphenate">Select an open Problem</h2>
+                            </header>
+                            <div class="slds-modal__content slds-p-around_medium nd-problem-modal-content">
+                                <lightning-input type="search" variant="label-hidden"
+                                    placeholder="Search by case number or subject…"
+                                    value={problemSearchTerm}
+                                    onchange={ND_handleProblemSearch}></lightning-input>
+
+                                <div class="nd-problem-filters">
+                                    <button type="button" class={recordTypeChipClass} onclick={ND_toggleFilterRecordType}>
+                                        <span>Problem Case only</span>
+                                        <lightning-icon icon-name={recordTypeChipIcon} size="xx-small" class="nd-chip-icon"></lightning-icon>
+                                    </button>
+                                    <button type="button" class={openOnlyChipClass} onclick={ND_toggleFilterOpenOnly}>
+                                        <span>Open only</span>
+                                        <lightning-icon icon-name={openOnlyChipIcon} size="xx-small" class="nd-chip-icon"></lightning-icon>
+                                    </button>
+                                </div>
+
+                                <template if:true={problemLoading}>
+                                    <div class="nd-problem-msg">Loading…</div>
+                                </template>
+                                <template if:false={problemLoading}>
+                                    <template if:true={problemHasResults}>
+                                        <table class="nd-problem-table">
+                                            <thead>
+                                                <tr>
+                                                    <th class="nd-problem-th-num">Case #</th>
+                                                    <th>Subject</th>
+                                                    <th class="nd-problem-th-status">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={problemResults} for:item="p">
+                                                    <tr key={p.id} class="nd-problem-trow"
+                                                        data-id={p.id} data-label={p.label}
+                                                        onclick={ND_handleProblemSelect}>
+                                                        <td class="nd-problem-num">{p.caseNumber}</td>
+                                                        <td class="nd-problem-subj-cell">{p.subject}</td>
+                                                        <td class="nd-problem-status-cell">{p.status}</td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </template>
+                                    <template if:false={problemHasResults}>
+                                        <div class="nd-problem-msg">No open problems found</div>
+                                    </template>
+                                </template>
+                            </div>
+                            <footer class="slds-modal__footer">
+                                <lightning-button label="Cancel" onclick={ND_closeProblemModal}></lightning-button>
+                            </footer>
+                        </div>
+                    </section>
+                    <div class="slds-backdrop slds-backdrop_open"></div>
+                </template>
+
+                <template if:true={linkModalOpen}>
+                    <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="nd-link-modal-heading"
+                             class="slds-modal slds-fade-in-open">
+                        <div class="slds-modal__container">
+                            <header class="slds-modal__header">
+                                <lightning-button-icon icon-name="utility:close" variant="bare" size="large"
+                                    alternative-text="Close" title="Close"
+                                    class="slds-modal__close nd-modal-close" onclick={ND_urlListModalCancel}></lightning-button-icon>
+                                <h2 id="nd-link-modal-heading" class="slds-modal__title slds-hyphenate">{linkModalTitle}</h2>
+                            </header>
+                            <div class="slds-modal__content slds-p-around_medium nd-link-modal-content">
+                                <lightning-input type="text" label="Label"
+                                    placeholder="e.g. Main incident thread"
+                                    value={linkModalLabel}
+                                    onchange={ND_linkModalLabelChange}></lightning-input>
+                                <lightning-input type="url" label="URL" required
+                                    class="slds-m-top_small"
+                                    placeholder="https://…"
+                                    data-role="linkmodal-url"
+                                    value={linkModalUrl}
+                                    onchange={ND_linkModalUrlChange}></lightning-input>
+                            </div>
+                            <footer class="slds-modal__footer">
+                                <lightning-button label="Cancel" onclick={ND_urlListModalCancel}></lightning-button>
+                                <lightning-button variant="brand" label="Save" class="slds-m-left_x-small" onclick={ND_urlListModalSave}></lightning-button>
+                            </footer>
+                        </div>
+                    </section>
+                    <div class="slds-backdrop slds-backdrop_open"></div>
+                </template>
             </div>
         </article>
     </div>
