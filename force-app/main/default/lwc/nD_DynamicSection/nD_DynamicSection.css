@@ -114,20 +114,41 @@
     --sds-c-icon-color-foreground-default: #005FB2;
 }
 
-/* --- 5. ALERT STRIP STYLES (Padding Fix Applied) --- */
-/* The div style={fieldConfig.style} is what gets the color bar */
-.nd-field-row > div[style*="border-left"] {
-    /* Apply a small, guaranteed margin to the content wrapper 
-       to ensure it never touches the 4px border-left. */
-    margin-left: 2px; 
+/* --- 5. CONDITIONAL FIELD ALERT --- */
+.nd-field-content {
+    position: relative;
+    min-height: 100%;
+    margin-bottom: 1px;
+    padding: 0 5px;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
 }
 
-.nd-alert-strip {
-    border-left: 4px solid;
-    padding-left: 12px;
-    background-color: #fafafa;
-    border-radius: 0 4px 4px 0;
+.nd-field-content_has-corner-icon {
+    padding-right: 28px;
 }
+
+.nd-field-content_alert {
+    border-color: transparent;
+    background-color: transparent;
+}
+
+.nd-field-content_alert::after {
+    position: absolute;
+    right: 5px;
+    bottom: 0;
+    left: 5px;
+    height: 3px;
+    border-radius: 0 0 0.25rem 0.25rem;
+    background-color: var(--nd-alert-color, #ba0517);
+    content: '';
+    pointer-events: none;
+}
+
+.nd-field-content_alert-readonly::after {
+    bottom: -4px;
+}
+
 /* --- 7. OPEN-PROBLEM MODAL PICKER --- */
 
 /* Trigger that looks like a lookup input */

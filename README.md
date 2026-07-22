@@ -45,7 +45,7 @@ The **Field JSON Configuration** property controls the body content. It accepts 
 | `colSpan` | Number | **(New)** Set to `2` to make the field span full width (in 2-col layout). |
 | `showIfField` | String | API Name of the field to check for visibility. |
 | `showIfValue` | String | The value `showIfField` must match to make this visible. |
-| `color` | String | Hex code or name (e.g., "red") for the left-border alert strip. |
+| `color` | String | Hex code or name (e.g., "red") for the field's bottom alert underline. |
 | `colorIfField` | String | API Name of the field to check to trigger the color. |
 | `colorIfValue` | String | The value `colorIfField` must match to apply the color. |
 
@@ -86,8 +86,8 @@ Only show "Reason" if "Status" is "Lost".
       }
     ]
 
-**E. Conditional Alert Strip**
-Show a yellow strip ONLY if "Priority" is "High".
+**E. Conditional Field Alert**
+Underline the field ONLY if "Priority" is "High".
 
     [
       {
@@ -183,5 +183,3 @@ You can inject field values directly into the Section Title.
 
 * **Issue:** Error "Priority cannot be High..." when saving.
     * **Fix:** Validation Rules appear at the very top of the section in a red box. If you cannot save, scroll up to the top of the card to read the specific error message.
-
-

@@ -1,0 +1,1337 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Dynamic Section Alert Treatments</title>
+        <style>
+            :root {
+                color-scheme: light;
+                --canvas: oklch(0.965 0.007 239);
+                --surface: oklch(0.994 0.003 239);
+                --surface-subtle: oklch(0.98 0.005 239);
+                --ink: oklch(0.24 0.012 247);
+                --muted: oklch(0.51 0.012 247);
+                --faint: oklch(0.67 0.01 247);
+                --line: oklch(0.89 0.008 239);
+                --line-strong: oklch(0.79 0.012 239);
+                --brand: oklch(0.38 0.07 225);
+                --brand-dark: oklch(0.31 0.065 225);
+                --brand-soft: oklch(0.95 0.028 224);
+                --brand-accent: oklch(0.76 0.12 220);
+                --danger: oklch(0.48 0.19 24);
+                --danger-ink: oklch(0.4 0.16 24);
+                --danger-soft: oklch(0.97 0.024 20);
+                --danger-border: oklch(0.82 0.08 20);
+                --focus: oklch(0.57 0.15 240);
+                --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            html {
+                overflow-x: hidden;
+            }
+
+            body {
+                margin: 0;
+                min-width: 320px;
+                min-height: 100dvh;
+                background: var(--canvas);
+                color: var(--ink);
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+                font-size: 15px;
+                line-height: 1.5;
+                -webkit-font-smoothing: antialiased;
+            }
+
+            button {
+                font: inherit;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: color-mix(in oklch, var(--brand) 10%, transparent);
+            }
+
+            .skip-link {
+                position: fixed;
+                z-index: 10;
+                top: 10px;
+                left: 10px;
+                padding: 8px 11px;
+                border: 1px solid var(--brand-dark);
+                border-radius: 5px;
+                background: var(--surface);
+                color: var(--brand-dark);
+                font-size: 0.78rem;
+                font-weight: 700;
+                text-decoration: none;
+                opacity: 0;
+                pointer-events: none;
+                transform: translateY(-8px);
+                transition:
+                    opacity 140ms ease,
+                    transform 160ms var(--ease-out);
+            }
+
+            .skip-link:focus-visible {
+                opacity: 1;
+                pointer-events: auto;
+                transform: translateY(0);
+            }
+
+            button:focus-visible,
+            a:focus-visible {
+                outline: 3px solid color-mix(in oklch, var(--focus) 42%, transparent);
+                outline-offset: 2px;
+            }
+
+            .page-shell {
+                width: min(1440px, calc(100% - 48px));
+                margin: 0 auto;
+                padding: 44px 0 64px;
+            }
+
+            .page-header {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: end;
+                gap: 32px;
+                margin-bottom: 28px;
+            }
+
+            .eyebrow {
+                display: flex;
+                align-items: center;
+                gap: 9px;
+                margin: 0 0 8px;
+                color: var(--brand);
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.11em;
+                text-transform: uppercase;
+            }
+
+            .eyebrow::before {
+                width: 18px;
+                height: 2px;
+                background: var(--brand-accent);
+                content: "";
+            }
+
+            h1 {
+                margin: 0;
+                font-size: clamp(1.85rem, 3vw, 2.7rem);
+                font-weight: 670;
+                letter-spacing: -0.035em;
+                line-height: 1.08;
+                text-wrap: balance;
+            }
+
+            .intro {
+                max-width: 68ch;
+                margin: 12px 0 0;
+                color: var(--muted);
+                font-size: 0.98rem;
+                text-wrap: pretty;
+            }
+
+            .state-control {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 10px 12px 10px 15px;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: var(--surface);
+            }
+
+            .state-copy {
+                min-width: 94px;
+            }
+
+            .state-label {
+                display: block;
+                color: var(--faint);
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+                font-size: 0.65rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                line-height: 1.2;
+                text-transform: uppercase;
+            }
+
+            .state-value {
+                display: block;
+                margin-top: 2px;
+                font-size: 0.82rem;
+                font-weight: 650;
+            }
+
+            .switch {
+                position: relative;
+                width: 42px;
+                height: 24px;
+                flex: 0 0 auto;
+                padding: 0;
+                border: 1px solid color-mix(in oklch, var(--danger) 64%, var(--line));
+                border-radius: 999px;
+                background: var(--danger);
+                cursor: pointer;
+                transition:
+                    background-color 160ms ease,
+                    border-color 160ms ease,
+                    transform 140ms var(--ease-out);
+            }
+
+            .switch::after {
+                position: absolute;
+                top: 3px;
+                left: 21px;
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                background: var(--surface);
+                content: "";
+                transition: transform 180ms var(--ease-out);
+            }
+
+            .switch[aria-checked="false"] {
+                border-color: var(--line-strong);
+                background: var(--line-strong);
+            }
+
+            .switch[aria-checked="false"]::after {
+                transform: translateX(-18px);
+            }
+
+            .workspace {
+                display: grid;
+                grid-template-columns: minmax(230px, 0.68fr) minmax(640px, 2.7fr);
+                overflow: hidden;
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                background: var(--surface);
+                box-shadow: 0 24px 70px rgba(18, 45, 61, 0.07);
+            }
+
+            .option-panel {
+                border-right: 1px solid var(--line);
+                background: var(--surface-subtle);
+            }
+
+            .option-panel-header {
+                padding: 22px 20px 17px;
+                border-bottom: 1px solid var(--line);
+            }
+
+            .option-panel-title {
+                margin: 0;
+                font-size: 0.86rem;
+                font-weight: 700;
+            }
+
+            .option-panel-note {
+                margin: 4px 0 0;
+                color: var(--muted);
+                font-size: 0.76rem;
+            }
+
+            .option-list {
+                display: grid;
+                padding: 6px 0;
+            }
+
+            .option-button {
+                position: relative;
+                display: grid;
+                grid-template-columns: 30px minmax(0, 1fr);
+                gap: 10px;
+                width: 100%;
+                padding: 15px 18px;
+                border: 0;
+                border-bottom: 1px solid var(--line);
+                background: transparent;
+                color: inherit;
+                text-align: left;
+                cursor: pointer;
+                transition:
+                    background-color 160ms ease,
+                    color 160ms ease,
+                    transform 140ms var(--ease-out);
+            }
+
+            .option-button:last-child {
+                border-bottom: 0;
+            }
+
+            .option-button[aria-selected="true"] {
+                background: var(--surface);
+                box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--brand) 36%, transparent);
+            }
+
+            .option-number {
+                display: grid;
+                width: 28px;
+                height: 28px;
+                place-items: center;
+                border: 1px solid var(--line-strong);
+                border-radius: 6px;
+                color: var(--muted);
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+                font-size: 0.72rem;
+                font-weight: 700;
+            }
+
+            .option-button[aria-selected="true"] .option-number {
+                border-color: var(--brand);
+                background: var(--brand);
+                color: var(--surface);
+            }
+
+            .option-title {
+                display: block;
+                margin-top: 1px;
+                font-size: 0.86rem;
+                font-weight: 690;
+                line-height: 1.3;
+            }
+
+            .option-description {
+                display: block;
+                margin-top: 4px;
+                color: var(--muted);
+                font-size: 0.73rem;
+                line-height: 1.38;
+            }
+
+            .option-tag {
+                display: inline-block;
+                margin-top: 7px;
+                padding: 2px 6px;
+                border-radius: 999px;
+                background: var(--brand-soft);
+                color: var(--brand);
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+                font-size: 0.6rem;
+                font-weight: 700;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+            }
+
+            .preview-panel {
+                min-width: 0;
+            }
+
+            .preview-toolbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 20px;
+                min-height: 64px;
+                padding: 12px 22px;
+                border-bottom: 1px solid var(--line);
+            }
+
+            .preview-heading {
+                margin: 0;
+                font-size: 0.91rem;
+                font-weight: 700;
+            }
+
+            .preview-subheading {
+                margin: 2px 0 0;
+                color: var(--muted);
+                font-size: 0.73rem;
+            }
+
+            .effort {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                color: var(--muted);
+                font-size: 0.73rem;
+                white-space: nowrap;
+            }
+
+            .effort-dot {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                background: var(--brand-accent);
+            }
+
+            .stage {
+                padding: 24px;
+                background: var(--canvas);
+            }
+
+            .record-context {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 20px;
+                margin: 0 auto 12px;
+                padding: 14px 16px;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: var(--surface);
+            }
+
+            .record-kicker {
+                display: block;
+                color: var(--muted);
+                font-size: 0.69rem;
+                font-weight: 650;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+            }
+
+            .record-name {
+                display: block;
+                margin-top: 2px;
+                font-size: 0.9rem;
+                font-weight: 650;
+            }
+
+            .record-status {
+                padding: 3px 8px;
+                border: 1px solid var(--line-strong);
+                border-radius: 999px;
+                color: var(--muted);
+                font-size: 0.7rem;
+                font-weight: 650;
+            }
+
+            .dynamic-section {
+                overflow: hidden;
+                border: 1px solid color-mix(in oklch, var(--brand) 18%, var(--line));
+                border-radius: 8px;
+                background: var(--surface);
+                box-shadow: 0 7px 18px rgba(18, 45, 61, 0.065);
+            }
+
+            .section-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                min-height: 37px;
+                padding: 7px 12px;
+                background: var(--brand);
+                color: oklch(0.985 0.005 225);
+            }
+
+            .section-title-wrap {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .section-icon {
+                display: grid;
+                width: 19px;
+                height: 19px;
+                place-items: center;
+                border-radius: 4px;
+                background: color-mix(in oklch, var(--brand-accent) 22%, transparent);
+            }
+
+            .section-icon svg,
+            .chevron svg,
+            .summary-icon svg,
+            .alert-corner svg,
+            .marker svg,
+            .alert-hint svg,
+            .link-icon svg {
+                display: block;
+                width: 14px;
+                height: 14px;
+            }
+
+            .section-title {
+                font-size: 0.83rem;
+                font-weight: 690;
+                letter-spacing: 0.01em;
+            }
+
+            .chevron {
+                color: color-mix(in oklch, oklch(0.985 0.005 225) 86%, transparent);
+            }
+
+            .section-body {
+                padding: 15px 16px 10px;
+            }
+
+            .summary-alert {
+                display: none;
+                grid-template-columns: 28px minmax(0, 1fr);
+                gap: 10px;
+                align-items: start;
+                margin: 0 0 12px;
+                padding: 10px 12px;
+                border: 1px solid var(--danger-border);
+                border-radius: 6px;
+                background: var(--danger-soft);
+                color: var(--danger-ink);
+            }
+
+            .summary-icon {
+                display: grid;
+                width: 26px;
+                height: 26px;
+                place-items: center;
+                border-radius: 5px;
+                background: color-mix(in oklch, var(--danger) 11%, transparent);
+            }
+
+            .summary-title {
+                margin: 0;
+                font-size: 0.78rem;
+                font-weight: 720;
+            }
+
+            .summary-copy {
+                margin: 2px 0 0;
+                color: color-mix(in oklch, var(--danger-ink) 78%, var(--muted));
+                font-size: 0.7rem;
+            }
+
+            .field-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                column-gap: 14px;
+            }
+
+            .field {
+                min-width: 0;
+                padding: 7px 0;
+                border-bottom: 1px solid color-mix(in oklch, var(--line) 72%, transparent);
+            }
+
+            .field.full {
+                grid-column: 1 / -1;
+            }
+
+            .field-inner {
+                position: relative;
+                min-width: 0;
+                padding: 0;
+                border: 1px solid transparent;
+                border-radius: 5px;
+            }
+
+            .field-label-row {
+                display: flex;
+                align-items: center;
+                min-height: 17px;
+                gap: 5px;
+                margin-bottom: 3px;
+            }
+
+            .field-label {
+                overflow: hidden;
+                color: oklch(0.36 0.012 247);
+                font-size: 0.68rem;
+                font-weight: 750;
+                letter-spacing: 0.025em;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .summary-dot {
+                display: none;
+                width: 6px;
+                height: 6px;
+                flex: 0 0 auto;
+                border-radius: 50%;
+                background: var(--danger);
+            }
+
+            .field-control {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                min-height: 28px;
+                width: 100%;
+                padding: 4px 8px;
+                border: 1px solid var(--line-strong);
+                border-radius: 4px;
+                background: oklch(0.997 0.002 239);
+                color: var(--ink);
+                font-size: 0.75rem;
+            }
+
+            .field-value {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .select-chevron {
+                width: 7px;
+                height: 7px;
+                flex: 0 0 auto;
+                border-right: 1px solid var(--muted);
+                border-bottom: 1px solid var(--muted);
+                transform: translateY(-2px) rotate(45deg);
+            }
+
+            .value-badge {
+                display: none;
+                align-items: center;
+                gap: 5px;
+                max-width: 100%;
+                padding: 2px 7px;
+                border-radius: 999px;
+                background: color-mix(in oklch, var(--danger) 11%, var(--surface));
+                color: var(--danger-ink);
+                font-size: 0.68rem;
+                font-weight: 740;
+                line-height: 1.35;
+            }
+
+            .value-badge::before {
+                width: 5px;
+                height: 5px;
+                flex: 0 0 auto;
+                border-radius: 50%;
+                background: var(--danger);
+                content: "";
+            }
+
+            .alert-corner {
+                position: absolute;
+                top: 7px;
+                right: 7px;
+                display: none;
+                color: var(--danger);
+            }
+
+            .alert-hint {
+                display: none;
+                align-items: center;
+                gap: 4px;
+                margin-top: 4px;
+                color: var(--danger-ink);
+                font-size: 0.65rem;
+                font-weight: 620;
+            }
+
+            .alert-hint svg {
+                width: 12px;
+                height: 12px;
+            }
+
+            .marker {
+                position: relative;
+                display: none;
+                flex: 0 0 auto;
+                align-items: center;
+                justify-content: center;
+                width: 16px;
+                height: 16px;
+                padding: 0;
+                border: 0;
+                background: transparent;
+                color: var(--danger);
+                cursor: help;
+            }
+
+            .marker::after {
+                position: absolute;
+                z-index: 2;
+                top: calc(100% + 7px);
+                left: -8px;
+                width: max-content;
+                max-width: 190px;
+                padding: 6px 8px;
+                border: 1px solid oklch(0.3 0.012 247);
+                border-radius: 4px;
+                background: oklch(0.25 0.012 247);
+                color: oklch(0.97 0.004 247);
+                content: attr(data-tooltip);
+                font-size: 0.65rem;
+                font-weight: 560;
+                line-height: 1.35;
+                opacity: 0;
+                pointer-events: none;
+                transform: translateY(-3px);
+                transition:
+                    opacity 140ms ease,
+                    transform 160ms var(--ease-out);
+            }
+
+            .marker:hover::after,
+            .marker:focus-visible::after {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            .link-value {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                color: oklch(0.48 0.14 240);
+                font-weight: 620;
+            }
+
+            .link-icon {
+                color: oklch(0.48 0.14 240);
+            }
+
+            .preview[data-alerts="on"][data-option="badge"] .field[data-alert="true"] .field-value-plain,
+            .preview[data-alerts="on"][data-option="badge"] .field[data-alert="true"] .select-chevron {
+                display: none;
+            }
+
+            .preview[data-alerts="on"][data-option="badge"] .field[data-alert="true"] .value-badge {
+                display: inline-flex;
+            }
+
+            .preview[data-alerts="on"][data-option="tint"] .field[data-alert="true"] .field-inner {
+                padding: 7px;
+                border-color: var(--danger-border);
+                background: var(--danger-soft);
+            }
+
+            .preview[data-alerts="on"][data-option="tint"] .field[data-alert="true"] .field-control {
+                padding-right: 29px;
+                border-color: color-mix(in oklch, var(--danger-border) 68%, var(--line-strong));
+            }
+
+            .preview[data-alerts="on"][data-option="tint"] .field[data-alert="true"] .alert-corner {
+                display: block;
+            }
+
+            .preview[data-alerts="on"][data-option="message"] .field[data-alert="true"] .alert-hint {
+                display: flex;
+            }
+
+            .preview[data-alerts="on"][data-option="summary"] .summary-alert {
+                display: grid;
+            }
+
+            .preview[data-alerts="on"][data-option="summary"] .field[data-alert="true"] .summary-dot {
+                display: block;
+            }
+
+            .preview[data-alerts="on"][data-option="marker"] .field[data-alert="true"] .marker {
+                display: inline-flex;
+            }
+
+            .preview[data-alerts="off"] .alert-only {
+                display: none;
+            }
+
+            .decision-note {
+                display: grid;
+                grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+                gap: 22px;
+                padding: 18px 22px 20px;
+                border-top: 1px solid var(--line);
+                background: var(--surface);
+            }
+
+            .note-label {
+                display: block;
+                margin-bottom: 4px;
+                color: var(--faint);
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+                font-size: 0.63rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+
+            .note-copy {
+                margin: 0;
+                color: var(--muted);
+                font-size: 0.76rem;
+                line-height: 1.5;
+            }
+
+            .note-copy strong {
+                color: var(--ink);
+                font-weight: 680;
+            }
+
+            .keyboard-note {
+                margin: 12px 0 0;
+                color: var(--faint);
+                font-size: 0.68rem;
+            }
+
+            kbd {
+                display: inline-block;
+                min-width: 21px;
+                padding: 1px 5px;
+                border: 1px solid var(--line-strong);
+                border-radius: 4px;
+                background: var(--surface);
+                color: var(--muted);
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+                font-size: 0.62rem;
+                text-align: center;
+            }
+
+            @media (hover: hover) and (pointer: fine) {
+                .option-button:hover {
+                    background: color-mix(in oklch, var(--brand-soft) 44%, transparent);
+                }
+
+                .switch:hover {
+                    border-color: var(--danger-ink);
+                }
+
+                .option-button:active,
+                .switch:active {
+                    transform: scale(0.98);
+                }
+            }
+
+            @media (max-width: 960px) {
+                .page-shell {
+                    width: min(100% - 28px, 820px);
+                    padding-top: 28px;
+                }
+
+                .page-header {
+                    grid-template-columns: 1fr;
+                    gap: 18px;
+                }
+
+                .state-control {
+                    justify-self: start;
+                }
+
+                .workspace {
+                    grid-template-columns: 1fr;
+                }
+
+                .option-panel {
+                    border-right: 0;
+                    border-bottom: 1px solid var(--line);
+                }
+
+                .option-list {
+                    grid-template-columns: repeat(5, minmax(150px, 1fr));
+                    overflow-x: auto;
+                    padding: 0;
+                    scrollbar-width: thin;
+                }
+
+                .option-button {
+                    min-height: 128px;
+                    border-right: 1px solid var(--line);
+                    border-bottom: 0;
+                }
+
+                .keyboard-note {
+                    display: none;
+                }
+            }
+
+            @media (max-width: 650px) {
+                .page-shell {
+                    width: calc(100% - 20px);
+                    padding: 22px 0 36px;
+                }
+
+                h1 {
+                    font-size: 1.85rem;
+                }
+
+                .preview-toolbar,
+                .decision-note {
+                    align-items: start;
+                    grid-template-columns: 1fr;
+                }
+
+                .preview-toolbar {
+                    flex-direction: column;
+                }
+
+                .stage {
+                    padding: 12px;
+                }
+
+                .field-grid {
+                    grid-template-columns: 1fr;
+                }
+
+                .field.full {
+                    grid-column: auto;
+                }
+
+                .record-status {
+                    display: none;
+                }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                *,
+                *::before,
+                *::after {
+                    scroll-behavior: auto !important;
+                    transition-duration: 0.01ms !important;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <a class="skip-link" href="#mainContent">Skip to comparison</a>
+        <main class="page-shell" id="mainContent">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">Dynamic section study</p>
+                    <h1>Five quieter ways to flag risk</h1>
+                    <p class="intro">
+                        Each option replaces the red side strip while keeping the alert attached to
+                        <strong>Priority: High</strong> and <strong>Impact Severity: Significant</strong>.
+                    </p>
+                </div>
+
+                <div class="state-control">
+                    <div class="state-copy" aria-live="polite">
+                        <span class="state-label">Sample values</span>
+                        <span class="state-value" id="stateValue">Alerts active</span>
+                    </div>
+                    <button
+                        class="switch"
+                        id="stateToggle"
+                        type="button"
+                        role="switch"
+                        aria-checked="true"
+                        aria-label="Toggle alert values"
+                    ></button>
+                </div>
+            </header>
+
+            <section class="workspace" aria-label="Alert treatment comparison">
+                <aside class="option-panel">
+                    <div class="option-panel-header">
+                        <h2 class="option-panel-title">Treatments</h2>
+                        <p class="option-panel-note">Select an option to inspect it at full size.</p>
+                    </div>
+
+                    <div class="option-list" role="tablist" aria-label="Alert treatments">
+                        <button
+                            class="option-button"
+                            id="tab-badge"
+                            type="button"
+                            role="tab"
+                            aria-selected="true"
+                            aria-controls="preview"
+                            data-option="badge"
+                        >
+                            <span class="option-number">01</span>
+                            <span>
+                                <span class="option-title">Badge the value</span>
+                                <span class="option-description">Color only the exact value that needs attention.</span>
+                                <span class="option-tag">Recommended</span>
+                            </span>
+                        </button>
+
+                        <button
+                            class="option-button"
+                            id="tab-tint"
+                            type="button"
+                            role="tab"
+                            aria-selected="false"
+                            aria-controls="preview"
+                            data-option="tint"
+                            tabindex="-1"
+                        >
+                            <span class="option-number">02</span>
+                            <span>
+                                <span class="option-title">Tint the field</span>
+                                <span class="option-description">Use a pale surface and a complete 1px outline.</span>
+                            </span>
+                        </button>
+
+                        <button
+                            class="option-button"
+                            id="tab-message"
+                            type="button"
+                            role="tab"
+                            aria-selected="false"
+                            aria-controls="preview"
+                            data-option="message"
+                            tabindex="-1"
+                        >
+                            <span class="option-number">03</span>
+                            <span>
+                                <span class="option-title">Add a helper line</span>
+                                <span class="option-description">Say why the field is flagged underneath it.</span>
+                            </span>
+                        </button>
+
+                        <button
+                            class="option-button"
+                            id="tab-summary"
+                            type="button"
+                            role="tab"
+                            aria-selected="false"
+                            aria-controls="preview"
+                            data-option="summary"
+                            tabindex="-1"
+                        >
+                            <span class="option-number">04</span>
+                            <span>
+                                <span class="option-title">Summarize above</span>
+                                <span class="option-description">Collect all active alerts into one message.</span>
+                            </span>
+                        </button>
+
+                        <button
+                            class="option-button"
+                            id="tab-marker"
+                            type="button"
+                            role="tab"
+                            aria-selected="false"
+                            aria-controls="preview"
+                            data-option="marker"
+                            tabindex="-1"
+                        >
+                            <span class="option-number">05</span>
+                            <span>
+                                <span class="option-title">Mark the label</span>
+                                <span class="option-description">A compact icon reveals detail on hover or focus.</span>
+                            </span>
+                        </button>
+                    </div>
+                </aside>
+
+                <div class="preview-panel">
+                    <div class="preview-toolbar">
+                        <div>
+                            <h2 class="preview-heading" id="previewTitle">Option 1: Badge the value</h2>
+                            <p class="preview-subheading" id="previewSubtitle">Focused, familiar, and easy to scan.</p>
+                        </div>
+                        <span class="effort"><span class="effort-dot"></span><span id="effortValue">Small change</span></span>
+                    </div>
+
+                    <div class="preview" id="preview" role="tabpanel" aria-labelledby="tab-badge" data-option="badge" data-alerts="on" tabindex="0">
+                        <div class="stage">
+                            <div class="record-context">
+                                <div>
+                                    <span class="record-kicker">Case · 00084317</span>
+                                    <span class="record-name">Flight folder sync fails after reassignment</span>
+                                </div>
+                                <span class="record-status">On Hold</span>
+                            </div>
+
+                            <section class="dynamic-section" aria-label="Case details preview">
+                                <header class="section-header">
+                                    <div class="section-title-wrap">
+                                        <span class="section-icon" aria-hidden="true">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M12 3 2.8 20h18.4L12 3Z" />
+                                                <path d="M12 9v5" />
+                                                <circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none" />
+                                            </svg>
+                                        </span>
+                                        <span class="section-title">Case Details</span>
+                                    </div>
+                                    <span class="chevron" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="m6 15 6-6 6 6" />
+                                        </svg>
+                                    </span>
+                                </header>
+
+                                <div class="section-body">
+                                    <div class="summary-alert alert-only" role="status">
+                                        <span class="summary-icon" aria-hidden="true">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M12 3 2.8 20h18.4L12 3Z" />
+                                                <path d="M12 9v5" />
+                                                <circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none" />
+                                            </svg>
+                                        </span>
+                                        <span>
+                                            <p class="summary-title">2 fields need attention</p>
+                                            <p class="summary-copy">Priority is High and Impact Severity is Significant.</p>
+                                        </span>
+                                    </div>
+
+                                    <div class="field-grid">
+                                        <div class="field full">
+                                            <div class="field-inner">
+                                                <div class="field-label-row"><span class="field-label">Collaborators</span></div>
+                                                <div class="field-control"><span class="field-value">Andy Cassiers; Support Operations</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="field">
+                                            <div class="field-inner">
+                                                <div class="field-label-row"><span class="field-label">Status</span></div>
+                                                <div class="field-control"><span class="field-value">On Hold</span><span class="select-chevron" aria-hidden="true"></span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="field">
+                                            <div class="field-inner">
+                                                <div class="field-label-row"><span class="field-label">Case Owner</span></div>
+                                                <div class="field-control"><span class="field-value">Integration Support</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="field" data-alert="true">
+                                            <div class="field-inner">
+                                                <span class="alert-corner alert-only" aria-hidden="true">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M12 3 2.8 20h18.4L12 3Z" />
+                                                        <path d="M12 9v5" />
+                                                        <circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none" />
+                                                    </svg>
+                                                </span>
+                                                <div class="field-label-row">
+                                                    <span class="summary-dot alert-only" aria-hidden="true"></span>
+                                                    <span class="field-label">Priority</span>
+                                                    <button class="marker alert-only" type="button" aria-label="Priority needs attention: High" data-tooltip="Priority needs attention: High">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <circle cx="12" cy="12" r="9" />
+                                                            <path d="M12 7.5v5.5" />
+                                                            <circle cx="12" cy="16.5" r=".8" fill="currentColor" stroke="none" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <div class="field-control">
+                                                    <span class="field-value field-value-plain alert-value">High</span>
+                                                    <span class="value-badge alert-only">High</span>
+                                                    <span class="select-chevron" aria-hidden="true"></span>
+                                                </div>
+                                                <div class="alert-hint alert-only">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                        <circle cx="12" cy="12" r="9" />
+                                                        <path d="M12 7.5v5.5" />
+                                                        <circle cx="12" cy="16.5" r=".8" fill="currentColor" stroke="none" />
+                                                    </svg>
+                                                    High priority needs attention
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="field">
+                                            <div class="field-inner">
+                                                <div class="field-label-row"><span class="field-label">Remind Me</span></div>
+                                                <div class="field-control"><span class="field-value">22 Jul 2026</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="field">
+                                            <div class="field-inner">
+                                                <div class="field-label-row"><span class="field-label">Impact Type</span></div>
+                                                <div class="field-control"><span class="field-value">Flight operations</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="field" data-alert="true">
+                                            <div class="field-inner">
+                                                <span class="alert-corner alert-only" aria-hidden="true">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M12 3 2.8 20h18.4L12 3Z" />
+                                                        <path d="M12 9v5" />
+                                                        <circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none" />
+                                                    </svg>
+                                                </span>
+                                                <div class="field-label-row">
+                                                    <span class="summary-dot alert-only" aria-hidden="true"></span>
+                                                    <span class="field-label">Impact Severity</span>
+                                                    <button class="marker alert-only" type="button" aria-label="Impact Severity needs attention: Significant" data-tooltip="Impact Severity needs attention: Significant">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <circle cx="12" cy="12" r="9" />
+                                                            <path d="M12 7.5v5.5" />
+                                                            <circle cx="12" cy="16.5" r=".8" fill="currentColor" stroke="none" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <div class="field-control">
+                                                    <span class="field-value field-value-plain alert-value">Significant</span>
+                                                    <span class="value-badge alert-only">Significant</span>
+                                                    <span class="select-chevron" aria-hidden="true"></span>
+                                                </div>
+                                                <div class="alert-hint alert-only">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                        <circle cx="12" cy="12" r="9" />
+                                                        <path d="M12 7.5v5.5" />
+                                                        <circle cx="12" cy="16.5" r=".8" fill="currentColor" stroke="none" />
+                                                    </svg>
+                                                    Significant impact needs attention
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="field">
+                                            <div class="field-inner">
+                                                <div class="field-label-row"><span class="field-label">Issue Type</span></div>
+                                                <div class="field-control"><span class="field-value">Incident</span><span class="select-chevron" aria-hidden="true"></span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="field">
+                                            <div class="field-inner">
+                                                <div class="field-label-row"><span class="field-label">Problem Case</span></div>
+                                                <div class="field-control"><span class="field-value">00083902 · Intermittent sync delays</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="field">
+                                            <div class="field-inner">
+                                                <div class="field-label-row"><span class="field-label">Environment</span></div>
+                                                <div class="field-control"><span class="field-value">Production</span><span class="select-chevron" aria-hidden="true"></span></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="field">
+                                            <div class="field-inner">
+                                                <div class="field-label-row"><span class="field-label">Slack Thread</span></div>
+                                                <div class="field-control">
+                                                    <span class="link-value">
+                                                        <span class="link-icon" aria-hidden="true">
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" />
+                                                                <path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1" />
+                                                            </svg>
+                                                        </span>
+                                                        Incident discussion
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <div class="decision-note">
+                            <div>
+                                <span class="note-label">Why it works</span>
+                                <p class="note-copy" id="benefitCopy"><strong>Lowest visual noise.</strong> The signal sits on the value that caused it, so the rest of the field keeps its normal shape.</p>
+                            </div>
+                            <div>
+                                <span class="note-label">Tradeoff</span>
+                                <p class="note-copy" id="tradeoffCopy">Less noticeable during a very fast scan than a full-field treatment.</p>
+                                <p class="keyboard-note">Use <kbd>1</kbd> to <kbd>5</kbd> or arrow keys to compare.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            const treatments = {
+                badge: {
+                    title: "Option 1: Badge the value",
+                    subtitle: "Focused, familiar, and easy to scan.",
+                    effort: "Small change",
+                    benefit: "<strong>Lowest visual noise.</strong> The signal sits on the value that caused it, so the rest of the field keeps its normal shape.",
+                    tradeoff: "Less noticeable during a very fast scan than a full-field treatment."
+                },
+                tint: {
+                    title: "Option 2: Tint the field",
+                    subtitle: "Visible without the harsh vertical edge.",
+                    effort: "Small change",
+                    benefit: "<strong>Strongest field-level signal.</strong> A complete outline feels intentional and the pale tint is calmer than a saturated strip.",
+                    tradeoff: "Two simultaneous alerts add more color to the section than the other field-level options."
+                },
+                message: {
+                    title: "Option 3: Add a helper line",
+                    subtitle: "Clear even when color is not perceived.",
+                    effort: "Medium change",
+                    benefit: "<strong>Most explicit.</strong> The interface says why the value matters, which works well for unfamiliar users and improves color-independent meaning.",
+                    tradeoff: "Adds height and makes the two-column rows less even."
+                },
+                summary: {
+                    title: "Option 4: Summarize above",
+                    subtitle: "One alert surface for every triggered rule.",
+                    effort: "Larger change",
+                    benefit: "<strong>Best when several rules can fire.</strong> Users get one scannable explanation, while the fields themselves remain visually quiet.",
+                    tradeoff: "The message is farther from each input and needs logic to assemble multiple field alerts."
+                },
+                marker: {
+                    title: "Option 5: Mark the label",
+                    subtitle: "The most compact treatment in the set.",
+                    effort: "Medium change",
+                    benefit: "<strong>Preserves the existing layout.</strong> A small status icon adds meaning without recoloring the control or the surrounding row.",
+                    tradeoff: "Too subtle for urgent conditions unless the icon also exposes a clear tooltip or assistive label."
+                }
+            };
+
+            const tabs = Array.from(document.querySelectorAll("[role='tab']"));
+            const preview = document.getElementById("preview");
+            const title = document.getElementById("previewTitle");
+            const subtitle = document.getElementById("previewSubtitle");
+            const effort = document.getElementById("effortValue");
+            const benefit = document.getElementById("benefitCopy");
+            const tradeoff = document.getElementById("tradeoffCopy");
+            const toggle = document.getElementById("stateToggle");
+            const stateValue = document.getElementById("stateValue");
+            const alertValues = Array.from(document.querySelectorAll(".alert-value"));
+
+            function selectTreatment(option, shouldFocus = false) {
+                const activeTab = tabs.find((tab) => tab.dataset.option === option);
+                if (!activeTab || !treatments[option]) return;
+
+                tabs.forEach((tab) => {
+                    const isActive = tab === activeTab;
+                    tab.setAttribute("aria-selected", String(isActive));
+                    tab.tabIndex = isActive ? 0 : -1;
+                });
+
+                preview.dataset.option = option;
+                preview.setAttribute("aria-labelledby", activeTab.id);
+                title.textContent = treatments[option].title;
+                subtitle.textContent = treatments[option].subtitle;
+                effort.textContent = treatments[option].effort;
+                benefit.innerHTML = treatments[option].benefit;
+                tradeoff.textContent = treatments[option].tradeoff;
+
+                if (window.location.hash !== `#${option}`) {
+                    window.history.replaceState(null, "", `#${option}`);
+                }
+
+                if (shouldFocus) activeTab.focus();
+            }
+
+            tabs.forEach((tab, index) => {
+                tab.addEventListener("click", () => selectTreatment(tab.dataset.option));
+                tab.addEventListener("keydown", (event) => {
+                    if (!["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+                    event.preventDefault();
+                    let nextIndex = index;
+                    if (event.key === "ArrowDown" || event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+                    if (event.key === "ArrowUp" || event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+                    if (event.key === "Home") nextIndex = 0;
+                    if (event.key === "End") nextIndex = tabs.length - 1;
+                    selectTreatment(tabs[nextIndex].dataset.option, true);
+                });
+            });
+
+            toggle.addEventListener("click", () => {
+                const alertsAreOn = toggle.getAttribute("aria-checked") === "true";
+                toggle.setAttribute("aria-checked", String(!alertsAreOn));
+                preview.dataset.alerts = alertsAreOn ? "off" : "on";
+                stateValue.textContent = alertsAreOn ? "Normal values" : "Alerts active";
+                alertValues[0].textContent = alertsAreOn ? "Normal" : "High";
+                alertValues[1].textContent = alertsAreOn ? "Normal" : "Significant";
+            });
+
+            document.addEventListener("keydown", (event) => {
+                if (event.target.matches("button, a, input, select, textarea")) return;
+                const numericIndex = Number(event.key) - 1;
+                if (numericIndex >= 0 && numericIndex < tabs.length) {
+                    selectTreatment(tabs[numericIndex].dataset.option, true);
+                }
+            });
+
+            const initialOption = window.location.hash.slice(1);
+            if (treatments[initialOption]) selectTreatment(initialOption);
+        </script>
+    </body>
+</html>

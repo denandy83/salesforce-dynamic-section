@@ -24,7 +24,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     @api ND_headerBackgroundColor = '#005FB2';
     @api ND_headerTextColor = '#FFFFFF';
     @api ND_startCollapsed = false;
-    @api ND_jsonConfigString = ''; 
+    @api ND_jsonConfigString = '';
 
     // Dynamic Header Props
     @api ND_headerLogicField;
@@ -41,7 +41,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     @track isDirty = false;
     @track isSaving = false;            // form save in flight
     @track isTakingOwnership = false;   // "take it!" in flight
-    
+
     // For Record Type Handling
     @track _objectInfo;
     @track selectedRecordTypeId;
@@ -109,22 +109,22 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     get isHeaderActive() {
         if (!this.ND_headerLogicField || !this.ND_recordData || !this.ND_headerActiveColor) return false;
-        
+
         const field = this.ND_recordData.fields[this.ND_headerLogicField];
         if (!field || field.value === undefined) return false;
 
         const rawVal = field.value;
-        
+
         // Multi-value check
         if (this.ND_headerLogicValue && this.ND_headerLogicValue.trim().length > 0) {
             const valStr = String(rawVal);
             const validValues = this.ND_headerLogicValue.split(',').map(v => v.trim());
             return validValues.includes(valStr);
-        } 
-        
+        }
+
         // Strict Truthy check
         if (rawVal === 0 || rawVal === '0' || rawVal === false || rawVal === null) return false;
-        
+
         return true;
     }
 
@@ -132,7 +132,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     get nd_wireFields() {
         if (!this.objectApiName) return [];
         const fieldsToLoad = new Set();
-        
+
         if (this.ND_headerLogicField) fieldsToLoad.add(`${this.objectApiName}.${this.ND_headerLogicField}`);
 
         this.configObject.forEach(item => {
@@ -267,7 +267,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     get ND_headerStyle() {
-        let finalColor = this.ND_headerBackgroundColor; 
+        let finalColor = this.ND_headerBackgroundColor;
         if (this.isHeaderActive) finalColor = this.ND_headerActiveColor;
         return `background: linear-gradient(135deg, ${finalColor} 0%, ${finalColor} 80%, #000000 100%);`;
     }
@@ -277,7 +277,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         if (this.isHeaderActive && this.ND_headerActiveTextColor) finalColor = this.ND_headerActiveTextColor;
         return `color: ${finalColor}; font-weight: 600;`;
     }
-    
+
     get saveButtonLabel() {
         return this.isSaving ? 'Saving…' : 'Save';
     }
@@ -330,7 +330,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             let isVisible = true;
             if (item.showIfField) {
                 if (!this.ND_recordData || !this.ND_recordData.fields[item.showIfField]) {
-                    isVisible = false; 
+                    isVisible = false;
                 } else {
                     const fieldVal = this.ND_recordData.fields[item.showIfField].value;
                     if (item.showIfValue !== undefined) isVisible = (fieldVal === item.showIfValue);
@@ -338,33 +338,31 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 }
             }
 
-            // B. Color Strip Logic
-            let borderColor = 'transparent';
+            // B. Conditional alert logic
+            let isAlertActive = false;
             if (item.color) {
-                let applyColor = false;
                 const logicField = item.colorIfField || (item.colorIfValue !== undefined ? item.apiName : null);
 
                 if (!logicField) {
-                    applyColor = true;
+                    isAlertActive = true;
                 } else if (this.ND_recordData && this.ND_recordData.fields[logicField]) {
                     const val = this.ND_recordData.fields[logicField].value;
-                    
+
                     if (item.colorIfValue !== undefined) {
                         const valStr = String(val);
                         const validValues = String(item.colorIfValue).split(',').map(v => v.trim());
-                        applyColor = validValues.includes(valStr);
+                        isAlertActive = validValues.includes(valStr);
                     } else {
-                        applyColor = !!val; 
+                        isAlertActive = !!val;
                     }
                 }
-                if (applyColor) borderColor = item.color;
             }
 
             // C. Layout Logic
-            let sizeClass = 'slds-size_1-of-2'; 
-            
+            let sizeClass = 'slds-size_1-of-2';
+
             if (this.ND_layoutType === '1 Column' || item.colSpan === 2) {
-                sizeClass = 'slds-size_1-of-1'; 
+                sizeClass = 'slds-size_1-of-1';
             }
 
             const cssClass = `slds-col ${sizeClass} nd-field-row`;
@@ -377,16 +375,13 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             }
 
             const hasIcon = !!recordLinkId;
-
-            const customStyle = `
-                position: relative;
-                border-left: 4px solid ${borderColor};
-                background-color: transparent;
-                padding-left: 5px;
-                padding-right: ${hasIcon ? '28px' : '5px'};
-                margin-bottom: 1px;
-                border-radius: 0;
-            `;
+            const contentCssClass = [
+                'nd-field-content',
+                isAlertActive ? 'nd-field-content_alert' : '',
+                isAlertActive && !item.editable ? 'nd-field-content_alert-readonly' : '',
+                hasIcon ? 'nd-field-content_has-corner-icon' : ''
+            ].filter(Boolean).join(' ');
+            const customStyle = isAlertActive ? `--nd-alert-color: ${item.color};` : '';
 
             const isOwner = item.apiName === 'OwnerId';
             const isOpenProblem = item.isOpenProblem === true;
@@ -413,6 +408,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 isVisible: isVisible,
                 style: customStyle,
                 cssClass: cssClass,
+                contentCssClass: contentCssClass,
                 editable: item.editable || false,
                 key: item.apiName,
                 isRecordType: item.apiName === 'RecordTypeId',
@@ -699,7 +695,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         event.preventDefault();       // stop the form from submitting
         this.isSaving = true;         // show "Saving…" until success/error fires
         const fields = event.detail.fields;
-        
+
         // If we have a selected record type ID, inject it
         if (this.selectedRecordTypeId) {
             fields.RecordTypeId = this.selectedRecordTypeId;

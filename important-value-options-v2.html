@@ -1,0 +1,1070 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Important Value Treatments, Round Two</title>
+        <style>
+            :root {
+                color-scheme: light;
+                --canvas: #f1f4f7;
+                --surface: #fdfefe;
+                --surface-muted: #f7f9fa;
+                --ink: #20252b;
+                --muted: #5f6872;
+                --faint: #8a929a;
+                --line: #d9dfe4;
+                --line-strong: #aab2ba;
+                --blue: #0b5cab;
+                --danger: #a7192c;
+                --danger-dark: #7d1422;
+                --danger-soft: #fbe9ec;
+                --focus: #1b74c7;
+                --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            html {
+                overflow-x: hidden;
+            }
+
+            body {
+                margin: 0;
+                min-width: 320px;
+                min-height: 100dvh;
+                background: var(--canvas);
+                color: var(--ink);
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+                font-size: 15px;
+                line-height: 1.45;
+                -webkit-font-smoothing: antialiased;
+            }
+
+            button {
+                font: inherit;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: rgba(11, 92, 171, 0.12);
+            }
+
+            button:focus-visible,
+            .preview:focus-visible {
+                outline: 3px solid color-mix(in srgb, var(--focus) 32%, transparent);
+                outline-offset: 2px;
+            }
+
+            .skip-link {
+                position: fixed;
+                z-index: 20;
+                top: 10px;
+                left: 10px;
+                padding: 8px 11px;
+                border: 1px solid var(--focus);
+                border-radius: 5px;
+                background: var(--surface);
+                color: var(--blue);
+                font-weight: 700;
+                opacity: 0;
+                pointer-events: none;
+                transform: translateY(-8px);
+                transition:
+                    opacity 140ms ease,
+                    transform 160ms var(--ease-out);
+            }
+
+            .skip-link:focus-visible {
+                opacity: 1;
+                pointer-events: auto;
+                transform: translateY(0);
+            }
+
+            .page {
+                width: min(1420px, calc(100% - 40px));
+                margin: 0 auto;
+                padding: 38px 0 58px;
+            }
+
+            .page-header {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: end;
+                gap: 28px;
+                margin-bottom: 24px;
+            }
+
+            .eyebrow {
+                margin: 0 0 7px;
+                color: var(--blue);
+                font-family: "SFMono-Regular", Consolas, monospace;
+                font-size: 0.7rem;
+                font-weight: 750;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+            }
+
+            h1 {
+                max-width: 18ch;
+                margin: 0;
+                font-size: clamp(1.85rem, 3vw, 2.6rem);
+                font-weight: 720;
+                letter-spacing: -0.035em;
+                line-height: 1.08;
+                text-wrap: balance;
+            }
+
+            .intro {
+                max-width: 68ch;
+                margin: 11px 0 0;
+                color: var(--muted);
+                font-size: 0.96rem;
+                text-wrap: pretty;
+            }
+
+            .state-control {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 10px 12px 10px 14px;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: var(--surface);
+            }
+
+            .state-meta {
+                min-width: 93px;
+            }
+
+            .state-caption {
+                display: block;
+                color: var(--faint);
+                font-family: "SFMono-Regular", Consolas, monospace;
+                font-size: 0.62rem;
+                font-weight: 750;
+                letter-spacing: 0.07em;
+                line-height: 1.2;
+                text-transform: uppercase;
+            }
+
+            .state-value {
+                display: block;
+                margin-top: 3px;
+                font-size: 0.8rem;
+                font-weight: 700;
+            }
+
+            .switch {
+                position: relative;
+                width: 42px;
+                height: 24px;
+                flex: 0 0 auto;
+                padding: 0;
+                border: 1px solid var(--danger);
+                border-radius: 999px;
+                background: var(--danger);
+                cursor: pointer;
+                transition:
+                    background-color 160ms ease,
+                    border-color 160ms ease,
+                    transform 140ms var(--ease-out);
+            }
+
+            .switch::after {
+                position: absolute;
+                top: 3px;
+                left: 21px;
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                background: var(--surface);
+                content: "";
+                transition: transform 180ms var(--ease-out);
+            }
+
+            .switch[aria-checked="false"] {
+                border-color: var(--line-strong);
+                background: var(--line-strong);
+            }
+
+            .switch[aria-checked="false"]::after {
+                transform: translateX(-18px);
+            }
+
+            .study {
+                display: grid;
+                grid-template-columns: 275px minmax(650px, 1fr);
+                overflow: hidden;
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                background: var(--surface);
+                box-shadow: 0 24px 70px rgba(27, 43, 56, 0.07);
+            }
+
+            .treatments {
+                border-right: 1px solid var(--line);
+                background: var(--surface-muted);
+            }
+
+            .treatments-header {
+                padding: 20px 18px 16px;
+                border-bottom: 1px solid var(--line);
+            }
+
+            .treatments-title {
+                margin: 0;
+                font-size: 0.86rem;
+                font-weight: 750;
+            }
+
+            .treatments-note {
+                margin: 4px 0 0;
+                color: var(--muted);
+                font-size: 0.73rem;
+            }
+
+            .option-list {
+                display: grid;
+                padding: 6px 0;
+            }
+
+            .option {
+                display: grid;
+                grid-template-columns: 30px minmax(0, 1fr);
+                gap: 10px;
+                width: 100%;
+                padding: 14px 17px;
+                border: 0;
+                border-bottom: 1px solid var(--line);
+                background: transparent;
+                color: inherit;
+                text-align: left;
+                cursor: pointer;
+                transition:
+                    background-color 150ms ease,
+                    transform 140ms var(--ease-out);
+            }
+
+            .option:last-child {
+                border-bottom: 0;
+            }
+
+            .option[aria-selected="true"] {
+                background: var(--surface);
+                box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blue) 28%, transparent);
+            }
+
+            .option-number {
+                display: grid;
+                width: 28px;
+                height: 28px;
+                place-items: center;
+                border: 1px solid var(--line-strong);
+                border-radius: 6px;
+                color: var(--muted);
+                font-family: "SFMono-Regular", Consolas, monospace;
+                font-size: 0.68rem;
+                font-weight: 750;
+            }
+
+            .option[aria-selected="true"] .option-number {
+                border-color: var(--blue);
+                background: var(--blue);
+                color: var(--surface);
+            }
+
+            .option-title {
+                display: block;
+                margin-top: 1px;
+                font-size: 0.84rem;
+                font-weight: 730;
+                line-height: 1.3;
+            }
+
+            .option-copy {
+                display: block;
+                margin-top: 4px;
+                color: var(--muted);
+                font-size: 0.71rem;
+                line-height: 1.38;
+            }
+
+            .recommended {
+                display: inline-block;
+                margin-top: 7px;
+                padding: 2px 6px;
+                border-radius: 999px;
+                background: #e3f2fc;
+                color: #07578f;
+                font-family: "SFMono-Regular", Consolas, monospace;
+                font-size: 0.57rem;
+                font-weight: 760;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+            }
+
+            .preview-pane {
+                min-width: 0;
+            }
+
+            .preview-toolbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 18px;
+                min-height: 62px;
+                padding: 12px 22px;
+                border-bottom: 1px solid var(--line);
+            }
+
+            .preview-title {
+                margin: 0;
+                font-size: 0.9rem;
+                font-weight: 750;
+            }
+
+            .preview-subtitle {
+                margin: 2px 0 0;
+                color: var(--muted);
+                font-size: 0.72rem;
+            }
+
+            .scope-note {
+                color: var(--muted);
+                font-size: 0.7rem;
+                white-space: nowrap;
+            }
+
+            .scope-note::before {
+                display: inline-block;
+                width: 7px;
+                height: 7px;
+                margin-right: 7px;
+                border-radius: 50%;
+                background: #46b5d5;
+                content: "";
+            }
+
+            .stage {
+                padding: 24px;
+                background: var(--canvas);
+            }
+
+            .component {
+                overflow: hidden;
+                border: 1px solid #cfd5da;
+                border-radius: 8px;
+                background: var(--surface);
+                box-shadow: 0 8px 22px rgba(27, 43, 56, 0.08);
+            }
+
+            .component-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                min-height: 45px;
+                padding: 8px 15px;
+                background: #50555a;
+                color: #f8f9fa;
+            }
+
+            .component-title {
+                font-size: 1rem;
+                font-weight: 760;
+            }
+
+            .chevron {
+                width: 16px;
+                height: 16px;
+                border-top: 3px solid currentColor;
+                border-left: 3px solid currentColor;
+                transform: translateY(4px) rotate(45deg);
+            }
+
+            .component-body {
+                padding: 18px 18px 14px;
+            }
+
+            .field-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                column-gap: 12px;
+            }
+
+            .field {
+                min-width: 0;
+                padding: 8px 6px 10px;
+                border-bottom: 1px solid #e7eaed;
+                order: var(--base-order);
+            }
+
+            .field.full {
+                grid-column: 1 / -1;
+            }
+
+            .label-row {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 8px;
+                min-height: 20px;
+                margin-bottom: 3px;
+            }
+
+            .field-label {
+                min-width: 0;
+                overflow: hidden;
+                color: #44494e;
+                font-size: 0.78rem;
+                font-weight: 760;
+                letter-spacing: 0.01em;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .attention-word {
+                display: none;
+                color: var(--danger);
+                font-family: "SFMono-Regular", Consolas, monospace;
+                font-size: 0.55rem;
+                font-weight: 780;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+
+            .control {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 9px;
+                min-height: 34px;
+                width: 100%;
+                padding: 6px 10px;
+                border: 1px solid #777d82;
+                border-radius: 8px;
+                background: var(--surface);
+                color: #282d32;
+                font-size: 0.82rem;
+                transition:
+                    border-color 150ms ease,
+                    box-shadow 150ms ease;
+            }
+
+            .control.textarea {
+                align-items: flex-start;
+                min-height: 52px;
+                font-weight: 620;
+            }
+
+            .value-text {
+                position: relative;
+                z-index: 0;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .plain-value {
+                min-height: 34px;
+                padding: 5px 0;
+                color: #252a2f;
+                font-size: 0.82rem;
+            }
+
+            .select-mark {
+                width: 0;
+                height: 0;
+                flex: 0 0 auto;
+                border-right: 5px solid transparent;
+                border-left: 5px solid transparent;
+                border-top: 7px solid #5e6468;
+            }
+
+            .owner-control {
+                border-width: 2px;
+                box-shadow: inset 0 0 0 2px #d4d8db;
+            }
+
+            .owner-icon {
+                display: grid;
+                width: 23px;
+                height: 23px;
+                flex: 0 0 auto;
+                place-items: center;
+                border-radius: 50%;
+                background: #2b9ff2;
+                color: #f8fbfd;
+                font-size: 0.66rem;
+                font-weight: 800;
+            }
+
+            .owner-value {
+                display: flex;
+                min-width: 0;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .clear {
+                color: #075dc9;
+                font-size: 1.15rem;
+                line-height: 1;
+            }
+
+            .take-link {
+                display: block;
+                margin-top: 2px;
+                color: #075dc9;
+                font-size: 0.69rem;
+                text-align: right;
+            }
+
+            .record-link {
+                border-color: #d9dde0;
+                background: #f5f5f5;
+                color: #0755a0;
+            }
+
+            .links {
+                display: grid;
+                gap: 3px;
+                padding: 3px 0 0;
+            }
+
+            .link-row {
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                color: #0768c7;
+                font-size: 0.76rem;
+            }
+
+            .chain {
+                color: #636a70;
+                font-size: 0.87rem;
+            }
+
+            .link-actions {
+                margin-left: auto;
+                font-size: 0.68rem;
+                letter-spacing: 0.24em;
+            }
+
+            .add-link {
+                margin-top: 3px;
+                color: #0768c7;
+                font-weight: 720;
+            }
+
+            .signal-dot {
+                display: none;
+                width: 7px;
+                height: 7px;
+                flex: 0 0 auto;
+                border-radius: 50%;
+                background: var(--danger);
+            }
+
+            .visually-hidden {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
+            }
+
+            /* 01: semantic text color and weight */
+            .preview[data-alerts="on"][data-option="text"] .field[data-important="true"] .value-text,
+            .preview[data-alerts="on"][data-option="text"] .field[data-important="true"] .plain-value {
+                color: var(--danger-dark);
+                font-weight: 780;
+            }
+
+            /* 02: horizontal rule attached to the value/control */
+            .preview[data-alerts="on"][data-option="underline"] .field[data-important="true"] .control {
+                box-shadow: inset 0 -3px 0 var(--danger);
+            }
+
+            .preview[data-alerts="on"][data-option="underline"] .field[data-important="true"] .plain-value .value-text {
+                padding-bottom: 2px;
+                border-bottom: 3px solid var(--danger);
+            }
+
+            /* 03: outline only the immediate value control */
+            .preview[data-alerts="on"][data-option="outline"] .field[data-important="true"] .control {
+                border-color: var(--danger);
+                box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 18%, transparent);
+            }
+
+            .preview[data-alerts="on"][data-option="outline"] .field[data-important="true"] .plain-value {
+                padding: 5px 8px;
+                border: 1px solid var(--danger);
+                border-radius: 6px;
+            }
+
+            /* 04: marker wash behind only the important word */
+            .preview[data-alerts="on"][data-option="marker"] .field[data-important="true"] .value-text {
+                box-shadow: inset 0 -0.56em 0 var(--danger-soft);
+                color: var(--danger-dark);
+                font-weight: 760;
+            }
+
+            /* 05: promote important fields to the first row, without alert color */
+            .preview[data-alerts="on"][data-option="order"] .field {
+                order: var(--focus-order);
+            }
+
+            .preview[data-alerts="on"][data-option="order"] .field[data-important="true"] .field-label,
+            .preview[data-alerts="on"][data-option="order"] .field[data-important="true"] .value-text,
+            .preview[data-alerts="on"][data-option="order"] .field[data-important="true"] .plain-value {
+                color: #252a2f;
+                font-weight: 800;
+            }
+
+            .preview[data-alerts="on"][data-option="order"] .field[data-important="true"] .signal-dot {
+                display: inline-block;
+                background: #4b5359;
+            }
+
+            .decision {
+                display: grid;
+                grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+                gap: 24px;
+                padding: 17px 22px 19px;
+                border-top: 1px solid var(--line);
+                background: var(--surface);
+            }
+
+            .decision-label {
+                display: block;
+                margin-bottom: 4px;
+                color: var(--faint);
+                font-family: "SFMono-Regular", Consolas, monospace;
+                font-size: 0.61rem;
+                font-weight: 750;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+
+            .decision-copy {
+                margin: 0;
+                color: var(--muted);
+                font-size: 0.74rem;
+                line-height: 1.5;
+            }
+
+            .decision-copy strong {
+                color: var(--ink);
+            }
+
+            .key-note {
+                margin: 10px 0 0;
+                color: var(--faint);
+                font-size: 0.66rem;
+            }
+
+            kbd {
+                display: inline-block;
+                min-width: 20px;
+                padding: 1px 4px;
+                border: 1px solid var(--line-strong);
+                border-radius: 4px;
+                background: var(--surface-muted);
+                font-family: "SFMono-Regular", Consolas, monospace;
+                font-size: 0.6rem;
+                text-align: center;
+            }
+
+            @media (hover: hover) and (pointer: fine) {
+                .option:hover {
+                    background: #edf4f8;
+                }
+
+                .option:active,
+                .switch:active {
+                    transform: scale(0.98);
+                }
+            }
+
+            @media (max-width: 980px) {
+                .page {
+                    width: min(100% - 24px, 830px);
+                    padding-top: 28px;
+                }
+
+                .page-header {
+                    grid-template-columns: 1fr;
+                    gap: 17px;
+                }
+
+                .state-control {
+                    justify-self: start;
+                }
+
+                .study {
+                    grid-template-columns: 1fr;
+                }
+
+                .treatments {
+                    border-right: 0;
+                    border-bottom: 1px solid var(--line);
+                }
+
+                .option-list {
+                    grid-template-columns: repeat(5, minmax(156px, 1fr));
+                    overflow-x: auto;
+                    padding: 0;
+                }
+
+                .option {
+                    min-height: 124px;
+                    border-right: 1px solid var(--line);
+                    border-bottom: 0;
+                }
+
+                .key-note {
+                    display: none;
+                }
+            }
+
+            @media (max-width: 650px) {
+                .page {
+                    width: calc(100% - 16px);
+                    padding: 20px 0 32px;
+                }
+
+                .stage {
+                    padding: 10px;
+                }
+
+                .preview-toolbar {
+                    align-items: flex-start;
+                    flex-direction: column;
+                }
+
+                .field-grid,
+                .decision {
+                    grid-template-columns: 1fr;
+                }
+
+                .field.full {
+                    grid-column: auto;
+                }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                *,
+                *::before,
+                *::after {
+                    transition-duration: 0.01ms !important;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <a class="skip-link" href="#comparison">Skip to comparison</a>
+        <main class="page" id="comparison">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">Important values, round two</p>
+                    <h1>Five lighter signals, no field tint</h1>
+                    <p class="intro">
+                        These treatments keep the two-column layout aligned and focus attention on
+                        <strong>Priority: High</strong> and <strong>Impact Severity: High</strong> without coloring the full field.
+                    </p>
+                </div>
+
+                <div class="state-control">
+                    <div class="state-meta" aria-live="polite">
+                        <span class="state-caption">Sample state</span>
+                        <span class="state-value" id="stateValue">Important values</span>
+                    </div>
+                    <button
+                        class="switch"
+                        id="stateToggle"
+                        type="button"
+                        role="switch"
+                        aria-checked="true"
+                        aria-label="Toggle important values"
+                    ></button>
+                </div>
+            </header>
+
+            <section class="study" aria-label="Important value treatment comparison">
+                <aside class="treatments">
+                    <div class="treatments-header">
+                        <h2 class="treatments-title">New treatments</h2>
+                        <p class="treatments-note">All five remove the current pink field background.</p>
+                    </div>
+
+                    <div class="option-list" role="tablist" aria-label="Treatment options">
+                        <button class="option" id="tab-text" type="button" role="tab" aria-selected="true" aria-controls="preview" data-option="text">
+                            <span class="option-number">01</span>
+                            <span>
+                                <span class="option-title">Emphasize the value</span>
+                                <span class="option-copy">Use weight and semantic text color only.</span>
+                                <span class="recommended">Recommended</span>
+                            </span>
+                        </button>
+
+                        <button class="option" id="tab-underline" type="button" role="tab" aria-selected="false" aria-controls="preview" data-option="underline" tabindex="-1">
+                            <span class="option-number">02</span>
+                            <span>
+                                <span class="option-title">Underline the control</span>
+                                <span class="option-copy">Add one horizontal accent at the value edge.</span>
+                            </span>
+                        </button>
+
+                        <button class="option" id="tab-outline" type="button" role="tab" aria-selected="false" aria-controls="preview" data-option="outline" tabindex="-1">
+                            <span class="option-number">03</span>
+                            <span>
+                                <span class="option-title">Outline the value</span>
+                                <span class="option-copy">Color only the immediate input or output.</span>
+                            </span>
+                        </button>
+
+                        <button class="option" id="tab-marker" type="button" role="tab" aria-selected="false" aria-controls="preview" data-option="marker" tabindex="-1">
+                            <span class="option-number">04</span>
+                            <span>
+                                <span class="option-title">Highlight the word</span>
+                                <span class="option-copy">Place a soft marker wash behind “High”.</span>
+                            </span>
+                        </button>
+
+                        <button class="option" id="tab-order" type="button" role="tab" aria-selected="false" aria-controls="preview" data-option="order" tabindex="-1">
+                            <span class="option-number">05</span>
+                            <span>
+                                <span class="option-title">Move them first</span>
+                                <span class="option-copy">Use placement and weight instead of alert color.</span>
+                            </span>
+                        </button>
+                    </div>
+                </aside>
+
+                <div class="preview-pane">
+                    <div class="preview-toolbar">
+                        <div>
+                            <h2 class="preview-title" id="previewTitle">Option 1: Emphasize the value</h2>
+                            <p class="preview-subtitle" id="previewSubtitle">The smallest visual change with a clear semantic signal.</p>
+                        </div>
+                        <span class="scope-note" id="scopeNote">CSS-only change</span>
+                    </div>
+
+                    <div class="preview" id="preview" role="tabpanel" aria-labelledby="tab-text" data-option="text" data-alerts="on" tabindex="0">
+                        <div class="stage">
+                            <section class="component" aria-label="Case Details preview">
+                                <header class="component-header">
+                                    <span class="component-title">Case Details</span>
+                                    <span class="chevron" aria-hidden="true"></span>
+                                </header>
+
+                                <div class="component-body">
+                                    <div class="field-grid">
+                                        <div class="field full f-collaborators" style="--base-order: 1; --focus-order: 1">
+                                            <div class="label-row"><span class="field-label">Collaborators</span></div>
+                                            <div class="control textarea"><span class="value-text">x-Tamas.Kiss@wizzair.com, x-Tamas.Kis@wizzair.com</span></div>
+                                        </div>
+
+                                        <div class="field f-status" style="--base-order: 2; --focus-order: 4">
+                                            <div class="label-row"><span class="field-label">Status</span></div>
+                                            <div class="control"><span class="value-text">On Hold</span><span class="select-mark" aria-hidden="true"></span></div>
+                                        </div>
+
+                                        <div class="field f-owner" style="--base-order: 3; --focus-order: 5">
+                                            <div class="label-row"><span class="field-label">Case Owner</span></div>
+                                            <div class="control owner-control">
+                                                <span class="owner-value"><span class="owner-icon">S</span><span class="value-text">Service Queue</span></span>
+                                                <span class="clear" aria-hidden="true">×</span>
+                                            </div>
+                                            <span class="take-link">take it!</span>
+                                        </div>
+
+                                        <div class="field f-priority" data-important="true" style="--base-order: 4; --focus-order: 2">
+                                            <div class="label-row">
+                                                <span class="field-label">Priority</span>
+                                                <span class="attention-word">Important</span>
+                                            </div>
+                                            <div class="control">
+                                                <span class="value-text important-value">High</span>
+                                                <span class="signal-dot" aria-hidden="true"></span>
+                                                <span class="select-mark" aria-hidden="true"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="field f-remind" style="--base-order: 5; --focus-order: 6">
+                                            <div class="label-row"><span class="field-label">Remind Me</span></div>
+                                            <div class="control"><span class="value-text">16 Jun 2026</span><span aria-hidden="true">▣</span></div>
+                                        </div>
+
+                                        <div class="field f-impact-type" style="--base-order: 6; --focus-order: 7">
+                                            <div class="label-row"><span class="field-label">Impact Type</span></div>
+                                            <div class="plain-value"><span class="value-text">Administration Issue</span></div>
+                                        </div>
+
+                                        <div class="field f-severity" data-important="true" style="--base-order: 7; --focus-order: 3">
+                                            <div class="label-row">
+                                                <span class="field-label">Impact Severity</span>
+                                                <span class="attention-word">Important</span>
+                                            </div>
+                                            <div class="plain-value">
+                                                <span class="value-text important-value">High</span>
+                                                <span class="signal-dot" aria-hidden="true"></span>
+                                                <span class="visually-hidden">Important value</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="field f-type" style="--base-order: 8; --focus-order: 8">
+                                            <div class="label-row"><span class="field-label">Issue Type</span></div>
+                                            <div class="control"><span class="value-text">Request for Information</span><span class="select-mark" aria-hidden="true"></span></div>
+                                        </div>
+
+                                        <div class="field f-problem" style="--base-order: 9; --focus-order: 9">
+                                            <div class="label-row"><span class="field-label">Problem Case</span></div>
+                                            <div class="control record-link"><span class="value-text">500TX00000aQIXhYAO</span><span class="clear" aria-hidden="true">×</span></div>
+                                        </div>
+
+                                        <div class="field f-environment" style="--base-order: 10; --focus-order: 10">
+                                            <div class="label-row"><span class="field-label">Environment</span></div>
+                                            <div class="control"><span class="value-text">All</span><span class="select-mark" aria-hidden="true"></span></div>
+                                        </div>
+
+                                        <div class="field f-slack" style="--base-order: 11; --focus-order: 11">
+                                            <div class="label-row"><span class="field-label">Slack Thread</span></div>
+                                            <div class="links">
+                                                <div class="link-row"><span class="chain">↗</span><span>Main thread</span><span class="link-actions">⌕ ×</span></div>
+                                                <div class="link-row"><span class="chain">↗</span><span>another one</span><span class="link-actions">⌕ ×</span></div>
+                                                <div class="link-row add-link"><span class="chain">＋</span><span>Add link</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <div class="decision">
+                            <div>
+                                <span class="decision-label">Why it may fit</span>
+                                <p class="decision-copy" id="benefit"><strong>Minimal disruption.</strong> Users see the important value immediately, while every field keeps its normal size, border, and alignment.</p>
+                            </div>
+                            <div>
+                                <span class="decision-label">Tradeoff</span>
+                                <p class="decision-copy" id="tradeoff">Relies partly on color, so the stronger font weight must carry the signal too.</p>
+                                <p class="key-note">Use <kbd>1</kbd> to <kbd>5</kbd> or arrow keys to compare.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            const treatments = {
+                text: {
+                    title: "Option 1: Emphasize the value",
+                    subtitle: "The smallest visual change with a clear semantic signal.",
+                    scope: "CSS-only change",
+                    benefit: "<strong>Minimal disruption.</strong> Users see the important value immediately, while every field keeps its normal size, border, and alignment.",
+                    tradeoff: "Relies partly on color, so the stronger font weight must carry the signal too."
+                },
+                underline: {
+                    title: "Option 2: Underline the control",
+                    subtitle: "A horizontal accent that does not alter field height.",
+                    scope: "Small CSS change",
+                    benefit: "<strong>Easy to scan across columns.</strong> The accent follows the value baseline and avoids the boxed-alert feeling of the current treatment.",
+                    tradeoff: "Can be confused with focus or validation styling if those states use a similar bottom rule."
+                },
+                outline: {
+                    title: "Option 3: Outline the value",
+                    subtitle: "Keep the signal on the control, not the whole field.",
+                    scope: "Small CSS change",
+                    benefit: "<strong>Strong but contained.</strong> Only the actual input or output changes, so labels and surrounding whitespace stay neutral.",
+                    tradeoff: "A colored outline can resemble an error state unless the chosen color and documentation clearly mean attention."
+                },
+                marker: {
+                    title: "Option 4: Highlight the word",
+                    subtitle: "A soft marker wash sits behind “High” only.",
+                    scope: "Small template change",
+                    benefit: "<strong>Precise and calm.</strong> The visual emphasis covers only the value that triggered the rule, with no extra container or label treatment.",
+                    tradeoff: "The wash must remain subtle enough for legibility and may be less obvious during a very fast scan."
+                },
+                order: {
+                    title: "Option 5: Move them first",
+                    subtitle: "Priority and severity become the first data row.",
+                    scope: "Layout logic change",
+                    benefit: "<strong>Works without alert color.</strong> Placement establishes importance, and the same row makes Priority and Impact Severity easy to compare.",
+                    tradeoff: "Fields move when the alert state changes, which may disrupt users who rely on a fixed field order."
+                }
+            };
+
+            const tabs = Array.from(document.querySelectorAll("[role='tab']"));
+            const preview = document.getElementById("preview");
+            const previewTitle = document.getElementById("previewTitle");
+            const previewSubtitle = document.getElementById("previewSubtitle");
+            const scopeNote = document.getElementById("scopeNote");
+            const benefit = document.getElementById("benefit");
+            const tradeoff = document.getElementById("tradeoff");
+            const toggle = document.getElementById("stateToggle");
+            const stateValue = document.getElementById("stateValue");
+            const importantValues = Array.from(document.querySelectorAll(".important-value"));
+
+            function selectTreatment(option, shouldFocus = false) {
+                const selected = tabs.find((tab) => tab.dataset.option === option);
+                if (!selected || !treatments[option]) return;
+
+                tabs.forEach((tab) => {
+                    const active = tab === selected;
+                    tab.setAttribute("aria-selected", String(active));
+                    tab.tabIndex = active ? 0 : -1;
+                });
+
+                preview.dataset.option = option;
+                preview.setAttribute("aria-labelledby", selected.id);
+                previewTitle.textContent = treatments[option].title;
+                previewSubtitle.textContent = treatments[option].subtitle;
+                scopeNote.textContent = treatments[option].scope;
+                benefit.innerHTML = treatments[option].benefit;
+                tradeoff.textContent = treatments[option].tradeoff;
+                window.history.replaceState(null, "", `#${option}`);
+
+                if (shouldFocus) selected.focus();
+            }
+
+            tabs.forEach((tab, index) => {
+                tab.addEventListener("click", () => selectTreatment(tab.dataset.option));
+                tab.addEventListener("keydown", (event) => {
+                    if (!["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+                    event.preventDefault();
+                    let next = index;
+                    if (event.key === "ArrowDown" || event.key === "ArrowRight") next = (index + 1) % tabs.length;
+                    if (event.key === "ArrowUp" || event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+                    if (event.key === "Home") next = 0;
+                    if (event.key === "End") next = tabs.length - 1;
+                    selectTreatment(tabs[next].dataset.option, true);
+                });
+            });
+
+            toggle.addEventListener("click", () => {
+                const active = toggle.getAttribute("aria-checked") === "true";
+                toggle.setAttribute("aria-checked", String(!active));
+                preview.dataset.alerts = active ? "off" : "on";
+                stateValue.textContent = active ? "Normal values" : "Important values";
+                importantValues.forEach((value) => {
+                    value.textContent = active ? "Normal" : "High";
+                });
+            });
+
+            document.addEventListener("keydown", (event) => {
+                if (event.target.matches("button, a, input, select, textarea")) return;
+                const index = Number(event.key) - 1;
+                if (index >= 0 && index < tabs.length) selectTreatment(tabs[index].dataset.option, true);
+            });
+
+            const initial = window.location.hash.slice(1);
+            if (treatments[initial]) selectTreatment(initial);
+        </script>
+    </body>
+</html>

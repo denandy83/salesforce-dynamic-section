@@ -19,7 +19,7 @@ Reads a JSON array from the `ND_jsonConfigString` App Builder property. Each ent
 Supported per-field keys:
 - `apiName` (required), `label`, `editable`, `colSpan` (2 = full width)
 - **Visibility:** `showIfField` + `showIfValue` (string equality; omit value = truthy check)
-- **Color strip:** `color` + `colorIfField`/`colorIfValue` (comma-separated equality/membership) → red-ish left border on the row
+- **Field alert:** `color` + `colorIfField`/`colorIfValue` (comma-separated equality/membership) → bottom underline on the field value/control
 - `isRecordLink` — value is a record Id; opens via `NavigationMixin` (corner open-window icon)
 - `isUrl` — single link: empty = paste input, saved = clickable link + `×` to clear
 - `isUrlList` — **multiple labeled links** stored as JSON `[{label,url}]` in a Long Text Area; add/edit via a pop-out modal (Label + URL fields), `×` to remove, click label to open. Backward-compatible: a legacy plain-URL value renders as one chip.
