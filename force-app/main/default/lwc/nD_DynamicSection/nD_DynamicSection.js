@@ -1,5 +1,5 @@
 import { LightningElement, api, wire, track } from 'lwc';
-import { getRecord, updateRecord } from 'lightning/uiRecordApi';
+import { getFieldValue, getRecord, updateRecord } from 'lightning/uiRecordApi';
 import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
@@ -137,6 +137,9 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
         this.configObject.forEach(item => {
             if (item.apiName) fieldsToLoad.add(`${this.objectApiName}.${item.apiName}`);
+            if (item.isOpenProblem && item.apiName === 'ParentId' && this.objectApiName === 'Case') {
+                fieldsToLoad.add('Case.Parent.Subject');
+            }
             if (item.showIfField) fieldsToLoad.add(`${this.objectApiName}.${item.showIfField}`);
             if (item.color) {
                 if (item.colorIfField) fieldsToLoad.add(`${this.objectApiName}.${item.colorIfField}`);
@@ -177,13 +180,16 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             this.configObject.forEach(item => {
                 if (item.isOpenProblem && this.openProblemValues[item.apiName] === undefined) {
                     const field = this.ND_recordData.fields[item.apiName];
+                    const problemTitle = item.apiName === 'ParentId' && this.objectApiName === 'Case'
+                        ? getFieldValue(this.ND_recordData, 'Case.Parent.Subject')
+                        : null;
                     this.openProblemValues = {
                         ...this.openProblemValues,
                         [item.apiName]: field ? (field.value || null) : null
                     };
                     this.openProblemLabels = {
                         ...this.openProblemLabels,
-                        [item.apiName]: field ? (field.displayValue || null) : null
+                        [item.apiName]: problemTitle || (field ? (field.displayValue || null) : null)
                     };
                 }
                 // Seed isUrl fields with their saved value (once)
@@ -595,7 +601,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                     caseNumber: r.CaseNumber,
                     subject: r.Subject,
                     status: r.Status,
-                    label: r.CaseNumber + (r.Subject ? ' — ' + r.Subject : '')
+                    label: r.Subject || r.CaseNumber
                 }));
             })
             .catch(() => {
@@ -674,6 +680,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 this.ownerPickerMode = 'User';
                 this.ownerEditMode = false;
                 this.ownerDirty = false;
+                this.isDirty = false;
                 this._showOwnerNotice('✓ You are now the owner', false);
             })
             .catch(error => {
