@@ -24,9 +24,25 @@
                     onerror={ND_handleError}
                     onsubmit={ND_handleSubmit}>
 
-                    <div class="nd-error-wrapper">
-                        <lightning-messages></lightning-messages>
-                    </div>
+                    <template if:true={saveError}>
+                        <div class="nd-error" role="alert">
+                            <lightning-icon class="nd-error-icon" icon-name="utility:error" variant="error" size="x-small"
+                                alternative-text="Error"></lightning-icon>
+                            <div class="nd-error-body">
+                                <p class="nd-error-title">{saveError.title}</p>
+                                <template if:true={saveError.hasItems}>
+                                    <ul class="nd-error-list">
+                                        <template for:each={saveError.items} for:item="item">
+                                            <li key={item.key} class="nd-error-item">{item.text}</li>
+                                        </template>
+                                    </ul>
+                                </template>
+                            </div>
+                            <lightning-button-icon class="nd-error-close" icon-name="utility:close" variant="bare"
+                                size="x-small" alternative-text="Dismiss" title="Dismiss"
+                                onclick={ND_dismissError}></lightning-button-icon>
+                        </div>
+                    </template>
 
                     <div class="slds-grid slds-wrap slds-gutters_small">
 
@@ -281,6 +297,13 @@
                                         <lightning-spinner size="x-small" variant="brand" alternative-text="Saving"></lightning-spinner>
                                     </div>
                                 </template>
+                                <lightning-button
+                                    variant="neutral"
+                                    type="button"
+                                    label="Cancel"
+                                    disabled={isSaving}
+                                    onclick={ND_handleCancel}>
+                                </lightning-button>
                                 <lightning-button
                                     variant="brand"
                                     type="submit"

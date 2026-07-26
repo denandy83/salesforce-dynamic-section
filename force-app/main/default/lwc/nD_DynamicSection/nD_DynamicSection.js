@@ -40,6 +40,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     @track ND_recordData;
     @track isDirty = false;
     @track isSaving = false;            // form save in flight
+    _restoring = false;                 // true while Cancel puts values back (suppresses change handlers)
     @track isTakingOwnership = false;   // "take it!" in flight
 
     // For Record Type Handling
@@ -52,6 +53,11 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     @track ownerPickerMode = 'User';
     @track ownerEditMode = false;
     ownerDirty = false;
+
+    // Inline save-error banner ({title, items:[{key,text}], hasItems}) — rendered by us
+    // instead of <lightning-messages> so the text wraps inside the card instead of
+    // overflowing it (the platform component's markup lives in a shadow root we can't style).
+    @track saveError;
 
     // Inline notice shown under the owner field (toasts can be missed / hidden in consoles)
     @track ownerNotice;
@@ -162,54 +168,67 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     wiredRecord({ error, data }) {
         if (data) {
             this.ND_recordData = data;
-            // Initialize selectedRecordTypeId if not set
-            if (this.ND_recordData.recordTypeId && !this.selectedRecordTypeId) {
-                this.selectedRecordTypeId = this.ND_recordData.recordTypeId;
-            } else if (this.ND_recordData.fields && this.ND_recordData.fields.RecordTypeId && !this.selectedRecordTypeId) {
-                 this.selectedRecordTypeId = this.ND_recordData.fields.RecordTypeId.value;
-            }
-            // Initialize the owner picker with the current owner (00G prefix = Queue)
-            const ownerField = this.ND_recordData.fields ? this.ND_recordData.fields.OwnerId : null;
-            if (ownerField && ownerField.value && !this.selectedOwnerId) {
-                this.selectedOwnerId = ownerField.value;
-                this.ownerPickerMode = String(ownerField.value).startsWith('00G') ? 'Queue' : 'User';
-            }
-            // Seed each isOpenProblem picker with its current value + display label
-            // (only once, so an in-flight user selection is never clobbered by a
-            // wire refresh). displayValue on a lookup is the related record's name.
-            this.configObject.forEach(item => {
-                if (item.isOpenProblem && this.openProblemValues[item.apiName] === undefined) {
-                    const field = this.ND_recordData.fields[item.apiName];
-                    const problemTitle = item.apiName === 'ParentId' && this.objectApiName === 'Case'
-                        ? getFieldValue(this.ND_recordData, 'Case.Parent.Subject')
-                        : null;
-                    this.openProblemValues = {
-                        ...this.openProblemValues,
-                        [item.apiName]: field ? (field.value || null) : null
-                    };
-                    this.openProblemLabels = {
-                        ...this.openProblemLabels,
-                        [item.apiName]: problemTitle || (field ? (field.displayValue || null) : null)
-                    };
-                }
-                // Seed isUrl fields with their saved value (once)
-                if (item.isUrl && this.urlValues[item.apiName] === undefined) {
-                    const field = this.ND_recordData.fields[item.apiName];
-                    this.urlValues = {
-                        ...this.urlValues,
-                        [item.apiName]: field ? (field.value || '') : ''
-                    };
-                }
-                // Seed isUrlList fields — parse JSON (or a legacy plain URL) once
-                if (item.isUrlList && this.urlListValues[item.apiName] === undefined) {
-                    const field = this.ND_recordData.fields[item.apiName];
-                    this.urlListValues = {
-                        ...this.urlListValues,
-                        [item.apiName]: this._parseUrlList(field ? field.value : '')
-                    };
-                }
-            });
+            this._seedFromRecord(false);
         }
+    }
+
+    // Copies the record's saved values into the state behind our custom widgets
+    // (record type, owner, isOpenProblem, isUrl, isUrlList). Normally seeds only
+    // what is still unset, so a wire refresh can never clobber an in-flight edit;
+    // Cancel calls it with force=true to overwrite the edits and go back to saved.
+    _seedFromRecord(force) {
+        const rec = this.ND_recordData;
+        if (!rec) return;
+        const fields = rec.fields || {};
+
+        if (force || !this.selectedRecordTypeId) {
+            if (rec.recordTypeId) {
+                this.selectedRecordTypeId = rec.recordTypeId;
+            } else if (fields.RecordTypeId) {
+                this.selectedRecordTypeId = fields.RecordTypeId.value;
+            }
+        }
+
+        // Owner picker (00G prefix = Queue)
+        const ownerField = fields.OwnerId || null;
+        if (ownerField && ownerField.value && (force || !this.selectedOwnerId)) {
+            this.selectedOwnerId = ownerField.value;
+            this.ownerPickerMode = String(ownerField.value).startsWith('00G') ? 'Queue' : 'User';
+        }
+
+        this.configObject.forEach(item => {
+            // isOpenProblem — displayValue on a lookup is the related record's name
+            if (item.isOpenProblem && (force || this.openProblemValues[item.apiName] === undefined)) {
+                const field = fields[item.apiName];
+                const problemTitle = item.apiName === 'ParentId' && this.objectApiName === 'Case'
+                    ? getFieldValue(rec, 'Case.Parent.Subject')
+                    : null;
+                this.openProblemValues = {
+                    ...this.openProblemValues,
+                    [item.apiName]: field ? (field.value || null) : null
+                };
+                this.openProblemLabels = {
+                    ...this.openProblemLabels,
+                    [item.apiName]: problemTitle || (field ? (field.displayValue || null) : null)
+                };
+            }
+            // isUrl — the saved value
+            if (item.isUrl && (force || this.urlValues[item.apiName] === undefined)) {
+                const field = fields[item.apiName];
+                this.urlValues = {
+                    ...this.urlValues,
+                    [item.apiName]: field ? (field.value || '') : ''
+                };
+            }
+            // isUrlList — parse JSON (or a legacy plain URL)
+            if (item.isUrlList && (force || this.urlListValues[item.apiName] === undefined)) {
+                const field = fields[item.apiName];
+                this.urlListValues = {
+                    ...this.urlListValues,
+                    [item.apiName]: this._parseUrlList(field ? field.value : '')
+                };
+            }
+        });
     }
 
     get recordTypeOptions() {
@@ -444,6 +463,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     ND_handleFieldChange(event) {
+        if (this._restoring) return;
         this.isDirty = true;
     }
 
@@ -454,6 +474,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     ND_handleUrlInput(event) {
+        if (this._restoring) return;
         const apiName = event.currentTarget.dataset.field;
         this.urlValues = { ...this.urlValues, [apiName]: event.target.value };
         this.urlDirty = true;
@@ -556,6 +577,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     ND_handleRecordTypeChange(event) {
+        if (this._restoring) return;
         this.selectedRecordTypeId = event.detail.value;
         this.isDirty = true;
     }
@@ -639,6 +661,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     ND_handleOwnerChange(event) {
+        if (this._restoring) return;
         this.selectedOwnerId = event.detail.recordId;
         if (this.selectedOwnerId) {
             this.ownerDirty = true;
@@ -670,6 +693,14 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         }, isError ? 8000 : 4000);
     }
 
+    _clearOwnerNotice() {
+        if (this._ownerNoticeTimer) {
+            clearTimeout(this._ownerNoticeTimer);
+            this._ownerNoticeTimer = undefined;
+        }
+        this.ownerNotice = null;
+    }
+
     // Saves ownership to the current user immediately, without touching other edits
     ND_handleTakeOwnership() {
         if (this.isTakingOwnership) return; // ignore repeat clicks while in flight
@@ -697,10 +728,50 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             });
     }
 
+    // --- CANCEL HANDLER ---
+    // Discards every unsaved edit: reset() puts each lightning-input-field back to
+    // the value the form loaded, and _seedFromRecord(true) does the same for the
+    // widgets we render ourselves.
+    ND_handleCancel() {
+        if (this.isSaving) return;
+
+        // Restoring a value fires the same change events a user edit does, which
+        // would immediately mark the form dirty again. Ignore them while we restore.
+        this._restoring = true;
+
+        this.template.querySelectorAll('lightning-input-field').forEach(field => {
+            if (typeof field.reset === 'function') field.reset();
+        });
+
+        this._seedFromRecord(true);
+
+        this.urlEditMode = {};      // saved URLs render as links again
+        this.ownerEditMode = false;
+        this._clearDirtyState();
+        this.saveError = undefined;
+        this._clearOwnerNotice();
+
+        // Some of those change events land after this tick (base components fire
+        // them on re-render), so drop the guard — and clear again — once they have.
+        setTimeout(() => {
+            this._restoring = false;
+            this._clearDirtyState();
+        }, 0);
+    }
+
+    _clearDirtyState() {
+        this.isDirty = false;
+        this.ownerDirty = false;
+        this.openProblemDirty = false;
+        this.urlDirty = false;
+        this.urlListDirty = false;
+    }
+
     // --- SUBMIT HANDLER ---
     ND_handleSubmit(event) {
         event.preventDefault();       // stop the form from submitting
         this.isSaving = true;         // show "Saving…" until success/error fires
+        this.saveError = undefined;   // clear any banner from the previous attempt
         const fields = event.detail.fields;
 
         // If we have a selected record type ID, inject it
@@ -739,31 +810,71 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         this.template.querySelector('lightning-record-edit-form').submit(fields);
     }
 
-    // --- ERROR HANDLER (New) ---
-ND_handleError(event) {
-    this.isSaving = false;
-    // 1. Log the ENTIRE error object to the console so we can expand it
-    console.log('FULL ERROR DETAILS:', JSON.parse(JSON.stringify(event.detail)));
+    // --- ERROR HANDLER ---
+    ND_handleError(event) {
+        this.isSaving = false;
+        console.log('FULL ERROR DETAILS:', JSON.parse(JSON.stringify(event.detail || {})));
 
-    let message = 'Unknown error';
-    if (event.detail && event.detail.message) {
-        message = event.detail.message;
-    } else if (event.detail && event.detail.detail) {
-        message = event.detail.detail;
-    } else if (event.detail && event.detail.output && event.detail.output.errors && event.detail.output.errors.length > 0) {
-        message = event.detail.output.errors[0].message;
+        this.saveError = this._buildSaveError(event.detail);
+
+        const evt = new ShowToastEvent({
+            title: 'Error saving record',
+            message: this.saveError.items.length
+                ? this.saveError.items.map(i => i.text).join(' ')
+                : this.saveError.title,
+            variant: 'error',
+        });
+        this.dispatchEvent(evt);
     }
 
-    const evt = new ShowToastEvent({
-        title: 'Error saving record',
-        message: message,
-        variant: 'error',
-    });
-    this.dispatchEvent(evt);
-}
+    ND_dismissError() {
+        this.saveError = undefined;
+    }
+
+    // Flatten the record-edit-form error payload into {title, items[]} — a headline
+    // plus one bullet per underlying validation/field error, like the standard UI.
+    _buildSaveError(detail) {
+        const d = detail || {};
+        const out = d.output || {};
+        const items = [];
+        const seen = new Set();
+
+        const add = text => {
+            const t = (text || '').trim();
+            if (t && !seen.has(t)) {
+                seen.add(t);
+                items.push({ key: `e${items.length}`, text: t });
+            }
+        };
+
+        (out.errors || []).forEach(e => add(e.message));
+
+        const fieldErrors = out.fieldErrors || {};
+        Object.keys(fieldErrors).forEach(apiName => {
+            (fieldErrors[apiName] || []).forEach(e => {
+                const label = e.fieldLabel || apiName;
+                add(e.message ? `${label}: ${e.message}` : label);
+            });
+        });
+
+        (d.pageErrors || []).forEach(e => add(e.message));
+
+        if (!items.length) add(d.detail);
+
+        const title = (d.message || '').trim() || 'We hit a snag.';
+        // Don't repeat the headline as its own bullet
+        const filtered = items.filter(i => i.text !== title);
+
+        return {
+            title,
+            items: filtered,
+            hasItems: filtered.length > 0
+        };
+    }
 
     ND_handleSuccess(event) {
         this.isSaving = false;
+        this.saveError = undefined;
         this.isDirty = false;
         this.ownerDirty = false;
         this.ownerEditMode = false;
