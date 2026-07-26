@@ -289,13 +289,36 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         this._resolveKnownEmails();
     }
 
+    // Reading the STORED value. Splits on the separators the field is written with
+    // and keeps every non-empty token, including anything malformed, so a bad entry
+    // stays visible and survives the next save instead of being silently dropped.
     _parseEmailList(raw) {
         if (!raw) return [];
-        // Tolerate commas, semicolons and newlines: this field gets pasted into
         return String(raw)
             .split(/[,;\n\r]+/)
             .map(part => part.trim())
             .filter(part => part.length > 0);
+    }
+
+    // Reading TYPED or PASTED input, which is far messier than the stored value:
+    // separated by commas, semicolons, spaces or newlines, and often carrying
+    // Outlook display names ("Pater, Jean-Michel" <jm@x.com>; ...). Splitting on a
+    // separator can't handle those, so pull out the address-shaped tokens instead.
+    _extractEmails(raw) {
+        if (!raw) return [];
+        const found = String(raw).match(/[^\s<>,;"']+@[^\s<>,;"']+/g) || [];
+        const seen = new Set();
+        const out = [];
+        found.forEach(token => {
+            // A trailing dot or bracket picked up from prose is not part of the address
+            const email = token.replace(/[.,;:>)\]]+$/, '');
+            const key = email.toLowerCase();
+            if (email && !seen.has(key)) {
+                seen.add(key);
+                out.push(email);
+            }
+        });
+        return out;
     }
 
     // The allowedDomains config value, lowercased. Empty list means no restriction.
@@ -323,7 +346,8 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     _looksLikeEmail(email) {
-        return /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(String(email).replace(/\.invalid$/, ''));
+        // Deliberately requires a 2+ letter TLD: andy@kd.c is a typo, not an address
+        return /^[^\s@,;]+@[^\s@,;]+\.[A-Za-z]{2,}$/.test(String(email).replace(/\.invalid$/, ''));
     }
 
     // Sends any address we haven't resolved yet to Apex and merges the answers
@@ -847,9 +871,20 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     ND_emailListAdd(event) {
         const apiName = event.currentTarget.dataset.field;
-        // Accept a pasted block on , or ; or newlines, not just one at a time
-        const candidates = this._parseEmailList(this.emailListDraft[apiName]);
-        if (!candidates.length) return;
+        // Accept a pasted block separated by , ; spaces or newlines, and tolerate
+        // Outlook display names, not just one bare address at a time
+        const draft = this.emailListDraft[apiName];
+        const candidates = this._extractEmails(draft);
+        if (!candidates.length) {
+            // Something was typed but nothing address-shaped came out of it
+            this.emailListError = {
+                ...this.emailListError,
+                [apiName]: String(draft || '').trim()
+                    ? 'That does not look like an email address.'
+                    : null
+            };
+            return;
+        }
 
         const allowed = this._allowedDomainsFor(apiName);
         const list = (this.emailListValues[apiName] || []).slice();

@@ -29,7 +29,10 @@ Supported per-field keys:
   (subtitle = Account name), then community/portal User; anything unmatched still renders as a
   person marked "Not in Salesforce", which is the normal case for shared mailboxes. Stored format
   stays plain comma-separated text, so flows and integrations writing the field are unaffected.
-  Parsing accepts commas, semicolons and newlines (paste a block from Outlook and it splits).
+  Typed/pasted input is parsed by extracting address-shaped tokens, so commas, semicolons,
+  spaces and newlines all separate, and Outlook display-name form (`"Pater, Jean-Michel"
+  <jm@x.com>;`) works. The STORED value is parsed by splitting on `,;` and newlines only, keeping
+  malformed tokens so a bad entry stays visible and survives the next save.
   Avatar colour: blue = internal User, teal = Contact, grey = unmatched.
 - `allowedDomains` (with `isEmailList`) — comma-separated domain allow-list, e.g.
   `"allowedDomains":"aviobook.aero"` on `AVB_Followers__c` so only internal addresses can be
