@@ -43,6 +43,8 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     _restoring = false;                 // true while Cancel puts values back (suppresses change handlers)
     @track isTakingOwnership = false;   // "take it!" in flight
 
+    _skippedFieldsWarned;               // last set of config fields warned about as unknown
+
     // For Record Type Handling
     @track _objectInfo;
     @track selectedRecordTypeId;
@@ -135,23 +137,53 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     // --- 4. DATA LOADING ---
+    // getRecord fails the WHOLE request if any one field doesn't exist in the org,
+    // and that failure would silently blank every widget backed by ND_recordData
+    // (owner, isOpenProblem, isUrl, isUrlList) while the standard input fields kept
+    // working — a very confusing way to fail. So we wait for the object describe and
+    // drop unknown fields, warning about each one instead.
     get nd_wireFields() {
-        if (!this.objectApiName) return [];
-        const fieldsToLoad = new Set();
+        if (!this.objectApiName) return undefined;
+        if (!this._objectInfo || !this._objectInfo.fields) return undefined; // describe not in yet
 
-        if (this.ND_headerLogicField) fieldsToLoad.add(`${this.objectApiName}.${this.ND_headerLogicField}`);
+        const known = this._objectInfo.fields;
+        const fieldsToLoad = new Set();
+        const skipped = new Set();
+
+        const add = path => {
+            if (!path) return;
+            // Cross-object paths (e.g. Parent.Subject) are ours, not config-driven
+            if (path.indexOf('.') === -1 && !known[path]) {
+                skipped.add(path);
+                return;
+            }
+            fieldsToLoad.add(`${this.objectApiName}.${path}`);
+        };
+
+        add(this.ND_headerLogicField);
 
         this.configObject.forEach(item => {
-            if (item.apiName) fieldsToLoad.add(`${this.objectApiName}.${item.apiName}`);
+            add(item.apiName);
             if (item.isOpenProblem && item.apiName === 'ParentId' && this.objectApiName === 'Case') {
-                fieldsToLoad.add('Case.Parent.Subject');
+                add('Parent.Subject');
             }
-            if (item.showIfField) fieldsToLoad.add(`${this.objectApiName}.${item.showIfField}`);
+            add(item.showIfField);
             if (item.color) {
-                if (item.colorIfField) fieldsToLoad.add(`${this.objectApiName}.${item.colorIfField}`);
-                else if (item.colorIfValue !== undefined) fieldsToLoad.add(`${this.objectApiName}.${item.apiName}`);
+                if (item.colorIfField) add(item.colorIfField);
+                else if (item.colorIfValue !== undefined) add(item.apiName);
             }
         });
+
+        if (skipped.size) {
+            const signature = Array.from(skipped).sort().join(',');
+            if (this._skippedFieldsWarned !== signature) {
+                this._skippedFieldsWarned = signature;
+                console.warn(
+                    `nD_DynamicSection: these fields are in the config but do not exist on ${this.objectApiName} in this org, so they were skipped: ${signature}`
+                );
+            }
+        }
+
         return Array.from(fieldsToLoad);
     }
 
@@ -169,6 +201,10 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         if (data) {
             this.ND_recordData = data;
             this._seedFromRecord(false);
+        } else if (error) {
+            // Never swallow this: without ND_recordData the owner / problem / link
+            // widgets render empty even though the standard fields look fine.
+            console.error('nD_DynamicSection: getRecord failed for fields', this.nd_wireFields, error);
         }
     }
 
@@ -353,7 +389,13 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         return config.map(item => {
             // A. Visibility Logic
             let isVisible = true;
-            if (item.showIfField) {
+            // A field the org doesn't have can't be rendered — lightning-input-field
+            // would error on it. Skip the row (nd_wireFields logs which ones).
+            if (item.apiName && this._objectInfo && this._objectInfo.fields
+                && !this._objectInfo.fields[item.apiName]) {
+                isVisible = false;
+            }
+            if (isVisible && item.showIfField) {
                 if (!this.ND_recordData || !this.ND_recordData.fields[item.showIfField]) {
                     isVisible = false;
                 } else {
