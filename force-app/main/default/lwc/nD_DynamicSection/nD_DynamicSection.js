@@ -5,6 +5,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import USER_ID from '@salesforce/user/Id';
 import getOpenProblems from '@salesforce/apex/ND_ProblemPicker.getOpenProblems';
+import resolveEmails from '@salesforce/apex/ND_EmailResolver.resolveEmails';
 
 // --- "isOpenProblem" lookup: baked-in business rule so it never has to be
 // redefined in the JSON config. Problems are Cases of this record type (matched
@@ -41,6 +42,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     @track isDirty = false;
     @track isSaving = false;            // form save in flight
     _restoring = false;                 // true while Cancel puts values back (suppresses change handlers)
+    _recomputeQueued = false;           // guards against stacking dirty recomputes on rapid wire refreshes
     @track isTakingOwnership = false;   // "take it!" in flight
 
     _skippedFieldsWarned;               // last set of config fields warned about as unknown
@@ -75,6 +77,14 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     @track urlValues = {};    // apiName -> current URL string
     @track urlEditMode = {};  // apiName -> true while the user is entering a value
     urlDirty = false;
+
+    // For isEmailList fields (comma-separated addresses shown as people)
+    @track emailListValues = {};     // apiName -> [address, ...] in stored order
+    @track emailListExpanded = {};   // apiName -> true while the roster is open
+    @track emailDirectory = {};      // lowercased address -> resolved person from Apex
+    @track emailListDraft = {};      // apiName -> value being typed into the add box
+    emailListDirty = false;
+    _emailsRequested = new Set();    // addresses already sent to Apex, so we ask once
 
     // For isUrlList fields (multiple labeled links stored as JSON)
     @track urlListValues = {};  // apiName -> [{id,label,url}]
@@ -201,6 +211,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         if (data) {
             this.ND_recordData = data;
             this._seedFromRecord(false);
+            this._recomputeDirtyAfterRefresh();
         } else if (error) {
             // Never swallow this: without ND_recordData the owner / problem / link
             // widgets render empty even though the standard fields look fine.
@@ -264,7 +275,129 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                     [item.apiName]: this._parseUrlList(field ? field.value : '')
                 };
             }
+            // isEmailList — split the stored comma-separated string
+            if (item.isEmailList && (force || this.emailListValues[item.apiName] === undefined)) {
+                const field = fields[item.apiName];
+                this.emailListValues = {
+                    ...this.emailListValues,
+                    [item.apiName]: this._parseEmailList(field ? field.value : '')
+                };
+            }
         });
+
+        this._resolveKnownEmails();
+    }
+
+    _parseEmailList(raw) {
+        if (!raw) return [];
+        // Tolerate commas, semicolons and newlines: this field gets pasted into
+        return String(raw)
+            .split(/[,;\n\r]+/)
+            .map(part => part.trim())
+            .filter(part => part.length > 0);
+    }
+
+    // Sends any address we haven't resolved yet to Apex and merges the answers
+    // into emailDirectory. Addresses are asked about once per component instance.
+    _resolveKnownEmails() {
+        const wanted = [];
+        Object.keys(this.emailListValues).forEach(apiName => {
+            (this.emailListValues[apiName] || []).forEach(email => {
+                const key = email.toLowerCase();
+                if (!this._emailsRequested.has(key)) {
+                    this._emailsRequested.add(key);
+                    wanted.push(email);
+                }
+            });
+        });
+        if (!wanted.length) return;
+
+        resolveEmails({ emails: wanted })
+            .then(people => {
+                const merged = { ...this.emailDirectory };
+                (people || []).forEach(person => {
+                    merged[person.email.toLowerCase()] = person;
+                });
+                this.emailDirectory = merged;
+            })
+            .catch(error => {
+                // Unresolved is a first-class state, so a failure here degrades to
+                // plain addresses rather than breaking the field.
+                console.error('nD_DynamicSection: could not resolve collaborator emails', error);
+                wanted.forEach(email => this._emailsRequested.delete(email.toLowerCase()));
+            });
+    }
+
+    // One entry per address: photo when there is a real one, initials otherwise.
+    _buildEmailList(apiName, canEdit) {
+        const addresses = this.emailListValues[apiName] || [];
+        const rows = addresses.map((email, index) => {
+            const person = this.emailDirectory[email.toLowerCase()];
+            const resolved = !!(person && person.resolved);
+            const initials = person && person.initials ? person.initials : this._initialsFromEmail(email);
+            const photoUrl = person && person.photoUrl ? person.photoUrl : null;
+            return {
+                key: `${apiName}-${index}`,
+                email: email,
+                name: resolved ? person.name : email,
+                subtitle: resolved ? person.subtitle : 'Not in Salesforce',
+                recordId: resolved ? person.recordId : null,
+                hasLink: !!(resolved && person.recordId),
+                initials: initials,
+                photoUrl: photoUrl,
+                hasPhoto: !!photoUrl,
+                avatarClass: this._avatarClass(email, person, !!photoUrl),
+                isUnresolved: !resolved
+            };
+        });
+
+        const expanded = !!this.emailListExpanded[apiName];
+        const CLUSTER_MAX = 6;
+        const domains = new Set(
+            addresses.map(e => (e.indexOf('@') > -1 ? e.split('@').pop().toLowerCase() : e.toLowerCase()))
+        );
+        const overflow = rows.length - CLUSTER_MAX;
+
+        const unresolved = rows.filter(r => r.isUnresolved).length;
+
+        return {
+            rows: rows,
+            cluster: rows.slice(0, CLUSTER_MAX),
+            hasOverflow: overflow > 0,
+            overflowLabel: `+${overflow}`,
+            count: rows.length,
+            hasAny: rows.length > 0,
+            countLabel: rows.length === 1 ? '1 person' : `${rows.length} people`,
+            metaLabel: unresolved
+                ? `${domains.size === 1 ? '1 organisation' : `${domains.size} organisations`}, ${unresolved} not in Salesforce`
+                : (domains.size === 1 ? '1 organisation' : `${domains.size} organisations`),
+            expanded: expanded,
+            rosterHidden: !expanded,
+            canEdit: canEdit === true,
+            showEmptyAdd: rows.length === 0 && canEdit === true && !expanded,
+            showEmptyText: rows.length === 0 && canEdit !== true,
+            draft: this.emailListDraft[apiName] || ''
+        };
+    }
+
+    _initialsFromEmail(email) {
+        const local = String(email || '').split('@')[0];
+        const tokens = local.split(/[._\-+]/).filter(t => /^[a-z]/i.test(t));
+        if (!tokens.length) return '?';
+        if (tokens.length === 1) return tokens[0].slice(0, 2).toUpperCase();
+        return (tokens[0][0] + tokens[tokens.length - 1][0]).toUpperCase();
+    }
+
+    // Photos need no tint. Otherwise colour carries the one thing initials can't:
+    // whether this is staff, a known customer contact, or nobody we have on file.
+    _avatarClass(email, person, hasPhoto) {
+        if (hasPhoto) return 'nd-avatar nd-avatar_photo';
+        if (person && person.resolved) {
+            return person.objectType === 'User'
+                ? 'nd-avatar nd-avatar_user'
+                : 'nd-avatar nd-avatar_contact';
+        }
+        return 'nd-avatar nd-avatar_unknown';
     }
 
     get recordTypeOptions() {
@@ -469,6 +602,10 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 href: this._normalizeHref(it.url)
             }));
 
+            // G. isEmailList widget state
+            const isEmailList = item.isEmailList === true;
+            const emailList = isEmailList ? this._buildEmailList(item.apiName, item.editable === true) : null;
+
             return {
                 apiName: item.apiName,
                 customLabel: item.label || (isOwner && item.editable ? 'Owner' : null),
@@ -494,6 +631,9 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 isUrlList: isUrlList,
                 urlListItems: urlListItems,
                 urlListHasItems: urlListItems.length > 0,
+                isEmailList: isEmailList,
+                emailList: emailList,
+                emailPlaceholder: item.placeholder || 'Add address, or paste several',
                 hasRecordLink: !!recordLinkId,
                 recordLinkId: recordLinkId
             };
@@ -506,7 +646,52 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     ND_handleFieldChange(event) {
         if (this._restoring) return;
+        // A background write (email-to-case flow, process builder, another user)
+        // refreshes the form, and reloading an input fires change exactly like a
+        // user edit does. Dirty means "differs from what's saved", so compare.
+        if (!this._fieldDiffersFromSaved(event.target, event.detail)) return;
         this.isDirty = true;
+    }
+
+    // True when the control's value differs from the saved record value. Errs
+    // toward true: if the value can't be compared, treat it as a real edit so the
+    // user is never left unable to save.
+    _fieldDiffersFromSaved(target, detail) {
+        const apiName = target && target.fieldName;
+        const fields = this.ND_recordData && this.ND_recordData.fields;
+        if (!apiName || !fields || !fields[apiName]) return true;
+
+        const current = detail && Object.prototype.hasOwnProperty.call(detail, 'value')
+            ? detail.value
+            : target.value;
+        return this._normalizeValue(current) !== this._normalizeValue(fields[apiName].value);
+    }
+
+    // null / undefined / '' all mean "empty" across the record API and the inputs
+    _normalizeValue(value) {
+        if (value === null || value === undefined || value === '') return '';
+        return String(value);
+    }
+
+    // Recomputes isDirty by comparing every rendered input against the saved record.
+    // Called after a wire refresh because the form and this wire both get their data
+    // from LDS in no guaranteed order: if the form fired its change events before the
+    // new record landed, the comparison in ND_handleFieldChange used stale saved
+    // values and wrongly marked the section dirty. Deferred a tick so the form has
+    // finished reloading its inputs.
+    _recomputeDirtyAfterRefresh() {
+        if (this._recomputeQueued) return;
+        this._recomputeQueued = true;
+        setTimeout(() => {
+            this._recomputeQueued = false;
+            if (this._restoring || this.isSaving) return;
+            // Our own widgets track their edits separately; never clear those.
+            if (this.ownerDirty || this.openProblemDirty || this.urlDirty || this.urlListDirty || this.emailListDirty) return;
+
+            const edited = Array.from(this.template.querySelectorAll('lightning-input-field'))
+                .some(field => this._fieldDiffersFromSaved(field, null));
+            this.isDirty = edited;
+        }, 0);
     }
 
     // --- isUrl widget ---
@@ -591,6 +776,72 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         this.urlListDirty = true;
         this.isDirty = true;
         this.linkModalOpen = false;
+    }
+
+    // --- isEmailList widget ---
+    ND_emailListToggle(event) {
+        const apiName = event.currentTarget.dataset.field;
+        this.emailListExpanded = {
+            ...this.emailListExpanded,
+            [apiName]: !this.emailListExpanded[apiName]
+        };
+    }
+
+    ND_emailListRemove(event) {
+        event.stopPropagation();
+        const apiName = event.currentTarget.dataset.field;
+        const email = event.currentTarget.dataset.email;
+        const list = (this.emailListValues[apiName] || []).filter(
+            e => e.toLowerCase() !== String(email).toLowerCase()
+        );
+        this.emailListValues = { ...this.emailListValues, [apiName]: list };
+        this.emailListDirty = true;
+        this.isDirty = true;
+    }
+
+    ND_emailListDraftChange(event) {
+        const apiName = event.currentTarget.dataset.field;
+        this.emailListDraft = { ...this.emailListDraft, [apiName]: event.target.value };
+    }
+
+    ND_emailListDraftKey(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            this.ND_emailListAdd(event);
+        }
+    }
+
+    ND_emailListAdd(event) {
+        const apiName = event.currentTarget.dataset.field;
+        // Accept a pasted block, not just one address at a time
+        const added = this._parseEmailList(this.emailListDraft[apiName]);
+        if (!added.length) return;
+
+        const list = (this.emailListValues[apiName] || []).slice();
+        const seen = new Set(list.map(e => e.toLowerCase()));
+        added.forEach(email => {
+            if (!seen.has(email.toLowerCase())) {
+                seen.add(email.toLowerCase());
+                list.push(email);
+            }
+        });
+
+        this.emailListValues = { ...this.emailListValues, [apiName]: list };
+        this.emailListDraft = { ...this.emailListDraft, [apiName]: '' };
+        this.emailListDirty = true;
+        this.isDirty = true;
+        this.emailListExpanded = { ...this.emailListExpanded, [apiName]: true };
+        this._resolveKnownEmails();
+    }
+
+    ND_emailListOpenRecord(event) {
+        event.stopPropagation();
+        const recordId = event.currentTarget.dataset.id;
+        if (!recordId) return;
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: { recordId: recordId, actionName: 'view' }
+        });
     }
 
     ND_urlListRemove(event) {
@@ -788,6 +1039,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         this._seedFromRecord(true);
 
         this.urlEditMode = {};      // saved URLs render as links again
+        this.emailListDraft = {};   // discard anything typed into an add box
         this.ownerEditMode = false;
         this._clearDirtyState();
         this.saveError = undefined;
@@ -807,6 +1059,9 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         this.openProblemDirty = false;
         this.urlDirty = false;
         this.urlListDirty = false;
+        this.emailListDirty = false;
+        this.emailListDraft = {};
+        this.emailListDirty = false;
     }
 
     // --- SUBMIT HANDLER ---
@@ -846,6 +1101,15 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             Object.keys(this.urlListValues).forEach(apiName => {
                 const arr = (this.urlListValues[apiName] || []).map(it => ({ label: it.label, url: it.url }));
                 fields[apiName] = arr.length ? JSON.stringify(arr) : '';
+            });
+        }
+
+        // Inject any changed isEmailList fields. Stored format stays plain
+        // comma-separated text so the flows and integrations writing this field
+        // keep working untouched.
+        if (this.emailListDirty) {
+            Object.keys(this.emailListValues).forEach(apiName => {
+                fields[apiName] = (this.emailListValues[apiName] || []).join(',');
             });
         }
 

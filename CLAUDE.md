@@ -22,11 +22,33 @@ Supported per-field keys:
 - **Field alert:** `color` + `colorIfField`/`colorIfValue` (comma-separated equality/membership) → bottom underline on the field value/control
 - `isRecordLink` — value is a record Id; opens via `NavigationMixin` (corner open-window icon)
 - `isUrl` — single link: empty = paste input, saved = clickable link + `×` to clear
+- `isEmailList` — **comma-separated email addresses shown as people** (`AVB_Collaborators__c`,
+  `AVB_Followers__c`). Collapsed to an avatar cluster (photo when real, else initials) plus
+  "N people / M organisations, K not in Salesforce"; click to open a capped-height roster with
+  add and remove. Addresses resolve via `ND_EmailResolver`: Standard User wins, then Contact
+  (subtitle = Account name), then community/portal User; anything unmatched still renders as a
+  person marked "Not in Salesforce", which is the normal case for shared mailboxes. Stored format
+  stays plain comma-separated text, so flows and integrations writing the field are unaffected.
+  Parsing accepts commas, semicolons and newlines. Avatar colour: blue = internal User,
+  teal = Contact, grey = unmatched.
 - `isUrlList` — **multiple labeled links** stored as JSON `[{label,url}]` in a Long Text Area; add/edit via a pop-out modal (Label + URL fields), `×` to remove, click label to open. Backward-compatible: a legacy plain-URL value renders as one chip.
 - `isOpenProblem` — Case lookup rendered as a **modal picker** (Case # / Subject / Status table) backed by `ND_ProblemPicker` Apex; removable filter chips (record type / open-only), search by number or subject; a linked value opens the case.
 - Header alert (App Builder props, NOT the JSON): `ND_headerLogicField` + `ND_headerLogicValue` + `ND_headerActiveColor` (single field only).
 - Save shows a **"Saving…"** spinner; owner **"take it!"** hides when the running user already owns the case and shows **"taking…"** while in flight.
+- **Constraint (field existence):** a config field that does not exist in the org is skipped with a
+  console warning rather than breaking the component. `getRecord` fails the whole request on one
+  bad field, which used to blank every custom widget (owner, problem, links) while the standard
+  fields kept working.
 - **Constraint:** all conditional logic is equality / membership / truthy only — **no comparison operators and no date logic** (e.g. "date on or before today" is NOT expressible in config yet).
+
+### `classes/ND_EmailResolver` (+ `ND_EmailResolverTest`)
+`resolveEmails(List<String>)` — resolves addresses to Users and Contacts for `isEmailList`.
+`cacheable=true`, `WITH SECURITY_ENFORCED`, capped at 200 addresses, order preserved, blanks
+dropped, duplicates folded case-insensitively. Only genuine User photos are returned:
+`SmallPhotoUrl` always resolves, but the default avatar is `/profilephoto/005/T` where the
+segment is a key prefix rather than a photo Id (only ~9% of PROD users have a real photo).
+`Contact.PhotoUrl` is deliberately unused, it always resolves to the generic silhouette endpoint
+and cannot be distinguished from a real photo. Test class is self-contained (7 tests).
 
 ### `classes/ND_ProblemPicker` (+ `ND_ProblemPickerTest`)
 `getOpenProblems(searchTerm, recordTypeDeveloperName, excludedStatuses)` — dynamic SOQL over Case,

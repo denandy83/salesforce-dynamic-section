@@ -106,10 +106,86 @@
                                                     </button>
                                                 </div>
                                             </template>
+                                            <template if:true={fieldConfig.isEmailList}>
+                                                <div class="nd-emails">
+                                                    <template if:true={fieldConfig.emailList.hasAny}>
+                                                        <button type="button" class="nd-emails-cluster" data-field={fieldConfig.apiName}
+                                                            aria-expanded={fieldConfig.emailList.expanded} onclick={ND_emailListToggle}>
+                                                            <span class="nd-avatars">
+                                                                <template for:each={fieldConfig.emailList.cluster} for:item="person">
+                                                                    <span key={person.key} class={person.avatarClass} title={person.email}>
+                                                                        <template if:true={person.hasPhoto}>
+                                                                            <img class="nd-avatar-img" src={person.photoUrl} alt="" />
+                                                                        </template>
+                                                                        <template if:false={person.hasPhoto}>{person.initials}</template>
+                                                                    </span>
+                                                                </template>
+                                                                <template if:true={fieldConfig.emailList.hasOverflow}>
+                                                                    <span class="nd-avatar nd-avatar_more">{fieldConfig.emailList.overflowLabel}</span>
+                                                                </template>
+                                                            </span>
+                                                            <span class="nd-emails-meta">
+                                                                <span class="nd-emails-count">{fieldConfig.emailList.countLabel}</span>
+                                                                <span class="nd-emails-sub">{fieldConfig.emailList.metaLabel}</span>
+                                                            </span>
+                                                            <lightning-icon class="nd-emails-chev" icon-name="utility:chevrondown" size="xx-small"></lightning-icon>
+                                                        </button>
+                                                    </template>
+                                                    <template if:true={fieldConfig.emailList.showEmptyAdd}>
+                                                        <button type="button" class="nd-emails-empty" data-field={fieldConfig.apiName} onclick={ND_emailListToggle}>
+                                                            <lightning-icon icon-name="utility:add" size="xx-small" class="nd-emails-empty-ic"></lightning-icon>
+                                                            <span>Add people</span>
+                                                        </button>
+                                                    </template>
+                                                    <template if:true={fieldConfig.emailList.showEmptyText}>
+                                                        <span class="nd-emails-none">None</span>
+                                                    </template>
+                                                    <div class="nd-roster" hidden={fieldConfig.emailList.rosterHidden}>
+                                                        <template for:each={fieldConfig.emailList.rows} for:item="person">
+                                                            <div key={person.key} class="nd-roster-row">
+                                                                <span class={person.avatarClass}>
+                                                                    <template if:true={person.hasPhoto}>
+                                                                        <img class="nd-avatar-img" src={person.photoUrl} alt="" />
+                                                                    </template>
+                                                                    <template if:false={person.hasPhoto}>{person.initials}</template>
+                                                                </span>
+                                                                <span class="nd-roster-id">
+                                                                    <template if:true={person.hasLink}>
+                                                                        <span class="nd-roster-name nd-roster-name_link" title={person.email}
+                                                                            data-id={person.recordId} onclick={ND_emailListOpenRecord}>{person.name}</span>
+                                                                    </template>
+                                                                    <template if:false={person.hasLink}>
+                                                                        <span class="nd-roster-name" title={person.email}>{person.name}</span>
+                                                                    </template>
+                                                                    <span class="nd-roster-sub">{person.subtitle}</span>
+                                                                </span>
+                                                                <template if:true={fieldConfig.emailList.canEdit}>
+                                                                    <lightning-button-icon icon-name="utility:close" variant="bare" size="x-small"
+                                                                        alternative-text="Remove" title="Remove" data-field={fieldConfig.apiName}
+                                                                        data-email={person.email} onclick={ND_emailListRemove}></lightning-button-icon>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                        <template if:true={fieldConfig.emailList.canEdit}>
+                                                            <div class="nd-roster-add">
+                                                                <lightning-input type="text" variant="label-hidden" class="nd-roster-input"
+                                                                    placeholder={fieldConfig.emailPlaceholder} value={fieldConfig.emailList.draft}
+                                                                    data-field={fieldConfig.apiName} onchange={ND_emailListDraftChange}
+                                                                    onkeydown={ND_emailListDraftKey}></lightning-input>
+                                                                <lightning-button-icon icon-name="utility:add" variant="border-filled" size="x-small"
+                                                                    alternative-text="Add" title="Add" data-field={fieldConfig.apiName}
+                                                                    onclick={ND_emailListAdd}></lightning-button-icon>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
                                             <template if:false={fieldConfig.editable}>
                                                 <template if:false={fieldConfig.isUrl}>
                                                     <template if:false={fieldConfig.isUrlList}>
-                                                        <lightning-output-field field-name={fieldConfig.apiName} variant="label-hidden"></lightning-output-field>
+                                                        <template if:false={fieldConfig.isEmailList}>
+                                                            <lightning-output-field field-name={fieldConfig.apiName} variant="label-hidden"></lightning-output-field>
+                                                        </template>
                                                     </template>
                                                 </template>
                                             </template>
@@ -190,7 +266,9 @@
                                                         <template if:false={fieldConfig.isOpenProblem}>
                                                             <template if:false={fieldConfig.isUrl}>
                                                                 <template if:false={fieldConfig.isUrlList}>
-                                                                    <lightning-input-field field-name={fieldConfig.apiName} variant="label-hidden" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                                    <template if:false={fieldConfig.isEmailList}>
+                                                                        <lightning-input-field field-name={fieldConfig.apiName} variant="label-hidden" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                                    </template>
                                                                 </template>
                                                             </template>
                                                         </template>
@@ -240,10 +318,86 @@
                                                     </button>
                                                 </div>
                                             </template>
+                                            <template if:true={fieldConfig.isEmailList}>
+                                                <div class="nd-emails">
+                                                    <template if:true={fieldConfig.emailList.hasAny}>
+                                                        <button type="button" class="nd-emails-cluster" data-field={fieldConfig.apiName}
+                                                            aria-expanded={fieldConfig.emailList.expanded} onclick={ND_emailListToggle}>
+                                                            <span class="nd-avatars">
+                                                                <template for:each={fieldConfig.emailList.cluster} for:item="person">
+                                                                    <span key={person.key} class={person.avatarClass} title={person.email}>
+                                                                        <template if:true={person.hasPhoto}>
+                                                                            <img class="nd-avatar-img" src={person.photoUrl} alt="" />
+                                                                        </template>
+                                                                        <template if:false={person.hasPhoto}>{person.initials}</template>
+                                                                    </span>
+                                                                </template>
+                                                                <template if:true={fieldConfig.emailList.hasOverflow}>
+                                                                    <span class="nd-avatar nd-avatar_more">{fieldConfig.emailList.overflowLabel}</span>
+                                                                </template>
+                                                            </span>
+                                                            <span class="nd-emails-meta">
+                                                                <span class="nd-emails-count">{fieldConfig.emailList.countLabel}</span>
+                                                                <span class="nd-emails-sub">{fieldConfig.emailList.metaLabel}</span>
+                                                            </span>
+                                                            <lightning-icon class="nd-emails-chev" icon-name="utility:chevrondown" size="xx-small"></lightning-icon>
+                                                        </button>
+                                                    </template>
+                                                    <template if:true={fieldConfig.emailList.showEmptyAdd}>
+                                                        <button type="button" class="nd-emails-empty" data-field={fieldConfig.apiName} onclick={ND_emailListToggle}>
+                                                            <lightning-icon icon-name="utility:add" size="xx-small" class="nd-emails-empty-ic"></lightning-icon>
+                                                            <span>Add people</span>
+                                                        </button>
+                                                    </template>
+                                                    <template if:true={fieldConfig.emailList.showEmptyText}>
+                                                        <span class="nd-emails-none">None</span>
+                                                    </template>
+                                                    <div class="nd-roster" hidden={fieldConfig.emailList.rosterHidden}>
+                                                        <template for:each={fieldConfig.emailList.rows} for:item="person">
+                                                            <div key={person.key} class="nd-roster-row">
+                                                                <span class={person.avatarClass}>
+                                                                    <template if:true={person.hasPhoto}>
+                                                                        <img class="nd-avatar-img" src={person.photoUrl} alt="" />
+                                                                    </template>
+                                                                    <template if:false={person.hasPhoto}>{person.initials}</template>
+                                                                </span>
+                                                                <span class="nd-roster-id">
+                                                                    <template if:true={person.hasLink}>
+                                                                        <span class="nd-roster-name nd-roster-name_link" title={person.email}
+                                                                            data-id={person.recordId} onclick={ND_emailListOpenRecord}>{person.name}</span>
+                                                                    </template>
+                                                                    <template if:false={person.hasLink}>
+                                                                        <span class="nd-roster-name" title={person.email}>{person.name}</span>
+                                                                    </template>
+                                                                    <span class="nd-roster-sub">{person.subtitle}</span>
+                                                                </span>
+                                                                <template if:true={fieldConfig.emailList.canEdit}>
+                                                                    <lightning-button-icon icon-name="utility:close" variant="bare" size="x-small"
+                                                                        alternative-text="Remove" title="Remove" data-field={fieldConfig.apiName}
+                                                                        data-email={person.email} onclick={ND_emailListRemove}></lightning-button-icon>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                        <template if:true={fieldConfig.emailList.canEdit}>
+                                                            <div class="nd-roster-add">
+                                                                <lightning-input type="text" variant="label-hidden" class="nd-roster-input"
+                                                                    placeholder={fieldConfig.emailPlaceholder} value={fieldConfig.emailList.draft}
+                                                                    data-field={fieldConfig.apiName} onchange={ND_emailListDraftChange}
+                                                                    onkeydown={ND_emailListDraftKey}></lightning-input>
+                                                                <lightning-button-icon icon-name="utility:add" variant="border-filled" size="x-small"
+                                                                    alternative-text="Add" title="Add" data-field={fieldConfig.apiName}
+                                                                    onclick={ND_emailListAdd}></lightning-button-icon>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
                                             <template if:false={fieldConfig.editable}>
                                                 <template if:false={fieldConfig.isUrl}>
                                                     <template if:false={fieldConfig.isUrlList}>
-                                                        <lightning-output-field field-name={fieldConfig.apiName} variant="label-stacked"></lightning-output-field>
+                                                        <template if:false={fieldConfig.isEmailList}>
+                                                            <lightning-output-field field-name={fieldConfig.apiName} variant="label-stacked"></lightning-output-field>
+                                                        </template>
                                                     </template>
                                                 </template>
                                             </template>
@@ -278,7 +432,11 @@
                                                 <template if:false={fieldConfig.isRecordType}>
                                                     <template if:false={fieldConfig.isOpenProblem}>
                                                         <template if:false={fieldConfig.isUrl}>
-                                                            <lightning-input-field field-name={fieldConfig.apiName} variant="label-stacked" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                            <template if:false={fieldConfig.isUrlList}>
+                                                                <template if:false={fieldConfig.isEmailList}>
+                                                                    <lightning-input-field field-name={fieldConfig.apiName} variant="label-stacked" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                                </template>
+                                                            </template>
                                                         </template>
                                                     </template>
                                                 </template>

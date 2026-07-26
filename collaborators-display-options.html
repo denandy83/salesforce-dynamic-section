@@ -1,0 +1,1525 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Collaborators Field: Five Display Options</title>
+        <style>
+            :root {
+                color-scheme: light;
+                --canvas: #f1f4f7;
+                --surface: #fdfefe;
+                --surface-muted: #f7f9fa;
+                --surface-sunk: #eef2f5;
+                --ink: #20252b;
+                --muted: #5f6872;
+                --faint: #8a929a;
+                --line: #d9dfe4;
+                --line-soft: #e6ebee;
+                --line-strong: #aab2ba;
+                --blue: #0b5cab;
+                --blue-soft: #e8f1fa;
+                --teal: #0d6b6b;
+                --teal-soft: #e4f1f0;
+                --amber-ink: #8a5a00;
+                --amber-soft: #fbf2dc;
+                --danger: #a7192c;
+                --focus: #1b74c7;
+                --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+                --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            html {
+                overflow-x: hidden;
+            }
+
+            body {
+                margin: 0;
+                min-width: 320px;
+                background: var(--canvas);
+                color: var(--ink);
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+                font-size: 15px;
+                line-height: 1.45;
+                -webkit-font-smoothing: antialiased;
+            }
+
+            button {
+                font: inherit;
+                color: inherit;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: rgba(11, 92, 171, 0.12);
+            }
+
+            :focus-visible {
+                outline: 3px solid color-mix(in srgb, var(--focus) 34%, transparent);
+                outline-offset: 2px;
+            }
+
+            .page {
+                width: min(1240px, calc(100% - 40px));
+                margin: 0 auto;
+                padding: 40px 0 70px;
+            }
+
+            /* ---------- header ---------- */
+
+            .eyebrow {
+                margin: 0 0 8px;
+                color: var(--blue);
+                font-family: var(--mono);
+                font-size: 0.7rem;
+                font-weight: 750;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+            }
+
+            h1 {
+                max-width: 22ch;
+                margin: 0;
+                font-size: clamp(1.85rem, 3vw, 2.5rem);
+                font-weight: 720;
+                letter-spacing: -0.035em;
+                line-height: 1.08;
+            }
+
+            .intro {
+                max-width: 70ch;
+                margin: 12px 0 0;
+                color: var(--muted);
+                font-size: 0.96rem;
+            }
+
+            .note {
+                max-width: 70ch;
+                margin: 14px 0 0;
+                padding: 10px 13px;
+                border: 1px solid var(--line);
+                border-radius: 7px;
+                background: var(--surface);
+                color: var(--muted);
+                font-size: 0.83rem;
+            }
+
+            .note strong {
+                color: var(--ink);
+            }
+
+            /* ---------- evidence strip ---------- */
+
+            .evidence {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+                margin: 30px 0 0;
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                background: var(--surface);
+                overflow: hidden;
+            }
+
+            .fact {
+                padding: 15px 18px;
+                border-right: 1px solid var(--line-soft);
+            }
+
+            .fact:last-child {
+                border-right: 0;
+            }
+
+            .fact dt {
+                color: var(--faint);
+                font-family: var(--mono);
+                font-size: 0.61rem;
+                font-weight: 750;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+
+            .fact dd {
+                margin: 6px 0 0;
+                font-size: 1.02rem;
+                font-weight: 700;
+                letter-spacing: -0.01em;
+            }
+
+            .fact dd span {
+                display: block;
+                margin-top: 2px;
+                color: var(--muted);
+                font-size: 0.79rem;
+                font-weight: 400;
+                letter-spacing: 0;
+            }
+
+            /* ---------- today ---------- */
+
+            .today {
+                display: grid;
+                grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+                gap: 28px;
+                align-items: start;
+                margin: 34px 0 0;
+                padding: 20px;
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                background: var(--surface-muted);
+            }
+
+            .today h2 {
+                margin: 0 0 8px;
+                font-size: 1.02rem;
+                font-weight: 700;
+                letter-spacing: -0.015em;
+            }
+
+            .today p {
+                margin: 0 0 9px;
+                color: var(--muted);
+                font-size: 0.88rem;
+            }
+
+            .today p:last-child {
+                margin-bottom: 0;
+            }
+
+            /* ---------- option sections ---------- */
+
+            .option {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+                gap: 34px;
+                align-items: start;
+                padding: 40px 0 34px;
+                border-top: 1px solid var(--line);
+            }
+
+            .option:nth-of-type(even) {
+                grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
+            }
+
+            .option:nth-of-type(even) .option-copy {
+                order: 2;
+            }
+
+            .option-head {
+                display: flex;
+                align-items: baseline;
+                gap: 11px;
+                margin-bottom: 3px;
+            }
+
+            .option-num {
+                color: var(--faint);
+                font-family: var(--mono);
+                font-size: 0.78rem;
+                font-weight: 750;
+            }
+
+            .option h3 {
+                margin: 0;
+                font-size: 1.32rem;
+                font-weight: 700;
+                letter-spacing: -0.025em;
+            }
+
+            .tagline {
+                margin: 0 0 16px;
+                max-width: 56ch;
+                color: var(--muted);
+                font-size: 0.93rem;
+            }
+
+            .assess {
+                display: grid;
+                gap: 12px;
+                max-width: 62ch;
+                margin: 0;
+            }
+
+            .assess > div {
+                display: grid;
+                grid-template-columns: 84px minmax(0, 1fr);
+                gap: 14px;
+                align-items: baseline;
+            }
+
+            .assess dt {
+                color: var(--faint);
+                font-family: var(--mono);
+                font-size: 0.61rem;
+                font-weight: 750;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+
+            .assess dd {
+                margin: 0;
+                font-size: 0.89rem;
+            }
+
+            .assess dd.warn {
+                color: var(--amber-ink);
+            }
+
+            .cost {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                margin-top: 18px;
+                padding: 5px 10px;
+                border: 1px solid var(--line);
+                border-radius: 999px;
+                background: var(--surface);
+                font-family: var(--mono);
+                font-size: 0.7rem;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+            }
+
+            .dot {
+                width: 7px;
+                height: 7px;
+                flex: 0 0 auto;
+                border-radius: 50%;
+            }
+
+            .dot-low {
+                background: var(--teal);
+            }
+
+            .dot-mid {
+                background: var(--amber-ink);
+            }
+
+            .dot-high {
+                background: var(--danger);
+            }
+
+            /* ---------- widget frame (real LWC proportions) ---------- */
+
+            .frame {
+                border: 1px solid var(--line-strong);
+                border-radius: 9px;
+                background: var(--surface);
+                box-shadow: 0 5px 16px -8px rgba(32, 37, 43, 0.16);
+                overflow: hidden;
+            }
+
+            .frame-bar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 7px 12px;
+                background: linear-gradient(180deg, #8d949c, #6f767e);
+                color: var(--surface);
+                font-size: 0.83rem;
+                font-weight: 700;
+            }
+
+            .frame-bar span:last-child {
+                font-size: 0.7rem;
+                font-weight: 400;
+                opacity: 0.85;
+            }
+
+            .frame-body {
+                padding: 14px 14px 16px;
+            }
+
+            .fl {
+                margin-bottom: 4px;
+                color: #444;
+                font-size: 0.72rem;
+                font-weight: 800;
+                letter-spacing: 0.05em;
+            }
+
+            .peer {
+                margin-top: 14px;
+                padding-top: 12px;
+                border-top: 1px solid #f1f3f4;
+            }
+
+            .peer-input {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 7px 9px;
+                border: 1px solid var(--line-strong);
+                border-radius: 5px;
+                color: var(--ink);
+                font-size: 0.86rem;
+            }
+
+            .peer-input::after {
+                color: var(--line-strong);
+                content: "\25BE";
+                font-size: 0.7rem;
+            }
+
+            /* ---------- today's textarea ---------- */
+
+            .raw {
+                height: 52px;
+                padding: 6px 8px;
+                border: 1px solid var(--line-strong);
+                border-radius: 5px;
+                background: var(--surface);
+                color: var(--ink);
+                font-size: 0.84rem;
+                line-height: 1.32;
+                overflow: hidden;
+                word-break: break-all;
+            }
+
+            /* ---------- shared atoms ---------- */
+
+            .chips {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+
+            .chip {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                max-width: 100%;
+                padding: 3px 4px 3px 8px;
+                border: 1px solid var(--line);
+                border-radius: 4px;
+                background: var(--surface-muted);
+                font-size: 0.78rem;
+                line-height: 1.3;
+            }
+
+            .chip.internal {
+                border-color: #c6dcef;
+                background: var(--blue-soft);
+            }
+
+            .chip.role {
+                border-color: #cfe2e0;
+                background: var(--teal-soft);
+            }
+
+            .chip-text {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .x {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 15px;
+                height: 15px;
+                flex: 0 0 auto;
+                padding: 0;
+                border: 0;
+                border-radius: 3px;
+                background: none;
+                color: var(--faint);
+                cursor: pointer;
+                font-size: 0.82rem;
+                line-height: 1;
+            }
+
+            .x:hover {
+                background: rgba(32, 37, 43, 0.07);
+                color: var(--ink);
+            }
+
+            .more {
+                padding: 3px 9px;
+                border: 1px dashed var(--line-strong);
+                border-radius: 4px;
+                background: none;
+                color: var(--blue);
+                cursor: pointer;
+                font-size: 0.76rem;
+                font-weight: 700;
+            }
+
+            .more:hover {
+                border-style: solid;
+                background: var(--blue-soft);
+            }
+
+            .addline {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-top: 8px;
+                color: var(--blue);
+                font-size: 0.78rem;
+                font-weight: 600;
+            }
+
+            .plus {
+                display: inline-grid;
+                place-items: center;
+                width: 15px;
+                height: 15px;
+                border: 1px solid currentColor;
+                border-radius: 3px;
+                font-size: 0.7rem;
+                line-height: 1;
+            }
+
+            .count {
+                display: inline-block;
+                min-width: 17px;
+                padding: 1px 5px;
+                border-radius: 3px;
+                background: var(--surface-sunk);
+                color: var(--muted);
+                font-family: var(--mono);
+                font-size: 0.68rem;
+                font-weight: 750;
+                text-align: center;
+            }
+
+            /* ---------- option 2: org groups ---------- */
+
+            .org {
+                border-bottom: 1px solid var(--line-soft);
+            }
+
+            .org:last-of-type {
+                border-bottom: 0;
+            }
+
+            .org-head {
+                display: flex;
+                width: 100%;
+                align-items: center;
+                gap: 9px;
+                padding: 7px 2px;
+                border: 0;
+                background: none;
+                cursor: pointer;
+                text-align: left;
+            }
+
+            .org-head:hover .org-name {
+                color: var(--blue);
+            }
+
+            .caret {
+                flex: 0 0 auto;
+                color: var(--faint);
+                font-size: 0.62rem;
+                transition: transform 170ms var(--ease-out);
+            }
+
+            .org-head[aria-expanded="true"] .caret {
+                transform: rotate(90deg);
+            }
+
+            .org-name {
+                flex: 1 1 auto;
+                overflow: hidden;
+                font-size: 0.83rem;
+                font-weight: 650;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .tag {
+                padding: 1px 6px;
+                border-radius: 3px;
+                font-family: var(--mono);
+                font-size: 0.61rem;
+                font-weight: 750;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+            }
+
+            .tag-int {
+                background: var(--blue-soft);
+                color: var(--blue);
+            }
+
+            .org-members {
+                padding: 0 2px 9px 22px;
+            }
+
+            .org-members[hidden] {
+                display: none;
+            }
+
+            .mem {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                padding: 3px 0;
+                font-size: 0.79rem;
+            }
+
+            .mem span {
+                overflow: hidden;
+                color: var(--muted);
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            /* ---------- option 3: badge cluster ---------- */
+
+            .cluster {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .stack {
+                display: flex;
+                padding-left: 4px;
+            }
+
+            .av {
+                display: grid;
+                width: 27px;
+                height: 27px;
+                flex: 0 0 auto;
+                margin-left: -4px;
+                border: 1.5px solid var(--surface);
+                border-radius: 50%;
+                background: #6f7f8e;
+                color: var(--surface);
+                font-size: 0.63rem;
+                font-weight: 750;
+                letter-spacing: 0.02em;
+                place-items: center;
+            }
+
+            .av.i {
+                background: #14618f;
+            }
+
+            .av.r {
+                background: #2f6f6c;
+            }
+
+            .av.rest {
+                background: var(--surface-sunk);
+                color: var(--muted);
+            }
+
+            .cluster-meta {
+                font-size: 0.78rem;
+                color: var(--muted);
+            }
+
+            .cluster-meta b {
+                display: block;
+                color: var(--ink);
+                font-size: 0.83rem;
+                font-weight: 700;
+            }
+
+            .roster {
+                margin-top: 10px;
+                border: 1px solid var(--line);
+                border-radius: 6px;
+                background: var(--surface-muted);
+                overflow: hidden;
+            }
+
+            .roster[hidden] {
+                display: none;
+            }
+
+            .roster-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 6px 9px;
+                border-bottom: 1px solid var(--line-soft);
+                color: var(--faint);
+                font-family: var(--mono);
+                font-size: 0.61rem;
+                font-weight: 750;
+                letter-spacing: 0.07em;
+                text-transform: uppercase;
+            }
+
+            .roster-list {
+                max-height: 154px;
+                overflow-y: auto;
+            }
+
+            .roster-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 5px 9px;
+                border-bottom: 1px solid var(--line-soft);
+                font-size: 0.78rem;
+            }
+
+            .roster-row:last-child {
+                border-bottom: 0;
+            }
+
+            .roster-row span {
+                flex: 1 1 auto;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            /* ---------- option 4: resolved rows ---------- */
+
+            .res {
+                display: flex;
+                align-items: center;
+                gap: 9px;
+                padding: 5px 0;
+                border-bottom: 1px solid var(--line-soft);
+            }
+
+            .res:last-of-type {
+                border-bottom: 0;
+            }
+
+            .res-id {
+                min-width: 0;
+                flex: 1 1 auto;
+            }
+
+            .res-name {
+                overflow: hidden;
+                font-size: 0.82rem;
+                font-weight: 620;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .res-name a {
+                color: var(--blue);
+                text-decoration: none;
+            }
+
+            .res-name a:hover {
+                text-decoration: underline;
+            }
+
+            .res-sub {
+                overflow: hidden;
+                color: var(--faint);
+                font-size: 0.71rem;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .res-sub.unres {
+                color: var(--amber-ink);
+            }
+
+            /* ---------- option 5: summary line ---------- */
+
+            .summary {
+                display: flex;
+                width: 100%;
+                align-items: center;
+                gap: 9px;
+                padding: 8px 10px;
+                border: 1px solid var(--line);
+                border-radius: 5px;
+                background: var(--surface-muted);
+                cursor: pointer;
+                text-align: left;
+            }
+
+            .summary:hover {
+                border-color: var(--line-strong);
+            }
+
+            .summary-text {
+                flex: 1 1 auto;
+                font-size: 0.83rem;
+            }
+
+            .summary-text b {
+                font-weight: 700;
+            }
+
+            .summary-text em {
+                display: block;
+                color: var(--faint);
+                font-size: 0.72rem;
+                font-style: normal;
+            }
+
+            .expand[hidden] {
+                display: none;
+            }
+
+            .expand {
+                margin-top: 9px;
+            }
+
+            .mode {
+                display: inline-flex;
+                margin-bottom: 10px;
+                border: 1px solid var(--line);
+                border-radius: 5px;
+                overflow: hidden;
+            }
+
+            .mode button {
+                padding: 4px 11px;
+                border: 0;
+                background: var(--surface);
+                color: var(--muted);
+                cursor: pointer;
+                font-size: 0.75rem;
+                font-weight: 650;
+            }
+
+            .mode button + button {
+                border-left: 1px solid var(--line);
+            }
+
+            .mode button[aria-pressed="true"] {
+                background: var(--blue);
+                color: var(--surface);
+            }
+
+            .bulk {
+                width: 100%;
+                height: 74px;
+                padding: 7px 8px;
+                border: 1px solid var(--line-strong);
+                border-radius: 5px;
+                color: var(--ink);
+                font-family: inherit;
+                font-size: 0.79rem;
+                line-height: 1.4;
+                resize: none;
+            }
+
+            .hint {
+                margin: 6px 0 0;
+                color: var(--faint);
+                font-size: 0.72rem;
+            }
+
+            /* ---------- closing ---------- */
+
+            .closing {
+                margin-top: 12px;
+                padding: 26px 0 0;
+                border-top: 1px solid var(--line);
+            }
+
+            .closing h2 {
+                margin: 0 0 14px;
+                font-size: 1.24rem;
+                font-weight: 700;
+                letter-spacing: -0.02em;
+            }
+
+            .rec {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                gap: 0;
+                max-width: 76ch;
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                background: var(--surface);
+                overflow: hidden;
+            }
+
+            .rec-row {
+                display: grid;
+                grid-template-columns: 116px minmax(0, 1fr);
+                gap: 16px;
+                padding: 13px 17px;
+                border-bottom: 1px solid var(--line-soft);
+                font-size: 0.89rem;
+            }
+
+            .rec-row:last-child {
+                border-bottom: 0;
+            }
+
+            .rec-row strong {
+                color: var(--faint);
+                font-family: var(--mono);
+                font-size: 0.61rem;
+                font-weight: 750;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+
+            .rec-row p {
+                margin: 0;
+            }
+
+            .rec-row p + p {
+                margin-top: 6px;
+                color: var(--muted);
+                font-size: 0.84rem;
+            }
+
+            @media (max-width: 900px) {
+                .option,
+                .option:nth-of-type(even),
+                .today {
+                    grid-template-columns: minmax(0, 1fr);
+                    gap: 22px;
+                }
+
+                .option:nth-of-type(even) .option-copy {
+                    order: 0;
+                }
+
+                .fact {
+                    border-right: 0;
+                    border-bottom: 1px solid var(--line-soft);
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <main class="page">
+            <p class="eyebrow">nD_DynamicSection / AVB_Collaborators__c</p>
+            <h1>Five ways to render a comma-separated email list</h1>
+            <p class="intro">
+                The field is a Long Text Area holding addresses joined by commas. The standard textarea shows two and a
+                half lines of wrapped text with the rest clipped, so at twenty entries nobody can tell who is on the
+                case. Every option below parses the same string on commas. None of them change how the value is stored.
+            </p>
+            <p class="note">
+                <strong>Sample data is invented.</strong> Domain shapes, role mailboxes and the internal / external mix
+                mirror real cases, but no address here belongs to a real person or customer. This file is committed to a
+                public repository.
+            </p>
+
+            <dl class="evidence">
+                <div class="fact">
+                    <dt>Cases carrying a value</dt>
+                    <dd>139 of 200<span>most recent, PROD</span></dd>
+                </div>
+                <div class="fact">
+                    <dt>Median entries</dt>
+                    <dd>3<span>mean 3.9</span></dd>
+                </div>
+                <div class="fact">
+                    <dt>Worst case</dt>
+                    <dd>20<span>9 from a single domain</span></dd>
+                </div>
+                <div class="fact">
+                    <dt>Resolve to a Contact</dt>
+                    <dd>about 50%<span>internal staff resolve to User instead</span></dd>
+                </div>
+            </dl>
+
+            <section class="today">
+                <div>
+                    <h2>What it does today</h2>
+                    <p>
+                        Fixed-height textarea, mid-word wrapping, third line cut through the letterforms. The count is
+                        invisible, so is any structure.
+                    </p>
+                    <p>
+                        Two facts drive every option: the median list is short enough to show in full, and the long ones
+                        cluster heavily by domain. A design tuned only for twenty entries wastes space on the common
+                        case.
+                    </p>
+                </div>
+                <div class="frame">
+                    <div class="frame-bar"><span>Details</span><span>current build</span></div>
+                    <div class="frame-body">
+                        <p class="fl">Collaborators</p>
+                        <div class="raw">
+                            jmpater@caraibes-air.example,cybersecurite@caraibes-air.example,jlboyer@dubreuil-aero.example,macarre-ext@caraibes-air.example,plandecy@caraibes-air.example,ccibot@caraibes-air.example
+                        </div>
+                        <div class="peer">
+                            <p class="fl">Status</p>
+                            <div class="peer-input">On Hold</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============ OPTION 1 ============ -->
+            <section class="option">
+                <div class="option-copy">
+                    <div class="option-head">
+                        <span class="option-num">01</span>
+                        <h3>Chips with an overflow count</h3>
+                    </div>
+                    <p class="tagline">
+                        One chip per address, wrapped to two rows. Anything past the second row collapses behind a count
+                        that expands in place. Removal moves from text editing to a single click.
+                    </p>
+                    <dl class="assess">
+                        <div>
+                            <dt>Reads</dt>
+                            <dd>Every address stays legible and individually addressable. No truncation mid-word.</dd>
+                        </div>
+                        <div>
+                            <dt>At 20</dt>
+                            <dd>Shows roughly 6, hides 14 behind the count. Contained, but the expanded state is tall.</dd>
+                        </div>
+                        <div>
+                            <dt>At 3</dt>
+                            <dd>All three visible on one row. Costs less height than today's textarea.</dd>
+                        </div>
+                        <div>
+                            <dt>Watch</dt>
+                            <dd class="warn">
+                                Long addresses need ellipsis, so the full value lives in a title attribute only.
+                            </dd>
+                        </div>
+                    </dl>
+                    <p class="cost"><span class="dot dot-low"></span>No Apex, reuses the isUrlList pattern</p>
+                </div>
+                <div class="frame">
+                    <div class="frame-bar"><span>Details</span><span>option 01</span></div>
+                    <div class="frame-body">
+                        <p class="fl">Collaborators <span class="count">20</span></p>
+                        <div class="chips" id="o1-chips">
+                            <span class="chip internal"
+                                ><span class="chip-text">maite.sarria@aviobook.example</span
+                                ><button class="x" type="button" aria-label="Remove maite.sarria">&times;</button></span
+                            >
+                            <span class="chip"
+                                ><span class="chip-text">calvin.koh@turboprop-mfg.example</span
+                                ><button class="x" type="button" aria-label="Remove calvin.koh">&times;</button></span
+                            >
+                            <span class="chip role"
+                                ><span class="chip-text">accountpayable@berjaya-wings.example</span
+                                ><button class="x" type="button" aria-label="Remove accountpayable">&times;</button></span
+                            >
+                            <span class="chip"
+                                ><span class="chip-text">amri.akib@berjaya-wings.example</span
+                                ><button class="x" type="button" aria-label="Remove amri.akib">&times;</button></span
+                            >
+                            <span class="chip role"
+                                ><span class="chip-text">aviodata.subs@avio-grp.example</span
+                                ><button class="x" type="button" aria-label="Remove aviodata.subs">&times;</button></span
+                            >
+                            <span class="chip"
+                                ><span class="chip-text">yann.pierredon@turboprop-mfg.example</span
+                                ><button class="x" type="button" aria-label="Remove yann.pierredon">&times;</button></span
+                            >
+                        </div>
+                        <div class="chips" id="o1-rest" hidden style="margin-top: 5px">
+                            <span class="chip"
+                                ><span class="chip-text">jiun-yan.yap@avionics-grp.example</span
+                                ><button class="x" type="button" aria-label="Remove jiun-yan.yap">&times;</button></span
+                            >
+                            <span class="chip"
+                                ><span class="chip-text">fitri.hamdan@berjaya-wings.example</span
+                                ><button class="x" type="button" aria-label="Remove fitri.hamdan">&times;</button></span
+                            >
+                            <span class="chip"
+                                ><span class="chip-text">daniel.popescu@turboprop-mfg.example</span
+                                ><button class="x" type="button" aria-label="Remove daniel.popescu">&times;</button></span
+                            >
+                            <span class="chip"
+                                ><span class="chip-text">saipol.rahman@berjaya-wings.example</span
+                                ><button class="x" type="button" aria-label="Remove saipol.rahman">&times;</button></span
+                            >
+                            <span class="chip internal"
+                                ><span class="chip-text">steve.vanweer@aviobook.example</span
+                                ><button class="x" type="button" aria-label="Remove steve.vanweer">&times;</button></span
+                            >
+                            <span class="chip"
+                                ><span class="chip-text">norell@berjaya-wings.example</span
+                                ><button class="x" type="button" aria-label="Remove norell">&times;</button></span
+                            >
+                        </div>
+                        <div class="chips" style="margin-top: 6px">
+                            <button class="more" type="button" id="o1-toggle" aria-expanded="false">+14 more</button>
+                        </div>
+                        <div class="addline"><span class="plus">+</span>Add collaborator</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============ OPTION 2 ============ -->
+            <section class="option">
+                <div class="option-copy">
+                    <div class="option-head">
+                        <span class="option-num">02</span>
+                        <h3>Grouped by organisation</h3>
+                    </div>
+                    <p class="tagline">
+                        Split each address on the at-sign and group by domain. One collapsed row per organisation with a
+                        count, internal staff pinned to the top. The twenty-entry case becomes five rows.
+                    </p>
+                    <dl class="assess">
+                        <div>
+                            <dt>Reads</dt>
+                            <dd>
+                                Answers the actual question, which parties are on this case, before you read a single
+                                address.
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>At 20</dt>
+                            <dd>Five rows, about 130px. The strongest option at the top of the range by a wide margin.</dd>
+                        </div>
+                        <div>
+                            <dt>At 3</dt>
+                            <dd class="warn">
+                                Three groups of one. Grouping adds a layer that earns nothing. Needs a threshold to fall
+                                back to option 01.
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>Watch</dt>
+                            <dd>
+                                Domain is not organisation. Regional domains split one company into several rows unless
+                                you fold subdomains.
+                            </dd>
+                        </div>
+                    </dl>
+                    <p class="cost"><span class="dot dot-low"></span>No Apex, pure string work</p>
+                </div>
+                <div class="frame">
+                    <div class="frame-bar"><span>Details</span><span>option 02</span></div>
+                    <div class="frame-body">
+                        <p class="fl">Collaborators <span class="count">20</span></p>
+                        <div class="org">
+                            <button class="org-head" type="button" aria-expanded="true" data-org="g1">
+                                <span class="caret">&#9656;</span>
+                                <span class="org-name">aviobook.example</span>
+                                <span class="tag tag-int">internal</span>
+                                <span class="count">3</span>
+                            </button>
+                            <div class="org-members" id="g1">
+                                <div class="mem"><span>maite.sarria</span><button class="x" type="button" aria-label="Remove maite.sarria">&times;</button></div>
+                                <div class="mem"><span>steve.vanweer</span><button class="x" type="button" aria-label="Remove steve.vanweer">&times;</button></div>
+                                <div class="mem"><span>jean-etienne.hiolle</span><button class="x" type="button" aria-label="Remove jean-etienne.hiolle">&times;</button></div>
+                            </div>
+                        </div>
+                        <div class="org">
+                            <button class="org-head" type="button" aria-expanded="false" data-org="g2">
+                                <span class="caret">&#9656;</span>
+                                <span class="org-name">berjaya-wings.example</span>
+                                <span class="count">9</span>
+                            </button>
+                            <div class="org-members" id="g2" hidden>
+                                <div class="mem"><span>amri.akib</span><button class="x" type="button" aria-label="Remove amri.akib">&times;</button></div>
+                                <div class="mem"><span>fitri.hamdan</span><button class="x" type="button" aria-label="Remove fitri.hamdan">&times;</button></div>
+                                <div class="mem"><span>saipol.rahman</span><button class="x" type="button" aria-label="Remove saipol.rahman">&times;</button></div>
+                                <div class="mem"><span>accountpayable</span><button class="x" type="button" aria-label="Remove accountpayable">&times;</button></div>
+                                <div class="mem"><span>norell</span><button class="x" type="button" aria-label="Remove norell">&times;</button></div>
+                            </div>
+                        </div>
+                        <div class="org">
+                            <button class="org-head" type="button" aria-expanded="false" data-org="g3">
+                                <span class="caret">&#9656;</span>
+                                <span class="org-name">turboprop-mfg.example</span>
+                                <span class="count">3</span>
+                            </button>
+                            <div class="org-members" id="g3" hidden>
+                                <div class="mem"><span>calvin.koh</span><button class="x" type="button" aria-label="Remove calvin.koh">&times;</button></div>
+                                <div class="mem"><span>yann.pierredon</span><button class="x" type="button" aria-label="Remove yann.pierredon">&times;</button></div>
+                                <div class="mem"><span>daniel.popescu</span><button class="x" type="button" aria-label="Remove daniel.popescu">&times;</button></div>
+                            </div>
+                        </div>
+                        <div class="org">
+                            <button class="org-head" type="button" aria-expanded="false" data-org="g4">
+                                <span class="caret">&#9656;</span>
+                                <span class="org-name">avionics-grp.example</span>
+                                <span class="count">4</span>
+                            </button>
+                            <div class="org-members" id="g4" hidden>
+                                <div class="mem"><span>jiun-yan.yap</span><button class="x" type="button" aria-label="Remove jiun-yan.yap">&times;</button></div>
+                                <div class="mem"><span>database.support</span><button class="x" type="button" aria-label="Remove database.support">&times;</button></div>
+                            </div>
+                        </div>
+                        <div class="org">
+                            <button class="org-head" type="button" aria-expanded="false" data-org="g5">
+                                <span class="caret">&#9656;</span>
+                                <span class="org-name">avio-grp.example</span>
+                                <span class="count">1</span>
+                            </button>
+                            <div class="org-members" id="g5" hidden>
+                                <div class="mem"><span>aviodata.subs</span><button class="x" type="button" aria-label="Remove aviodata.subs">&times;</button></div>
+                            </div>
+                        </div>
+                        <div class="addline"><span class="plus">+</span>Add collaborator</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============ OPTION 3 ============ -->
+            <section class="option">
+                <div class="option-copy">
+                    <div class="option-head">
+                        <span class="option-num">03</span>
+                        <h3>Initial cluster, roster on demand</h3>
+                    </div>
+                    <p class="tagline">
+                        Collapse the whole list to a row of overlapping initial badges plus a count. Clicking opens a
+                        scrollable roster underneath. The field stops competing for height with Status and Priority.
+                    </p>
+                    <dl class="assess">
+                        <div>
+                            <dt>Reads</dt>
+                            <dd>Presence and scale at a glance. Colour separates internal, external and role mailboxes.</dd>
+                        </div>
+                        <div>
+                            <dt>At 20</dt>
+                            <dd>One 27px row collapsed, capped scroll area open. Cheapest option vertically by far.</dd>
+                        </div>
+                        <div>
+                            <dt>At 3</dt>
+                            <dd>Three badges. Compact, though it hides addresses that would have fitted plainly.</dd>
+                        </div>
+                        <div>
+                            <dt>Watch</dt>
+                            <dd class="warn">
+                                Initials from an email are unreliable. Role mailboxes give nonsense monograms, and every
+                                read costs an interaction.
+                            </dd>
+                        </div>
+                    </dl>
+                    <p class="cost"><span class="dot dot-low"></span>No Apex, most CSS of the five</p>
+                </div>
+                <div class="frame">
+                    <div class="frame-bar"><span>Details</span><span>option 03</span></div>
+                    <div class="frame-body">
+                        <p class="fl">Collaborators</p>
+                        <button class="cluster" type="button" id="o3-toggle" aria-expanded="false" style="border: 0; background: none; padding: 0; cursor: pointer">
+                            <span class="stack">
+                                <span class="av i">MS</span><span class="av">CK</span><span class="av r">AP</span
+                                ><span class="av">AA</span><span class="av r">AS</span><span class="av">YP</span
+                                ><span class="av rest">+14</span>
+                            </span>
+                            <span class="cluster-meta"><b>20 collaborators</b>5 organisations</span>
+                        </button>
+                        <div class="roster" id="o3-roster" hidden>
+                            <div class="roster-head"><span>Full roster</span><span>scroll</span></div>
+                            <div class="roster-list">
+                                <div class="roster-row"><span class="av i">MS</span><span>maite.sarria@aviobook.example</span><button class="x" type="button" aria-label="Remove">&times;</button></div>
+                                <div class="roster-row"><span class="av">CK</span><span>calvin.koh@turboprop-mfg.example</span><button class="x" type="button" aria-label="Remove">&times;</button></div>
+                                <div class="roster-row"><span class="av r">AP</span><span>accountpayable@berjaya-wings.example</span><button class="x" type="button" aria-label="Remove">&times;</button></div>
+                                <div class="roster-row"><span class="av">AA</span><span>amri.akib@berjaya-wings.example</span><button class="x" type="button" aria-label="Remove">&times;</button></div>
+                                <div class="roster-row"><span class="av r">AS</span><span>aviodata.subs@avio-grp.example</span><button class="x" type="button" aria-label="Remove">&times;</button></div>
+                                <div class="roster-row"><span class="av">YP</span><span>yann.pierredon@turboprop-mfg.example</span><button class="x" type="button" aria-label="Remove">&times;</button></div>
+                                <div class="roster-row"><span class="av">JY</span><span>jiun-yan.yap@avionics-grp.example</span><button class="x" type="button" aria-label="Remove">&times;</button></div>
+                            </div>
+                        </div>
+                        <div class="peer">
+                            <p class="fl">Status</p>
+                            <div class="peer-input">On Hold</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============ OPTION 4 ============ -->
+            <section class="option">
+                <div class="option-copy">
+                    <div class="option-head">
+                        <span class="option-num">04</span>
+                        <h3>Resolved against Contact and User</h3>
+                    </div>
+                    <p class="tagline">
+                        Apex matches each address to a Contact (name plus Account) or, for internal domains, an active
+                        User. Resolved entries become names that link to the record. Unresolved ones stay as the raw
+                        address, marked as absent from the CRM.
+                    </p>
+                    <dl class="assess">
+                        <div>
+                            <dt>Reads</dt>
+                            <dd>
+                                Real names and account context. Also surfaces something the textarea cannot: this
+                                address is on no Contact record.
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>Measured</dt>
+                            <dd>
+                                5 of 10 sampled addresses matched a Contact. All 4 sampled internal addresses matched a
+                                User.
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>At 3 and 20</dt>
+                            <dd>Tallest option at both ends. Two lines per entry, so 20 entries needs its own scroll cap.</dd>
+                        </div>
+                        <div>
+                            <dt>Watch</dt>
+                            <dd class="warn">
+                                Half the rows will look unresolved, which reads as broken unless the empty state is
+                                deliberate. Adds an Apex class, a query per render and a new test.
+                            </dd>
+                        </div>
+                    </dl>
+                    <p class="cost"><span class="dot dot-high"></span>Apex, cacheable query, new test class</p>
+                </div>
+                <div class="frame">
+                    <div class="frame-bar"><span>Details</span><span>option 04</span></div>
+                    <div class="frame-body">
+                        <p class="fl">Collaborators <span class="count">20</span></p>
+                        <div class="res">
+                            <span class="av i">MS</span>
+                            <span class="res-id">
+                                <span class="res-name"><a href="#o4">Maite Sarria Gomez</a></span>
+                                <span class="res-sub">Internal user</span>
+                            </span>
+                            <button class="x" type="button" aria-label="Remove Maite Sarria Gomez">&times;</button>
+                        </div>
+                        <div class="res">
+                            <span class="av r">FO</span>
+                            <span class="res-id">
+                                <span class="res-name"><a href="#o4">Flight Operations Support</a></span>
+                                <span class="res-sub">Berjaya Wings, shared mailbox</span>
+                            </span>
+                            <button class="x" type="button" aria-label="Remove Flight Operations Support">&times;</button>
+                        </div>
+                        <div class="res">
+                            <span class="av">MS</span>
+                            <span class="res-id">
+                                <span class="res-name"><a href="#o4">Manish Sharma</a></span>
+                                <span class="res-sub">Turboprop Manufacturing</span>
+                            </span>
+                            <button class="x" type="button" aria-label="Remove Manish Sharma">&times;</button>
+                        </div>
+                        <div class="res">
+                            <span class="av rest">?</span>
+                            <span class="res-id">
+                                <span class="res-name">macarre-ext@caraibes-air.example</span>
+                                <span class="res-sub unres">No matching Contact</span>
+                            </span>
+                            <button class="x" type="button" aria-label="Remove macarre-ext">&times;</button>
+                        </div>
+                        <div class="res">
+                            <span class="av rest">?</span>
+                            <span class="res-id">
+                                <span class="res-name">cybersecurite@caraibes-air.example</span>
+                                <span class="res-sub unres">No matching Contact</span>
+                            </span>
+                            <button class="x" type="button" aria-label="Remove cybersecurite">&times;</button>
+                        </div>
+                        <div class="chips" style="margin-top: 7px">
+                            <button class="more" type="button">+15 more</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============ OPTION 5 ============ -->
+            <section class="option">
+                <div class="option-copy">
+                    <div class="option-head">
+                        <span class="option-num">05</span>
+                        <h3>Summary line, expand to manage</h3>
+                    </div>
+                    <p class="tagline">
+                        Default to one line of counts. Expanding reveals the managed list, with a paste mode that keeps
+                        the raw comma-separated textarea for bulk edits. Reading and editing stop fighting each other.
+                    </p>
+                    <dl class="assess">
+                        <div>
+                            <dt>Reads</dt>
+                            <dd>
+                                Costs one line until someone asks for more. Protects the bulk paste workflow the field
+                                was clearly built around.
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>At 20</dt>
+                            <dd>One line collapsed. Expanded, it inherits whichever list style you pick above.</dd>
+                        </div>
+                        <div>
+                            <dt>At 3</dt>
+                            <dd class="warn">
+                                A summary of three is worse than showing three. Hides information that already fitted.
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>Watch</dt>
+                            <dd>
+                                Not really a fifth design. It is a wrapper, and it needs one of 01 to 04 inside it to be
+                                complete.
+                            </dd>
+                        </div>
+                    </dl>
+                    <p class="cost"><span class="dot dot-mid"></span>No Apex, but two states to build and test</p>
+                </div>
+                <div class="frame">
+                    <div class="frame-bar"><span>Details</span><span>option 05</span></div>
+                    <div class="frame-body">
+                        <p class="fl">Collaborators</p>
+                        <button class="summary" type="button" id="o5-toggle" aria-expanded="false">
+                            <span class="caret">&#9656;</span>
+                            <span class="summary-text">
+                                <b>20 collaborators</b>
+                                <em>5 organisations, 3 internal, 4 shared mailboxes</em>
+                            </span>
+                            <span class="count">20</span>
+                        </button>
+                        <div class="expand" id="o5-panel" hidden>
+                            <div class="mode" role="group" aria-label="Edit mode">
+                                <button type="button" aria-pressed="true" data-mode="list">List</button>
+                                <button type="button" aria-pressed="false" data-mode="paste">Paste</button>
+                            </div>
+                            <div id="o5-list">
+                                <div class="chips">
+                                    <span class="chip internal"><span class="chip-text">maite.sarria@aviobook.example</span><button class="x" type="button" aria-label="Remove">&times;</button></span>
+                                    <span class="chip"><span class="chip-text">calvin.koh@turboprop-mfg.example</span><button class="x" type="button" aria-label="Remove">&times;</button></span>
+                                    <span class="chip role"><span class="chip-text">accountpayable@berjaya-wings.example</span><button class="x" type="button" aria-label="Remove">&times;</button></span>
+                                    <span class="chip"><span class="chip-text">amri.akib@berjaya-wings.example</span><button class="x" type="button" aria-label="Remove">&times;</button></span>
+                                </div>
+                                <div class="addline"><span class="plus">+</span>Add collaborator</div>
+                            </div>
+                            <div id="o5-paste" hidden>
+                                <label class="fl" for="o5-bulk">Comma-separated</label>
+                                <textarea class="bulk" id="o5-bulk" spellcheck="false">
+maite.sarria@aviobook.example, calvin.koh@turboprop-mfg.example, accountpayable@berjaya-wings.example, amri.akib@berjaya-wings.example</textarea
+                                >
+                                <p class="hint">Stored exactly as typed. Parsing happens on render only.</p>
+                            </div>
+                        </div>
+                        <div class="peer">
+                            <p class="fl">Status</p>
+                            <div class="peer-input">On Hold</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="closing">
+                <h2>Reading the five together</h2>
+                <div class="rec">
+                    <div class="rec-row">
+                        <strong>Recommend</strong>
+                        <div>
+                            <p>Option 01 as the baseline, with option 02 switching on above a threshold.</p>
+                            <p>
+                                Chips fit the median list of three with less height than today. Groups earn their keep
+                                only in the tail, where nine addresses from one carrier collapse to a single row. One
+                                config flag, one threshold, both behaviours from the same parsed array.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="rec-row">
+                        <strong>Against 04</strong>
+                        <div>
+                            <p>The resolution idea is sound but the measured hit rate does not carry a layout.</p>
+                            <p>
+                                At roughly half unresolved it reads as a broken list. Better as an enhancement layered
+                                onto 01 or 02 later: swap in the name when a match exists, keep the address when it does
+                                not, and let the display work regardless.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="rec-row">
+                        <strong>Reusable</strong>
+                        <div>
+                            <p>Whichever wins, this becomes an <code>isEmailList</code> flag on the JSON config.</p>
+                            <p>
+                                AVB_Followers__c is the same shape and gets the same treatment for free. Unlike
+                                isUrlList, the stored format stays plain comma-separated text, so Slack and email
+                                integrations that write this field keep working untouched.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="rec-row">
+                        <strong>Open</strong>
+                        <div>
+                            <p>Three questions the mockups cannot answer.</p>
+                            <p>
+                                Does anything downstream parse this field on a strict separator, so that normalising
+                                spacing would break it? Should removing a collaborator be possible without opening a
+                                modal? And is the group threshold a count, say six, or a distinct-domain count?
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            // Option 01: overflow reveal
+            (function () {
+                var btn = document.getElementById("o1-toggle");
+                var rest = document.getElementById("o1-rest");
+                btn.addEventListener("click", function () {
+                    var open = btn.getAttribute("aria-expanded") === "true";
+                    btn.setAttribute("aria-expanded", String(!open));
+                    rest.hidden = open;
+                    btn.textContent = open ? "+14 more" : "Show fewer";
+                });
+            })();
+
+            // Option 02: per-organisation disclosure
+            document.querySelectorAll(".org-head").forEach(function (head) {
+                head.addEventListener("click", function () {
+                    var panel = document.getElementById(head.dataset.org);
+                    var open = head.getAttribute("aria-expanded") === "true";
+                    head.setAttribute("aria-expanded", String(!open));
+                    panel.hidden = open;
+                });
+            });
+
+            // Option 03: roster disclosure
+            (function () {
+                var btn = document.getElementById("o3-toggle");
+                var roster = document.getElementById("o3-roster");
+                btn.addEventListener("click", function () {
+                    var open = btn.getAttribute("aria-expanded") === "true";
+                    btn.setAttribute("aria-expanded", String(!open));
+                    roster.hidden = open;
+                });
+            })();
+
+            // Option 05: summary disclosure plus list / paste mode
+            (function () {
+                var btn = document.getElementById("o5-toggle");
+                var panel = document.getElementById("o5-panel");
+                btn.addEventListener("click", function () {
+                    var open = btn.getAttribute("aria-expanded") === "true";
+                    btn.setAttribute("aria-expanded", String(!open));
+                    panel.hidden = open;
+                });
+
+                var list = document.getElementById("o5-list");
+                var paste = document.getElementById("o5-paste");
+                panel.querySelectorAll(".mode button").forEach(function (b) {
+                    b.addEventListener("click", function () {
+                        panel.querySelectorAll(".mode button").forEach(function (other) {
+                            other.setAttribute("aria-pressed", String(other === b));
+                        });
+                        var wantPaste = b.dataset.mode === "paste";
+                        list.hidden = wantPaste;
+                        paste.hidden = !wantPaste;
+                    });
+                });
+            })();
+
+            // Chip removal, shared across every option
+            document.querySelectorAll(".x").forEach(function (x) {
+                x.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    var row = x.closest(".chip, .mem, .roster-row, .res");
+                    if (row) {
+                        row.style.transition = "opacity 140ms ease";
+                        row.style.opacity = "0";
+                        setTimeout(function () {
+                            row.remove();
+                        }, 140);
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>
