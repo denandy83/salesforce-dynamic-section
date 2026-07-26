@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PARTIAL profile, field permissions only. Profile deploys merge, so deploying
+     this changes nothing else on the profile. Do NOT retrieve over it with a full
+     profile. Exists because this profile's Salesforce Platform license excludes
+     Case, so FieldPermissions can't be inserted via the REST API — only this way. -->
+<Profile xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Case.AVB_Followers__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+</Profile>
