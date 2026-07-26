@@ -83,6 +83,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     @track emailListExpanded = {};   // apiName -> true while the roster is open
     @track emailDirectory = {};      // lowercased address -> resolved person from Apex
     @track emailListDraft = {};      // apiName -> value being typed into the add box
+    @track emailListError = {};      // apiName -> message for addresses we refused
     emailListDirty = false;
     _emailsRequested = new Set();    // addresses already sent to Apex, so we ask once
 
@@ -297,6 +298,34 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             .filter(part => part.length > 0);
     }
 
+    // The allowedDomains config value, lowercased. Empty list means no restriction.
+    _allowedDomainsFor(apiName) {
+        const item = this.configObject.find(i => i.apiName === apiName);
+        if (!item || !item.allowedDomains) return [];
+        return String(item.allowedDomains)
+            .split(',')
+            .map(d => d.trim().toLowerCase().replace(/^@/, ''))
+            .filter(d => d.length > 0);
+    }
+
+    // Splits an address and checks the domain against allowedDomains. A sandbox
+    // refresh appends ".invalid" to every stored address, so that suffix is
+    // ignored when comparing; it never occurs in production data.
+    _emailDomainAllowed(email, allowed) {
+        if (!allowed.length) return true;
+        const at = String(email).lastIndexOf('@');
+        if (at < 0) return false;
+        const domain = String(email)
+            .slice(at + 1)
+            .toLowerCase()
+            .replace(/\.invalid$/, '');
+        return allowed.includes(domain);
+    }
+
+    _looksLikeEmail(email) {
+        return /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(String(email).replace(/\.invalid$/, ''));
+    }
+
     // Sends any address we haven't resolved yet to Apex and merges the answers
     // into emailDirectory. Addresses are asked about once per component instance.
     _resolveKnownEmails() {
@@ -374,6 +403,8 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             expanded: expanded,
             rosterHidden: !expanded,
             canEdit: canEdit === true,
+            error: this.emailListError[apiName] || null,
+            hasError: !!this.emailListError[apiName],
             showEmptyAdd: rows.length === 0 && canEdit === true && !expanded,
             showEmptyText: rows.length === 0 && canEdit !== true,
             draft: this.emailListDraft[apiName] || ''
@@ -633,7 +664,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 urlListHasItems: urlListItems.length > 0,
                 isEmailList: isEmailList,
                 emailList: emailList,
-                emailPlaceholder: item.placeholder || 'Add address, or paste several',
+                emailPlaceholder: item.placeholder || this._emailPlaceholderFor(item),
                 hasRecordLink: !!recordLinkId,
                 recordLinkId: recordLinkId
             };
@@ -802,6 +833,9 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     ND_emailListDraftChange(event) {
         const apiName = event.currentTarget.dataset.field;
         this.emailListDraft = { ...this.emailListDraft, [apiName]: event.target.value };
+        if (this.emailListError[apiName]) {
+            this.emailListError = { ...this.emailListError, [apiName]: null };
+        }
     }
 
     ND_emailListDraftKey(event) {
@@ -813,25 +847,60 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     ND_emailListAdd(event) {
         const apiName = event.currentTarget.dataset.field;
-        // Accept a pasted block, not just one address at a time
-        const added = this._parseEmailList(this.emailListDraft[apiName]);
-        if (!added.length) return;
+        // Accept a pasted block on , or ; or newlines, not just one at a time
+        const candidates = this._parseEmailList(this.emailListDraft[apiName]);
+        if (!candidates.length) return;
 
+        const allowed = this._allowedDomainsFor(apiName);
         const list = (this.emailListValues[apiName] || []).slice();
         const seen = new Set(list.map(e => e.toLowerCase()));
-        added.forEach(email => {
+        const rejected = [];
+        let addedAny = false;
+
+        candidates.forEach(email => {
+            if (!this._looksLikeEmail(email) || !this._emailDomainAllowed(email, allowed)) {
+                rejected.push(email);
+                return;
+            }
             if (!seen.has(email.toLowerCase())) {
                 seen.add(email.toLowerCase());
                 list.push(email);
+                addedAny = true;
             }
         });
 
-        this.emailListValues = { ...this.emailListValues, [apiName]: list };
-        this.emailListDraft = { ...this.emailListDraft, [apiName]: '' };
-        this.emailListDirty = true;
-        this.isDirty = true;
-        this.emailListExpanded = { ...this.emailListExpanded, [apiName]: true };
-        this._resolveKnownEmails();
+        if (addedAny) {
+            this.emailListValues = { ...this.emailListValues, [apiName]: list };
+            this.emailListDirty = true;
+            this.isDirty = true;
+            this.emailListExpanded = { ...this.emailListExpanded, [apiName]: true };
+            this._resolveKnownEmails();
+        }
+
+        // Keep only what was refused in the box, so a mixed paste keeps the good
+        // ones and leaves the rest in place to be corrected.
+        this.emailListDraft = { ...this.emailListDraft, [apiName]: rejected.join(', ') };
+        this.emailListError = {
+            ...this.emailListError,
+            [apiName]: rejected.length ? this._rejectionMessage(rejected, allowed) : null
+        };
+    }
+
+    _emailPlaceholderFor(item) {
+        const allowed = this._allowedDomainsFor(item.apiName);
+        return allowed.length === 1
+            ? `Add @${allowed[0]} address, or paste several`
+            : 'Add address, or paste several';
+    }
+
+    _rejectionMessage(rejected, allowed) {
+        const shown = rejected.slice(0, 3).join(', ');
+        const more = rejected.length > 3 ? ` and ${rejected.length - 3} more` : '';
+        if (allowed.length) {
+            const domains = allowed.map(d => '@' + d).join(' or ');
+            return `Only ${domains} addresses are allowed here. Not added: ${shown}${more}`;
+        }
+        return `Not a valid email address. Not added: ${shown}${more}`;
     }
 
     ND_emailListOpenRecord(event) {
@@ -1040,6 +1109,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
         this.urlEditMode = {};      // saved URLs render as links again
         this.emailListDraft = {};   // discard anything typed into an add box
+        this.emailListError = {};
         this.ownerEditMode = false;
         this._clearDirtyState();
         this.saveError = undefined;
@@ -1061,6 +1131,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         this.urlListDirty = false;
         this.emailListDirty = false;
         this.emailListDraft = {};
+        this.emailListError = {};
         this.emailListDirty = false;
     }
 

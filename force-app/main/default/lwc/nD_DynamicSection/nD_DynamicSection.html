@@ -140,7 +140,8 @@
                                                     <template if:true={fieldConfig.emailList.showEmptyText}>
                                                         <span class="nd-emails-none">None</span>
                                                     </template>
-                                                    <div class="nd-roster" hidden={fieldConfig.emailList.rosterHidden}>
+                                                    <div class="nd-emails-panel" hidden={fieldConfig.emailList.rosterHidden}>
+                                                        <div class="nd-roster">
                                                         <template for:each={fieldConfig.emailList.rows} for:item="person">
                                                             <div key={person.key} class="nd-roster-row">
                                                                 <span class={person.avatarClass}>
@@ -166,6 +167,7 @@
                                                                 </template>
                                                             </div>
                                                         </template>
+                                                        </div>
                                                         <template if:true={fieldConfig.emailList.canEdit}>
                                                             <div class="nd-roster-add">
                                                                 <lightning-input type="text" variant="label-hidden" class="nd-roster-input"
@@ -176,6 +178,9 @@
                                                                     alternative-text="Add" title="Add" data-field={fieldConfig.apiName}
                                                                     onclick={ND_emailListAdd}></lightning-button-icon>
                                                             </div>
+                                                            <template if:true={fieldConfig.emailList.hasError}>
+                                                                <p class="nd-roster-error" role="alert">{fieldConfig.emailList.error}</p>
+                                                            </template>
                                                         </template>
                                                     </div>
                                                 </div>
@@ -352,7 +357,8 @@
                                                     <template if:true={fieldConfig.emailList.showEmptyText}>
                                                         <span class="nd-emails-none">None</span>
                                                     </template>
-                                                    <div class="nd-roster" hidden={fieldConfig.emailList.rosterHidden}>
+                                                    <div class="nd-emails-panel" hidden={fieldConfig.emailList.rosterHidden}>
+                                                        <div class="nd-roster">
                                                         <template for:each={fieldConfig.emailList.rows} for:item="person">
                                                             <div key={person.key} class="nd-roster-row">
                                                                 <span class={person.avatarClass}>
@@ -378,6 +384,7 @@
                                                                 </template>
                                                             </div>
                                                         </template>
+                                                        </div>
                                                         <template if:true={fieldConfig.emailList.canEdit}>
                                                             <div class="nd-roster-add">
                                                                 <lightning-input type="text" variant="label-hidden" class="nd-roster-input"
@@ -388,6 +395,9 @@
                                                                     alternative-text="Add" title="Add" data-field={fieldConfig.apiName}
                                                                     onclick={ND_emailListAdd}></lightning-button-icon>
                                                             </div>
+                                                            <template if:true={fieldConfig.emailList.hasError}>
+                                                                <p class="nd-roster-error" role="alert">{fieldConfig.emailList.error}</p>
+                                                            </template>
                                                         </template>
                                                     </div>
                                                 </div>

@@ -29,8 +29,13 @@ Supported per-field keys:
   (subtitle = Account name), then community/portal User; anything unmatched still renders as a
   person marked "Not in Salesforce", which is the normal case for shared mailboxes. Stored format
   stays plain comma-separated text, so flows and integrations writing the field are unaffected.
-  Parsing accepts commas, semicolons and newlines. Avatar colour: blue = internal User,
-  teal = Contact, grey = unmatched.
+  Parsing accepts commas, semicolons and newlines (paste a block from Outlook and it splits).
+  Avatar colour: blue = internal User, teal = Contact, grey = unmatched.
+- `allowedDomains` (with `isEmailList`) — comma-separated domain allow-list, e.g.
+  `"allowedDomains":"aviobook.aero"` on `AVB_Followers__c` so only internal addresses can be
+  added. Applies per address in a pasted block: the valid ones are added, the refused ones stay
+  in the input with a message naming them. Comparison ignores a trailing `.invalid` so sandbox
+  scrambled copies still validate. Existing stored values are never removed by the rule.
 - `isUrlList` — **multiple labeled links** stored as JSON `[{label,url}]` in a Long Text Area; add/edit via a pop-out modal (Label + URL fields), `×` to remove, click label to open. Backward-compatible: a legacy plain-URL value renders as one chip.
 - `isOpenProblem` — Case lookup rendered as a **modal picker** (Case # / Subject / Status table) backed by `ND_ProblemPicker` Apex; removable filter chips (record type / open-only), search by number or subject; a linked value opens the case.
 - Header alert (App Builder props, NOT the JSON): `ND_headerLogicField` + `ND_headerLogicValue` + `ND_headerActiveColor` (single field only).
