@@ -713,11 +713,27 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     ND_handleFieldChange(event) {
         if (this._restoring) return;
+
+        // On a cold load the form populates its own inputs and fires change for each
+        // one. Until our wire lands there is nothing to compare against, and a user
+        // cannot have edited a field that has only just been rendered, so treat these
+        // as the form loading rather than guessing (guessing marked the section dirty
+        // on every hard refresh). The recompute below settles it once data arrives.
+        if (!this.ND_recordData) {
+            this._recomputeDirtyAfterRefresh();
+            return;
+        }
+
         // A background write (email-to-case flow, process builder, another user)
         // refreshes the form, and reloading an input fires change exactly like a
         // user edit does. Dirty means "differs from what's saved", so compare.
-        if (!this._fieldDiffersFromSaved(event.target, event.detail)) return;
-        this.isDirty = true;
+        if (this._fieldDiffersFromSaved(event.target, event.detail)) {
+            this.isDirty = true;
+        }
+
+        // Re-derive from the DOM either way: this event may have arrived before the
+        // record data it should have been compared against.
+        this._recomputeDirtyAfterRefresh();
     }
 
     // True when the control's value differs from the saved record value. Errs
@@ -752,6 +768,9 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         setTimeout(() => {
             this._recomputeQueued = false;
             if (this._restoring || this.isSaving) return;
+            // Nothing to compare against yet. Leave isDirty alone; the wire calls
+            // this again as soon as the record lands.
+            if (!this.ND_recordData) return;
             // Our own widgets track their edits separately; never clear those.
             if (this.ownerDirty || this.openProblemDirty || this.urlDirty || this.urlListDirty || this.emailListDirty) return;
 
