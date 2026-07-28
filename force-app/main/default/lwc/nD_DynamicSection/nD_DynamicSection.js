@@ -1099,30 +1099,94 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     // Saves ownership to the current user immediately, without touching other edits
+    // Taking a case out of a queue moves Status to Open, which starts the SLA clock,
+    // so the fields the SLA depends on have to be there first. Without this check the
+    // failure surfaces as a raw FIELD_CUSTOM_VALIDATION_EXCEPTION from an after-save
+    // flow, which names no field and only appears for non-admin profiles.
     ND_handleTakeOwnership() {
-        if (this.isTakingOwnership) return; // ignore repeat clicks while in flight
+        if (this.isTakingOwnership || this.isSaving) return; // ignore repeat clicks
+
+        const missing = this._missingBeforeTakeover();
+        if (missing.length) {
+            this.saveError = {
+                title: this._takeoverBlockedMessage(missing),
+                items: [],
+                hasItems: false
+            };
+            return;
+        }
+
         this.isTakingOwnership = true;
+        this.saveError = undefined;
+        this.selectedOwnerId = USER_ID;
+        this.ownerPickerMode = 'User';
+        this.ownerDirty = true;
+
+        // Save through the form so pending edits ride along in the SAME DML. If the
+        // user just picked an Environment without saving, the after-save flow has to
+        // see it, otherwise it flips Status to Open and the validation rule fires.
+        const form = this.template.querySelector('lightning-record-edit-form');
+        if (form) {
+            this.isSaving = true;
+            form.submit(this._injectWidgetFields(this._currentFormValues()));
+            return; // ND_handleSuccess / ND_handleError finish up
+        }
+
+        // Section collapsed, so there is no form to submit through
         updateRecord({ fields: { Id: this.recordId, OwnerId: USER_ID } })
             .then(() => {
-                this.selectedOwnerId = USER_ID;
-                this.ownerPickerMode = 'User';
                 this.ownerEditMode = false;
                 this.ownerDirty = false;
                 this.isDirty = false;
                 this._showOwnerNotice('✓ You are now the owner', false);
             })
             .catch(error => {
-                let message = 'Could not take ownership';
-                if (error.body && error.body.output && error.body.output.errors && error.body.output.errors.length > 0) {
-                    message = error.body.output.errors[0].message;
-                } else if (error.body && error.body.message) {
-                    message = error.body.message;
-                }
-                this._showOwnerNotice(message, true);
+                this.saveError = this._buildSaveError(error.body || {});
             })
             .finally(() => {
                 this.isTakingOwnership = false;
             });
+    }
+
+    // Labels of the fields listed in requireBeforeTakeover that have no value yet,
+    // reading the live UI value first so an unsaved selection counts as set.
+    _missingBeforeTakeover() {
+        const ownerItem = this.configObject.find(i => i.apiName === 'OwnerId');
+        if (!ownerItem || !ownerItem.requireBeforeTakeover) return [];
+
+        const required = String(ownerItem.requireBeforeTakeover)
+            .split(',')
+            .map(a => a.trim())
+            .filter(a => a.length > 0);
+        if (!required.length) return [];
+
+        const live = this._currentFormValues();
+        const saved = (this.ND_recordData && this.ND_recordData.fields) || {};
+
+        return required
+            .filter(apiName => {
+                const value = Object.prototype.hasOwnProperty.call(live, apiName)
+                    ? live[apiName]
+                    : (saved[apiName] ? saved[apiName].value : null);
+                return value === null || value === undefined || String(value).trim() === '';
+            })
+            .map(apiName => this._labelFor(apiName));
+    }
+
+    _labelFor(apiName) {
+        const item = this.configObject.find(i => i.apiName === apiName);
+        if (item && item.label) return item.label;
+        const described = this._objectInfo && this._objectInfo.fields && this._objectInfo.fields[apiName];
+        return described && described.label ? described.label : apiName;
+    }
+
+    _takeoverBlockedMessage(labels) {
+        if (labels.length === 1) {
+            return `${labels[0]} needs to be set before taking a case`;
+        }
+        const last = labels[labels.length - 1];
+        const rest = labels.slice(0, -1).join(', ');
+        return `${rest} and ${last} need to be set before taking a case`;
     }
 
     // --- CANCEL HANDLER ---
@@ -1175,7 +1239,15 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         event.preventDefault();       // stop the form from submitting
         this.isSaving = true;         // show "Saving…" until success/error fires
         this.saveError = undefined;   // clear any banner from the previous attempt
-        const fields = event.detail.fields;
+        const fields = this._injectWidgetFields(event.detail.fields);
+        this.template.querySelector('lightning-record-edit-form').submit(fields);
+    }
+
+    // Adds everything the standard form doesn't know about to a field map. Shared by
+    // Save and by "take it", so taking a case commits the user's pending edits in the
+    // same DML rather than losing them.
+    _injectWidgetFields(baseFields) {
+        const fields = { ...baseFields };
 
         // If we have a selected record type ID, inject it
         if (this.selectedRecordTypeId) {
@@ -1219,12 +1291,22 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             });
         }
 
-        this.template.querySelector('lightning-record-edit-form').submit(fields);
+        return fields;
+    }
+
+    // Values as they stand in the UI right now, including unsaved edits.
+    _currentFormValues() {
+        const fields = {};
+        this.template.querySelectorAll('lightning-input-field').forEach(field => {
+            if (field.fieldName) fields[field.fieldName] = field.value;
+        });
+        return fields;
     }
 
     // --- ERROR HANDLER ---
     ND_handleError(event) {
         this.isSaving = false;
+        this.isTakingOwnership = false;   // take it saves through the form too
         console.log('FULL ERROR DETAILS:', JSON.parse(JSON.stringify(event.detail || {})));
 
         this.saveError = this._buildSaveError(event.detail);
@@ -1285,18 +1367,25 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     ND_handleSuccess(event) {
+        const wasTakingOwnership = this.isTakingOwnership;
         this.isSaving = false;
+        this.isTakingOwnership = false;
         this.saveError = undefined;
-        this.isDirty = false;
-        this.ownerDirty = false;
+        this._clearDirtyState();
         this.ownerEditMode = false;
-        this.openProblemDirty = false;
-        this.urlDirty = false;
-        this.urlEditMode = {}; // saved values now render as links again
-        this.urlListDirty = false;
+        this.urlEditMode = {};      // saved values now render as links again
+        this.emailListDraft = {};
+        this.emailListError = {};
+
+        if (wasTakingOwnership) {
+            this._showOwnerNotice('✓ You are now the owner', false);
+        }
+
         const evt = new ShowToastEvent({
             title: 'Success',
-            message: 'Record updated successfully',
+            message: wasTakingOwnership
+                ? 'You are now the owner'
+                : 'Record updated successfully',
             variant: 'success',
         });
         this.dispatchEvent(evt);
