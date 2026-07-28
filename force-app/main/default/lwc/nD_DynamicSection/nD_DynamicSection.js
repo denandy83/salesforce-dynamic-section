@@ -771,8 +771,14 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             // Nothing to compare against yet. Leave isDirty alone; the wire calls
             // this again as soon as the record lands.
             if (!this.ND_recordData) return;
-            // Our own widgets track their edits separately; never clear those.
-            if (this.ownerDirty || this.openProblemDirty || this.urlDirty || this.urlListDirty || this.emailListDirty) return;
+
+            // ownerDirty is verified against the record rather than trusted, because
+            // the picker can raise a change event for a value we set ourselves. The
+            // other widgets only ever flip their flag from a real click, and they hold
+            // edits the record cannot confirm, so those are taken at face value.
+            if (this.ownerDirty && this.selectedOwnerId !== this._savedOwnerId()) return;
+            if (this.openProblemDirty || this.urlDirty || this.urlListDirty || this.emailListDirty) return;
+            this.ownerDirty = this.ownerDirty && this.selectedOwnerId !== this._savedOwnerId();
 
             const edited = Array.from(this.template.querySelectorAll('lightning-input-field'))
                 .some(field => this._fieldDiffersFromSaved(field, null));
@@ -1090,15 +1096,35 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     ND_handleOwnerChange(event) {
         if (this._restoring) return;
-        this.selectedOwnerId = event.detail.recordId;
-        if (this.selectedOwnerId) {
+
+        const picked = event.detail.recordId;
+
+        // lightning-record-picker fires change when we seed its value from the record
+        // on load, which is not a user edit. Marking the section dirty here also set
+        // ownerDirty, and that flag makes the dirty recompute bail out, so the section
+        // stayed dirty for good after every hard refresh.
+        if (picked && picked === this._savedOwnerId()) {
+            this.selectedOwnerId = picked;
+            this.ownerEditMode = false;
+            return;
+        }
+
+        this.selectedOwnerId = picked;
+        if (picked) {
             this.ownerDirty = true;
             this.isDirty = true;
             this.ownerEditMode = false;
-        } else {
-            // X-ing out the current owner reveals the User/Queue chooser
+        } else if (this.ND_recordData) {
+            // X-ing out the current owner reveals the User/Queue chooser. Only once
+            // the record is loaded, so a picker that reports null while still
+            // resolving doesn't pop the chooser open on its own.
             this.ownerEditMode = true;
         }
+    }
+
+    _savedOwnerId() {
+        const fields = this.ND_recordData && this.ND_recordData.fields;
+        return fields && fields.OwnerId ? fields.OwnerId.value : null;
     }
 
     ND_handleOwnerModeChange(event) {
