@@ -314,7 +314,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     // Reading TYPED or PASTED input, which is far messier than the stored value:
     // separated by commas, semicolons, spaces or newlines, and often carrying
-    // Outlook display names ("Pater, Jean-Michel" <jm@x.com>; ...). Splitting on a
+    // Outlook display names ("Pater, Jean-Michel" <jm@x.example>; ...). Splitting on a
     // separator can't handle those, so pull out the address-shaped tokens instead.
     _extractEmails(raw) {
         if (!raw) return [];

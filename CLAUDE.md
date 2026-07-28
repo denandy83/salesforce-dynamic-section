@@ -31,7 +31,7 @@ Supported per-field keys:
   stays plain comma-separated text, so flows and integrations writing the field are unaffected.
   Typed/pasted input is parsed by extracting address-shaped tokens, so commas, semicolons,
   spaces and newlines all separate, and Outlook display-name form (`"Pater, Jean-Michel"
-  <jm@x.com>;`) works. The STORED value is parsed by splitting on `,;` and newlines only, keeping
+  <jm@x.example>;`) works. The STORED value is parsed by splitting on `,;` and newlines only, keeping
   malformed tokens so a bad entry stays visible and survives the next save.
   Avatar colour: blue = internal User, teal = Contact, grey = unmatched.
 - `allowedDomains` (with `isEmailList`) — comma-separated domain allow-list, e.g.
