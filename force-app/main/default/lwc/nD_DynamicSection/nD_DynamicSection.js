@@ -1122,14 +1122,14 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         this.ownerPickerMode = 'User';
         this.ownerDirty = true;
 
-        // Save through the form so pending edits ride along in the SAME DML. If the
-        // user just picked an Environment without saving, the after-save flow has to
-        // see it, otherwise it flips Status to Open and the validation rule fires.
-        const form = this.template.querySelector('lightning-record-edit-form');
-        if (form) {
-            this.isSaving = true;
-            form.submit(this._injectWidgetFields(this._currentFormValues()));
-            return; // ND_handleSuccess / ND_handleError finish up
+        // Drive the form's own submit path rather than assembling fields by hand, so
+        // EVERY value on the form is committed in the SAME DML exactly as Save does
+        // it. If the user just picked an Environment without saving, the after-save
+        // flow has to see it, otherwise it flips Status to Open and validation fires.
+        const submitter = this.template.querySelector('[data-role="silent-submit"]');
+        if (submitter) {
+            submitter.click();  // fires onsubmit -> ND_handleSubmit -> form.submit()
+            return;             // ND_handleSuccess / ND_handleError finish up
         }
 
         // Section collapsed, so there is no form to submit through
@@ -1294,7 +1294,9 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         return fields;
     }
 
-    // Values as they stand in the UI right now, including unsaved edits.
+    // Values as they stand in the UI right now, including unsaved edits. Used only
+    // for the pre-flight check; the commit goes through the form's own submit event
+    // so it carries every field the form knows about, not just the ones read here.
     _currentFormValues() {
         const fields = {};
         this.template.querySelectorAll('lightning-input-field').forEach(field => {

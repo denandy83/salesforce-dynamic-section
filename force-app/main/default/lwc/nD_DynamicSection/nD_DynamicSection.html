@@ -458,6 +458,9 @@
                             </template>
                         </template>
 
+                        <button class="nd-hidden-submit" type="submit" tabindex="-1"
+                            aria-hidden="true" data-role="silent-submit"></button>
+
                         <template if:true={isDirty}>
                             <div class="slds-col slds-size_1-of-1 slds-p-top_medium slds-text-align_right nd-save-row">
                                 <template if:true={isSaving}>
