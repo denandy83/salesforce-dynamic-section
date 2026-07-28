@@ -15,6 +15,18 @@ const PROBLEM_RECORD_TYPE_DEVELOPER_NAME = 'AVB_Problem_Case';
 const PROBLEM_EXCLUDED_STATUSES = ['Closed', 'Merged'];
 const PROBLEM_SEARCH_DEBOUNCE_MS = 300;
 
+// --- "take it!": another baked-in business rule, like the problem record type
+// above. Accepting a case out of the Service Queue makes AVB_Case_Flow_After_Update
+// set Status to Open, which starts the SLA clock, so the fields the SLA depends on
+// must be populated first. Without this the save fails inside the flow with a
+// FIELD_CUSTOM_VALIDATION_EXCEPTION that names no field, and only for non-admin
+// profiles, since the rules exempt AVB_System_Administrator.
+// Labels fall back to these when the JSON config doesn't name the field.
+const TAKEOVER_REQUIRED_FIELDS = [
+    { apiName: 'Type', label: 'Issue Type' },
+    { apiName: 'AVB_Environment__c', label: 'Environment' }
+];
+
 export default class ND_DynamicSection extends NavigationMixin(LightningElement) {
     // --- 1. CONFIGURATION PROPERTIES ---
     @api recordId;
@@ -1148,36 +1160,36 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             });
     }
 
-    // Labels of the fields listed in requireBeforeTakeover that have no value yet,
-    // reading the live UI value first so an unsaved selection counts as set.
+    // Labels of the TAKEOVER_REQUIRED_FIELDS that have no value yet. Reads the live
+    // UI value before the saved one, so a dropdown the user just changed counts as
+    // set: they can pick Environment and take the case in one go.
     _missingBeforeTakeover() {
-        const ownerItem = this.configObject.find(i => i.apiName === 'OwnerId');
-        if (!ownerItem || !ownerItem.requireBeforeTakeover) return [];
-
-        const required = String(ownerItem.requireBeforeTakeover)
-            .split(',')
-            .map(a => a.trim())
-            .filter(a => a.length > 0);
-        if (!required.length) return [];
-
         const live = this._currentFormValues();
         const saved = (this.ND_recordData && this.ND_recordData.fields) || {};
 
-        return required
-            .filter(apiName => {
-                const value = Object.prototype.hasOwnProperty.call(live, apiName)
-                    ? live[apiName]
-                    : (saved[apiName] ? saved[apiName].value : null);
-                return value === null || value === undefined || String(value).trim() === '';
-            })
-            .map(apiName => this._labelFor(apiName));
+        return TAKEOVER_REQUIRED_FIELDS.filter(required => {
+            // Not on this page at all, so it isn't ours to demand
+            if (!this._isFieldOnObject(required.apiName)) return false;
+
+            const value = Object.prototype.hasOwnProperty.call(live, required.apiName)
+                ? live[required.apiName]
+                : (saved[required.apiName] ? saved[required.apiName].value : null);
+            return value === null || value === undefined || String(value).trim() === '';
+        }).map(required => this._labelFor(required.apiName, required.label));
     }
 
-    _labelFor(apiName) {
+    _isFieldOnObject(apiName) {
+        if (!this._objectInfo || !this._objectInfo.fields) return true; // describe not in yet
+        return !!this._objectInfo.fields[apiName];
+    }
+
+    // Prefer the label the config chose, then the org's field label, then the fallback
+    _labelFor(apiName, fallback) {
         const item = this.configObject.find(i => i.apiName === apiName);
         if (item && item.label) return item.label;
         const described = this._objectInfo && this._objectInfo.fields && this._objectInfo.fields[apiName];
-        return described && described.label ? described.label : apiName;
+        if (described && described.label) return described.label;
+        return fallback || apiName;
     }
 
     _takeoverBlockedMessage(labels) {

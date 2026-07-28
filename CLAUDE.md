@@ -42,15 +42,17 @@ Supported per-field keys:
 - `isUrlList` — **multiple labeled links** stored as JSON `[{label,url}]` in a Long Text Area; add/edit via a pop-out modal (Label + URL fields), `×` to remove, click label to open. Backward-compatible: a legacy plain-URL value renders as one chip.
 - `isOpenProblem` — Case lookup rendered as a **modal picker** (Case # / Subject / Status table) backed by `ND_ProblemPicker` Apex; removable filter chips (record type / open-only), search by number or subject; a linked value opens the case.
 - Header alert (App Builder props, NOT the JSON): `ND_headerLogicField` + `ND_headerLogicValue` + `ND_headerActiveColor` (single field only).
-- `requireBeforeTakeover` (on the `OwnerId` entry) — comma-separated api names that must have a
-  value before **"take it!"** will run, e.g. `"Type,AVB_Environment__c"`. Reads the LIVE form value
-  first, so an unsaved dropdown selection counts as set. When something is missing it shows the
-  top-of-card banner ("Issue Type and Environment need to be set before taking a case") and does
-  not touch the owner. **Why:** taking a case out of the Service Queue makes
-  `AVB_Case_Flow_After_Update` set Status to Open (decision `Case_Accepted_Check`, prior owner
-  queue `AVB_Service_Queue`), which starts the SLA and trips validation rules on the flow's own
-  write. That failure names no field and, because `AVB_Solved_Requires_Environment` exempts
-  `AVB_System_Administrator`, is invisible to admins.
+- **"take it!" pre-flight (hardcoded, no config needed).** `TAKEOVER_REQUIRED_FIELDS` at the top of
+  the JS lists `Type` (Issue Type) and `AVB_Environment__c` (Environment). Both must have a value
+  or the click is refused with the top-of-card banner ("Issue Type and Environment need to be set
+  before taking a case") and the owner is left alone. Reads the LIVE form value before the saved
+  one, so an unsaved dropdown selection counts as set. Baked in rather than configured, same as
+  `PROBLEM_RECORD_TYPE_DEVELOPER_NAME`, because the take-it action itself is AvioBook-specific and
+  the messages are hardcoded English. Fields absent from the org are skipped. **Why:** taking a
+  case out of the Service Queue makes `AVB_Case_Flow_After_Update` set Status to Open (decision
+  `Case_Accepted_Check`, prior owner queue `AVB_Service_Queue`), which starts the SLA and trips
+  validation rules on the flow's own write. That failure names no field and, because those rules
+  exempt `AVB_System_Administrator`, is invisible to admins.
 - **"take it!" saves through the form**, not a bare `updateRecord`, so pending edits are committed
   in the SAME DML. Otherwise a just-picked Environment is not yet on the record when the flow flips
   Status to Open, and the save fails.
