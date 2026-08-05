@@ -252,7 +252,42 @@ describe('live preview', () => {
         const preview = element.shadowRoot.querySelector('c-n-d_-dynamic-section');
         expect(preview).not.toBeNull();
         expect(preview.recordId).toBe('500KB00000000000AAA');
-        expect(preview.ndJsonConfigString).toBe(json);
+
+        // Assert the REAL property name. An earlier version checked
+        // `ndJsonConfigString`, which is only the expando the template attribute
+        // created — it passed while the section received no config at all.
+        expect(preview.ND_jsonConfigString).toBe(json);
+        expect(preview.ND_sectionTitle).toBe('Preview');
+    });
+
+    it('sets the uppercase-named properties in JS, never as attributes', async () => {
+        // Guards the actual bug: LWC cannot derive an attribute for a property whose
+        // name starts with a capital, so nd-json-config-string reached nothing. If
+        // anyone puts it back in the markup, the attribute reappears and this fails.
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+
+        const json = '[{"apiName":"Status","editable":true}]';
+        const textarea = element.shadowRoot.querySelector('lightning-textarea');
+        textarea.value = json;
+        textarea.dispatchEvent(new CustomEvent('change', { detail: { value: json } }));
+        Array.from(element.shadowRoot.querySelectorAll('lightning-button'))
+            .find(b => b.label === 'Load')
+            .click();
+        await Promise.resolve();
+
+        const idInput = element.shadowRoot.querySelector('lightning-input');
+        idInput.value = '500KB00000000000AAA';
+        idInput.dispatchEvent(new CustomEvent('change'));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const preview = element.shadowRoot.querySelector('c-n-d_-dynamic-section');
+        expect(preview.hasAttribute('nd-json-config-string')).toBe(false);
+        expect(preview.hasAttribute('nd-section-title')).toBe(false);
+        // …while the property itself did arrive
+        expect(preview.ND_jsonConfigString).toBe(json);
     });
 
     it('explains why there is no preview yet', async () => {

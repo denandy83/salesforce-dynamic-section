@@ -449,4 +449,33 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     handleRefreshPreview() {
         this.refreshPreview();
     }
+
+    /**
+     * Push the config into the embedded section by hand.
+     *
+     * nD_DynamicSection's public properties are named ND_jsonConfigString,
+     * ND_sectionTitle and so on. LWC derives an attribute name by lowercasing and
+     * hyphenating, which cannot produce a leading uppercase letter — so those
+     * properties are unreachable from template markup and have to be assigned in JS.
+     * (This is exactly what eslint's no-leading-uppercase-api-name warns about.)
+     *
+     * Guarded by a signature so re-rendering does not reassign on every pass.
+     */
+    renderedCallback() {
+        const preview = this.template.querySelector('c-n-d_-dynamic-section');
+        if (!preview) {
+            this._previewSignature = null;
+            return;
+        }
+
+        const json = this.jsonOutput;
+        const signature = `${this.previewRecordId}|${this.objectApiName}|${json}`;
+        if (this._previewSignature === signature) return;
+        this._previewSignature = signature;
+
+        preview.ND_sectionTitle = 'Preview';
+        preview.ND_jsonConfigString = json;
+        preview.ND_showConfigDiagnostics = true;
+        preview.ND_startCollapsed = false;
+    }
 }

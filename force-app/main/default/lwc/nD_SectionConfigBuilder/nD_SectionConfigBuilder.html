@@ -258,12 +258,12 @@
 
                     <template if:true={canPreview}>
                         <div class="nd-preview">
+                            <!-- ND_* properties start with an uppercase letter, so LWC
+                                 cannot bind them from attributes. They are assigned
+                                 programmatically in renderedCallback instead. -->
                             <c-n-d_-dynamic-section
                                 record-id={previewRecordId}
-                                object-api-name={objectApiName}
-                                nd-section-title="Preview"
-                                nd-json-config-string={jsonOutput}
-                                nd-show-config-diagnostics="true">
+                                object-api-name={objectApiName}>
                             </c-n-d_-dynamic-section>
                         </div>
                     </template>
