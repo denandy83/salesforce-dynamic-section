@@ -6,6 +6,12 @@ import { NavigationMixin } from 'lightning/navigation';
 import USER_ID from '@salesforce/user/Id';
 import getOpenProblems from '@salesforce/apex/ND_ProblemPicker.getOpenProblems';
 import resolveEmails from '@salesforce/apex/ND_EmailResolver.resolveEmails';
+import {
+    isBlank,
+    matchesCsv,
+    validateConfig,
+    describeRequirement
+} from 'c/nD_sectionConfigSchema';
 
 // --- "isOpenProblem" lookup: baked-in business rule so it never has to be
 // redefined in the JSON config. Problems are Cases of this record type (matched
@@ -15,17 +21,23 @@ const PROBLEM_RECORD_TYPE_DEVELOPER_NAME = 'AVB_Problem_Case';
 const PROBLEM_EXCLUDED_STATUSES = ['Closed', 'Merged'];
 const PROBLEM_SEARCH_DEBOUNCE_MS = 300;
 
-// --- "take it!": another baked-in business rule, like the problem record type
-// above. Accepting a case out of the Service Queue makes AVB_Case_Flow_After_Update
-// set Status to Open, which starts the SLA clock, so the fields the SLA depends on
-// must be populated first. Without this the save fails inside the flow with a
-// FIELD_CUSTOM_VALIDATION_EXCEPTION that names no field, and only for non-admin
-// profiles, since the rules exempt AVB_System_Administrator.
-// Labels fall back to these when the JSON config doesn't name the field.
-const TAKEOVER_REQUIRED_FIELDS = [
-    { apiName: 'Type', label: 'Issue Type' },
-    { apiName: 'AVB_Environment__c', label: 'Environment' }
-];
+// --- "take it!" pre-flight. Accepting a case out of the Service Queue makes
+// AVB_Case_Flow_After_Update set Status to Open, which starts the SLA clock, and the
+// org's validation rules demand certain fields at that moment. Without a pre-flight the
+// save fails inside the flow with a FIELD_CUSTOM_VALIDATION_EXCEPTION that names no
+// field, and only for non-admin profiles, since the rules exempt
+// AVB_System_Administrator.
+//
+// WHICH fields those are is configuration, not a constant: it differs per record type
+// and per Issue Type, and it moves whenever an admin edits a validation rule. Each
+// field opts in from the JSON config with "requiredBeforeTakeover": true and nothing is
+// required by default. See c/nD_sectionConfigSchema for the full key list — that module
+// is the one place a key is defined, documented and validated.
+//
+// A row hidden by showIfField, or absent from the org, is never demanded: the user would
+// have nowhere to fill it in. That is what scopes Environment to AvioBook cases, whose
+// row is already showIfField-ed to that record type. The previous hardcoded list had no
+// such scoping and so demanded Environment on AvioData cases too.
 
 export default class ND_DynamicSection extends NavigationMixin(LightningElement) {
     // --- 1. CONFIGURATION PROPERTIES ---
@@ -47,6 +59,11 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     // NEW: Layout Prop
     @api ND_layoutType = '2 Columns';
+
+    // Renders config problems in the card while an admin is setting the section up.
+    // Off by default because these messages are for whoever edits the JSON, not for the
+    // agents using the case. The console warning below fires either way.
+    @api ND_showConfigDiagnostics = false;
 
     // --- 2. INTERNAL STATE ---
     @track ND_isOpen = true;
@@ -138,6 +155,99 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         }
     }
 
+    // Record type names keyed by Id, for readable diagnostics. The UI API describe does
+    // not expose developerName on recordTypeInfos, only name and recordTypeId.
+    get _recordTypeNamesById() {
+        if (!this._objectInfo || !this._objectInfo.recordTypeInfos) return null;
+        const out = {};
+        Object.values(this._objectInfo.recordTypeInfos).forEach(rt => {
+            out[rt.recordTypeId] = rt.name;
+        });
+        return out;
+    }
+
+    // Config problems, from the shared registry. Also catches a config string that does
+    // not parse, which configObject otherwise swallows into an empty array — an empty
+    // section with no explanation was one of the harder failures to diagnose.
+    get configDiagnostics() {
+        const raw = (this.ND_jsonConfigString || '').trim();
+        if (!raw) return [];
+
+        let parsed;
+        try {
+            parsed = JSON.parse(raw);
+        } catch (e) {
+            return [{
+                key: 'parse',
+                level: 'error',
+                isError: true,
+                name: 'Config',
+                message: `JSON did not parse, so no fields render: ${e.message}`
+            }];
+        }
+
+        return validateConfig(parsed, {
+            fields: this._objectInfo ? this._objectInfo.fields : null,
+            recordTypes: this._recordTypeNamesById
+        }).map((f, i) => ({
+            key: `d${i}`,
+            level: f.level,
+            isError: f.level === 'error',
+            name: f.name,
+            message: f.message
+        }));
+    }
+
+    get hasConfigDiagnostics() {
+        return this.ND_showConfigDiagnostics === true && this.configDiagnostics.length > 0;
+    }
+
+    get configDiagnosticsSummary() {
+        const all = this.configDiagnostics;
+        const errors = all.filter(d => d.isError).length;
+        const warnings = all.length - errors;
+        const parts = [];
+        if (errors) parts.push(`${errors} error${errors > 1 ? 's' : ''}`);
+        if (warnings) parts.push(`${warnings} warning${warnings > 1 ? 's' : ''}`);
+        return parts.join(', ');
+    }
+
+    // The take-it requirements in English, so an admin can confirm the rule they meant is
+    // the rule they wrote without cross-referencing the org's validation rules by hand.
+    get takeoverSummary() {
+        const labels = {};
+        const fields = (this._objectInfo && this._objectInfo.fields) || {};
+        Object.keys(fields).forEach(apiName => { labels[apiName] = fields[apiName].label; });
+
+        const ctx = { labels, recordTypes: this._recordTypeNamesById };
+        return this.configObject
+            .filter(item => item.requiredBeforeTakeover === true)
+            .map((item, i) => ({ key: `t${i}`, text: describeRequirement(item, ctx) }))
+            .filter(entry => !!entry.text);
+    }
+
+    get hasTakeoverSummary() {
+        return this.ND_showConfigDiagnostics === true && this.takeoverSummary.length > 0;
+    }
+
+    // Warn in the console whatever the diagnostics setting, but only when the set of
+    // problems actually changes — this getter chain re-runs on every render.
+    _warnAboutConfigOnce() {
+        const all = this.configDiagnostics;
+        const signature = all.map(d => `${d.level}:${d.name}:${d.message}`).join('|');
+        if (this._configWarnSignature === signature) return;
+        this._configWarnSignature = signature;
+        if (!all.length) return;
+        console.warn(
+            `nD_DynamicSection "${this.ND_sectionTitle}": ${all.length} config problem(s).\n` +
+            all.map(d => `  [${d.level}] ${d.name}: ${d.message}`).join('\n')
+        );
+    }
+
+    renderedCallback() {
+        this._warnAboutConfigOnce();
+    }
+
     get isHeaderActive() {
         if (!this.ND_headerLogicField || !this.ND_recordData || !this.ND_headerActiveColor) return false;
 
@@ -191,6 +301,9 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 add('Parent.Subject');
             }
             add(item.showIfField);
+            // The gate for a conditional take-it requirement may not be a row of its
+            // own, so its saved value has to be loaded explicitly.
+            add(item.requiredIfField);
             if (item.color) {
                 if (item.colorIfField) add(item.colorIfField);
                 else if (item.colorIfValue !== undefined) add(item.apiName);
@@ -584,26 +697,30 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     // --- 6. FIELD LIST RENDERING ---
+    // Whether a config row is on screen: the org has to have the field, and any
+    // showIfField condition has to pass. Shared with the take-it pre-flight, so a row
+    // the user cannot see is never a row they can be asked to fill in.
+    _isRowVisible(item) {
+        // A field the org doesn't have can't be rendered — lightning-input-field
+        // would error on it. Skip the row (nd_wireFields logs which ones).
+        if (item.apiName && this._objectInfo && this._objectInfo.fields
+            && !this._objectInfo.fields[item.apiName]) {
+            return false;
+        }
+        if (item.showIfField) {
+            if (!this.ND_recordData || !this.ND_recordData.fields[item.showIfField]) return false;
+            const fieldVal = this.ND_recordData.fields[item.showIfField].value;
+            if (item.showIfValue !== undefined) return fieldVal === item.showIfValue;
+            return !!fieldVal;
+        }
+        return true;
+    }
+
     get ND_finalFieldList() {
         const config = this.configObject;
         return config.map(item => {
             // A. Visibility Logic
-            let isVisible = true;
-            // A field the org doesn't have can't be rendered — lightning-input-field
-            // would error on it. Skip the row (nd_wireFields logs which ones).
-            if (item.apiName && this._objectInfo && this._objectInfo.fields
-                && !this._objectInfo.fields[item.apiName]) {
-                isVisible = false;
-            }
-            if (isVisible && item.showIfField) {
-                if (!this.ND_recordData || !this.ND_recordData.fields[item.showIfField]) {
-                    isVisible = false;
-                } else {
-                    const fieldVal = this.ND_recordData.fields[item.showIfField].value;
-                    if (item.showIfValue !== undefined) isVisible = (fieldVal === item.showIfValue);
-                    else isVisible = !!fieldVal;
-                }
-            }
+            const isVisible = this._isRowVisible(item);
 
             // B. Conditional alert logic
             let isAlertActive = false;
@@ -1205,27 +1322,38 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             });
     }
 
-    // Labels of the TAKEOVER_REQUIRED_FIELDS that have no value yet. Reads the live
-    // UI value before the saved one, so a dropdown the user just changed counts as
-    // set: they can pick Environment and take the case in one go.
+    // Labels of the config rows marked requiredBeforeTakeover that have no value yet.
+    // Reads the live UI value before the saved one, so a dropdown the user just changed
+    // counts as set: they can pick an Environment and take the case in one go.
     _missingBeforeTakeover() {
         const live = this._currentFormValues();
         const saved = (this.ND_recordData && this.ND_recordData.fields) || {};
 
-        return TAKEOVER_REQUIRED_FIELDS.filter(required => {
-            // Not on this page at all, so it isn't ours to demand
-            if (!this._isFieldOnObject(required.apiName)) return false;
+        const valueOf = apiName => (
+            Object.prototype.hasOwnProperty.call(live, apiName)
+                ? live[apiName]
+                : (saved[apiName] ? saved[apiName].value : null)
+        );
 
-            const value = Object.prototype.hasOwnProperty.call(live, required.apiName)
-                ? live[required.apiName]
-                : (saved[required.apiName] ? saved[required.apiName].value : null);
-            return value === null || value === undefined || String(value).trim() === '';
-        }).map(required => this._labelFor(required.apiName, required.label));
-    }
+        return this.configObject.filter(item => {
+            if (item.requiredBeforeTakeover !== true || !item.apiName) return false;
 
-    _isFieldOnObject(apiName) {
-        if (!this._objectInfo || !this._objectInfo.fields) return true; // describe not in yet
-        return !!this._objectInfo.fields[apiName];
+            // Missing from the org, or hidden by showIfField (e.g. Environment on a
+            // non-AvioBook case), so it isn't ours to demand
+            if (!this._isRowVisible(item)) return false;
+
+            // Conditional requirement, e.g. Environment only for a Bug or Incident
+            if (item.requiredIfField) {
+                const gate = valueOf(item.requiredIfField);
+                if (item.requiredIfValue !== undefined) {
+                    if (!matchesCsv(gate, item.requiredIfValue)) return false;
+                } else if (isBlank(gate)) {
+                    return false;
+                }
+            }
+
+            return isBlank(valueOf(item.apiName));
+        }).map(item => this._labelFor(item.apiName, item.label));
     }
 
     // Prefer the label the config chose, then the org's field label, then the fallback

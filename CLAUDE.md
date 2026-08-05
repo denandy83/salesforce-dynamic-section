@@ -42,17 +42,42 @@ Supported per-field keys:
 - `isUrlList` — **multiple labeled links** stored as JSON `[{label,url}]` in a Long Text Area; add/edit via a pop-out modal (Label + URL fields), `×` to remove, click label to open. Backward-compatible: a legacy plain-URL value renders as one chip.
 - `isOpenProblem` — Case lookup rendered as a **modal picker** (Case # / Subject / Status table) backed by `ND_ProblemPicker` Apex; removable filter chips (record type / open-only), search by number or subject; a linked value opens the case.
 - Header alert (App Builder props, NOT the JSON): `ND_headerLogicField` + `ND_headerLogicValue` + `ND_headerActiveColor` (single field only).
-- **"take it!" pre-flight (hardcoded, no config needed).** `TAKEOVER_REQUIRED_FIELDS` at the top of
-  the JS lists `Type` (Issue Type) and `AVB_Environment__c` (Environment). Both must have a value
-  or the click is refused with the top-of-card banner ("Issue Type and Environment need to be set
-  before taking a case") and the owner is left alone. Reads the LIVE form value before the saved
-  one, so an unsaved dropdown selection counts as set. Baked in rather than configured, same as
-  `PROBLEM_RECORD_TYPE_DEVELOPER_NAME`, because the take-it action itself is AvioBook-specific and
-  the messages are hardcoded English. Fields absent from the org are skipped. **Why:** taking a
-  case out of the Service Queue makes `AVB_Case_Flow_After_Update` set Status to Open (decision
-  `Case_Accepted_Check`, prior owner queue `AVB_Service_Queue`), which starts the SLA and trips
-  validation rules on the flow's own write. That failure names no field and, because those rules
-  exempt `AVB_System_Administrator`, is invisible to admins.
+- **`ND_showConfigDiagnostics`** (App Builder Boolean, default off) — renders a config check inside
+  the card: unknown/misspelled keys, two widgets on one row, settings with no effect, and the
+  take-it requirements in English. Off by default because the messages are for whoever edits the
+  JSON, not for agents. Problems are **always** written to `console.warn` regardless of the flag,
+  deduped by signature so the getter chain doesn't spam on every render. Known gap: an admin who
+  never switches it on still won't see a typo in the UI.
+- `requiredBeforeTakeover` (+ optional `requiredIfField` / `requiredIfValue`) — **"take it!"
+  pre-flight, config-driven.** A row with `"requiredBeforeTakeover":true` must have a value or the
+  click is refused with the top-of-card banner ("Issue Type needs to be set before taking a case")
+  and the owner is left alone. `requiredIfField` + `requiredIfValue` (comma-separated membership;
+  omit the value for a truthy check) make it conditional. **Nothing is required by default.**
+  Scoping rules:
+  - A row **hidden by `showIfField`, or absent from the org, is never demanded** — the user would
+    have nowhere to fill it in. This is what scopes Environment to AvioBook cases: its row is
+    already `showIfField`-ed to record type `012KB000000kcw4YAA`. `_isRowVisible()` is shared with
+    the renderer so the two cannot drift.
+  - Reads the LIVE form value before the saved one for both the required field and the
+    `requiredIfField` gate, so an unsaved dropdown selection counts as set.
+  - **History:** this replaced a hardcoded `TAKEOVER_REQUIRED_FIELDS` list that had no record-type
+    awareness and so demanded Environment on AvioData cases, where the org rule does not apply.
+
+  **Why any pre-flight exists:** taking a case out of the Service Queue makes
+  `AVB_Case_Flow_After_Update` set Status to Open (decision `Case_Accepted_Check`, prior owner queue
+  `AVB_Service_Queue`), which starts the SLA and trips validation rules on the flow's own write.
+  That failure names no field and, because those rules exempt `AVB_System_Administrator`, is
+  invisible to admins. Rules that actually fire on the New → Open transition (verified against UAT
+  2026-08-05):
+  | Rule | Record types | Requires | Extra condition |
+  |---|---|---|---|
+  | `AVB_Require_IssueType` | AvioBook **+** AvioData Case | `Type` | Status ≥ Open |
+  | `AVB_Solved_Requires_Environment` | AvioBook Case only | `AVB_Environment__c` | `Type = "Bug or Incident"`, `ISCHANGED(Status)`, Status ≠ New — fires on New → Open too, despite the name |
+  | `AVB_Require_Contact_When_Status_Open` | AvioBook **+** AvioData Case | `ContactId` | Status ≥ Open — **not** in the section config, so not pre-flighted |
+
+  All three exempt profile `AVB_System_Administrator` and permission
+  `AVB_Validation_Rule_Exclusion`; the LWC cannot see either, so it still pre-flights for admins.
+  `AVB_Require_SRT_When_Status_open` needs Status ≥ Waiting for Customer, so take-it never trips it.
 - **"take it!" saves through the form**, not a bare `updateRecord`, so pending edits are committed
   in the SAME DML. Otherwise a just-picked Environment is not yet on the record when the flow flips
   Status to Open, and the save fails.
@@ -62,6 +87,31 @@ Supported per-field keys:
   bad field, which used to blank every custom widget (owner, problem, links) while the standard
   fields kept working.
 - **Constraint:** all conditional logic is equality / membership / truthy only — **no comparison operators and no date logic** (e.g. "date on or before today" is NOT expressible in config yet).
+
+### `lwc/nD_sectionConfigSchema` (service module, no UI)
+**The single definition of the config vocabulary.** Exports `CONFIG_KEYS` (one entry per supported
+key: `label`, `control`, `help`, `group`, optional `requires` / `appliesWhen` / `badge`), `WIDGETS`
+(the mutually exclusive render modes), `KNOWN_KEYS`, plus `validateConfig()`, `describeRequirement()`
+and the shared `isBlank` / `matchesCsv` / `widgetOf` helpers. Imported by `nD_DynamicSection` and
+intended for any future editor UI, so a key is defined, documented and validated in ONE place.
+- `validateConfig(config, {fields, recordTypes})` is pure — pass the org facts instead of wiring —
+  and returns `{row, name, level, message, key}` findings. Catches unknown/misspelled keys (edit
+  distance, so a dropped letter is caught: `requiredBeforeTakover` → suggests the real key), two
+  widgets on one row, `requires` violations, keys with no effect, and unknown record type Ids.
+- `describeRequirement(row, ctx)` renders the take-it rule as an English sentence, so config can be
+  reviewed without cross-referencing validation rules by hand.
+- **Constraint:** `appliesWhen` is a function, so the registry is code, not data. It would need
+  rewriting as declarative rules if the config ever moves to Custom Metadata.
+- 24 Jest tests in `__tests__/`. These are the project's **only** tests on the LWC side;
+  `nD_DynamicSection` itself still has none. Run with `npm test` (needs `npm install` first —
+  there is no lockfile).
+
+**⚠️ A Custom Property Editor is NOT possible for this component.** The platform rejects it:
+`The 'configurationEditor' attribute is only supported for target(s) [lightning__FlowAction,
+lightning__FlowScreen]` — verified by check-only deploy against UAT 2026-08-05. CPEs are a Flow
+Builder / Experience Builder feature; `lightning__RecordPage` cannot have one. Any visual editor has
+to live outside the App Builder property panel (standalone app/tab with copy-out, or move the config
+to Custom Metadata).
 
 ### `classes/ND_EmailResolver` (+ `ND_EmailResolverTest`)
 `resolveEmails(List<String>)` — resolves addresses to Users and Contacts for `isEmailList`.

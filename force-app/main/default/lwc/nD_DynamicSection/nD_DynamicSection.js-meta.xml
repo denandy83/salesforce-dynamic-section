@@ -20,7 +20,9 @@
             
             <property name="ND_startCollapsed" type="Boolean" label="Collapse by Default" description="Check this box to always open collapsed"/>
             
-            <property name="ND_jsonConfigString" type="String" label="Field JSON Configuration" description="Refer to confluence for an example config file" />
+            <property name="ND_jsonConfigString" type="String" label="Field JSON Configuration" description="JSON array, one object per field row. Keys: apiName (required), label, editable, colSpan, placeholder | showIfField + showIfValue | color + colorIfField/colorIfValue | one widget of isRecordLink, isUrl, isUrlList, isEmailList (+ allowedDomains), isOpenProblem | requiredBeforeTakeover + requiredIfField/requiredIfValue. Turn on Show Config Diagnostics below to have the component check this for unknown keys and conflicts." />
+
+            <property name="ND_showConfigDiagnostics" type="Boolean" label="Show Config Diagnostics (setup only)" description="Renders a config check inside the card: unknown or misspelled keys, two widgets on one row, settings with no effect, and the take-it requirements in plain English. Switch off once the section is configured — agents should not see it. Problems are always written to the browser console regardless." />
             
             <property name="ND_headerLogicField" type="String" label="Dynamic Header: Trigger Field" description="Which field without quotes or brackets to trigger the alternate color. For example: AVB_Warn_First_response__c"/>
             <property name="ND_headerLogicValue" type="String" label="Dynamic Header: Trigger Value" description="Comma separated value(s) on which to trigger the alternate color. Leave empty for true"/>

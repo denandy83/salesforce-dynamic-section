@@ -44,6 +44,41 @@
                         </div>
                     </template>
 
+                    <!-- Admin-facing config check. Hidden unless ND_showConfigDiagnostics
+                         is on, so agents never see it; the console warning always fires. -->
+                    <template if:true={hasConfigDiagnostics}>
+                        <div class="nd-diag" role="status">
+                            <p class="nd-diag-title">
+                                <lightning-icon icon-name="utility:settings" size="xx-small"
+                                    alternative-text="Config check"></lightning-icon>
+                                Config check &mdash; {configDiagnosticsSummary}
+                            </p>
+                            <ul class="nd-diag-list">
+                                <template for:each={configDiagnostics} for:item="diag">
+                                    <li key={diag.key} class="nd-diag-item" data-level={diag.level}>
+                                        <span class="nd-diag-row">{diag.name}</span>
+                                        <span>{diag.message}</span>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+
+                    <template if:true={hasTakeoverSummary}>
+                        <div class="nd-diag nd-diag_info">
+                            <p class="nd-diag-title">
+                                <lightning-icon icon-name="utility:lock" size="xx-small"
+                                    alternative-text="Take it requirements"></lightning-icon>
+                                Before &ldquo;take it!&rdquo;
+                            </p>
+                            <ul class="nd-diag-list">
+                                <template for:each={takeoverSummary} for:item="rule">
+                                    <li key={rule.key} class="nd-diag-item">{rule.text}</li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+
                     <div class="slds-grid slds-wrap slds-gutters_small">
 
                         <template for:each={ND_finalFieldList} for:item="fieldConfig">
