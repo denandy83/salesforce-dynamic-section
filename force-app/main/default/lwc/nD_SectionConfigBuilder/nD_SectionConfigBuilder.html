@@ -1,0 +1,302 @@
+<template>
+    <div class="nd-builder">
+
+        <!-- Header: what object we're building for, and what to preview against -->
+        <div class="slds-grid slds-wrap slds-gutters_small nd-topbar">
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_5-of-12">
+                <lightning-input
+                    label="Preview against this record Id"
+                    value={previewRecordId}
+                    placeholder="500... paste a Case Id"
+                    onchange={handlePreviewIdChange}>
+                </lightning-input>
+            </div>
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_7-of-12 nd-topbar-actions">
+                <lightning-button
+                    label="Refresh preview"
+                    icon-name="utility:refresh"
+                    onclick={handleRefreshPreview}>
+                </lightning-button>
+                <lightning-button
+                    label={copyLabel}
+                    variant="brand"
+                    icon-name="utility:copy_to_clipboard"
+                    onclick={handleCopy}
+                    onmouseleave={handleCopyLabelReset}>
+                </lightning-button>
+            </div>
+        </div>
+
+        <div class="slds-grid slds-wrap slds-gutters_small">
+
+            <!-- ============ LEFT: the rows ============ -->
+            <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
+                <article class="slds-card nd-pane">
+                    <div class="nd-pane-head">
+                        <h2>Field rows</h2>
+                        <span class="nd-count">{rowCountLabel}</span>
+                    </div>
+
+                    <template if:false={hasRows}>
+                        <div class="nd-empty">
+                            <p class="nd-empty-title">No field rows yet</p>
+                            <p>Add one below, or paste an existing config to edit it.</p>
+                        </div>
+                    </template>
+
+                    <ul class="nd-rows">
+                        <template for:each={rowItems} for:item="row">
+                            <li key={row.key} class={row.cssClass}>
+                                <button
+                                    type="button"
+                                    class="nd-row-btn"
+                                    data-index={row.index}
+                                    onclick={handleSelectRow}>
+                                    <span class="nd-row-title">
+                                        <span class="nd-row-num">{row.number}</span>{row.title}
+                                    </span>
+                                    <span class="nd-row-api">{row.apiName}</span>
+                                    <span class="nd-badges">
+                                        <template for:each={row.badges} for:item="badge">
+                                            <span key={badge.key} class={badge.cssClass}>{badge.label}</span>
+                                        </template>
+                                    </span>
+                                </button>
+                                <div class="nd-row-tools">
+                                    <lightning-button-icon icon-name="utility:up" variant="bare"
+                                        size="x-small" alternative-text="Move up" title="Move up"
+                                        disabled={row.isFirst} data-index={row.index} data-step="-1"
+                                        onclick={handleMoveRow}></lightning-button-icon>
+                                    <lightning-button-icon icon-name="utility:down" variant="bare"
+                                        size="x-small" alternative-text="Move down" title="Move down"
+                                        disabled={row.isLast} data-index={row.index} data-step="1"
+                                        onclick={handleMoveRow}></lightning-button-icon>
+                                    <lightning-button-icon icon-name="utility:copy" variant="bare"
+                                        size="x-small" alternative-text="Duplicate" title="Duplicate"
+                                        data-index={row.index}
+                                        onclick={handleDuplicateRow}></lightning-button-icon>
+                                    <lightning-button-icon icon-name="utility:delete" variant="bare"
+                                        size="x-small" alternative-text="Remove" title="Remove"
+                                        data-index={row.index}
+                                        onclick={handleRemoveRow}></lightning-button-icon>
+                                </div>
+                            </li>
+                        </template>
+                    </ul>
+
+                    <div class="nd-adder">
+                        <lightning-combobox
+                            label="Add a field"
+                            placeholder="Choose a field…"
+                            value={fieldToAdd}
+                            options={addableFieldOptions}
+                            onchange={handleAddFieldChange}>
+                        </lightning-combobox>
+                        <lightning-button label="Add row" variant="brand" onclick={handleAddRow}>
+                        </lightning-button>
+                    </div>
+                </article>
+
+                <!-- Config check -->
+                <article class="slds-card nd-pane">
+                    <div class="nd-pane-head">
+                        <h2>Config check</h2>
+                        <span class="nd-count">{findingSummary}</span>
+                    </div>
+                    <template if:false={hasFindings}>
+                        <p class="nd-ok">No unknown keys, no conflicts.</p>
+                    </template>
+                    <ul class="nd-findings">
+                        <template for:each={findingItems} for:item="finding">
+                            <li key={finding.key} class={finding.cssClass}>
+                                <lightning-icon icon-name={finding.icon} variant={finding.variant}
+                                    size="xx-small" alternative-text="Finding"></lightning-icon>
+                                <span class="nd-finding-text">{finding.text}</span>
+                                <button type="button" class="nd-jump" data-index={finding.index}
+                                    onclick={handleJumpToFinding}>Go</button>
+                            </li>
+                        </template>
+                    </ul>
+                </article>
+            </div>
+
+            <!-- ============ MIDDLE: the properties ============ -->
+            <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
+                <article class="slds-card nd-pane">
+                    <template if:false={hasSelection}>
+                        <div class="nd-empty">
+                            <p class="nd-empty-title">Nothing selected</p>
+                            <p>Pick a row on the left to edit it.</p>
+                        </div>
+                    </template>
+
+                    <template if:true={hasSelection}>
+                        <template for:each={propertyGroups} for:item="group">
+                            <fieldset key={group.key} class="nd-group">
+                                <legend>{group.legend}</legend>
+
+                                <!-- Widget choice is one radio group, so two widgets
+                                     cannot be enabled at the same time. -->
+                                <template if:true={group.isWidgetGroup}>
+                                    <lightning-radio-group
+                                        name="widget"
+                                        label="Widget"
+                                        variant="label-hidden"
+                                        options={group.widgetOptions}
+                                        value={group.widgetValue}
+                                        onchange={handleWidgetChange}>
+                                    </lightning-radio-group>
+                                    <ul class="nd-widget-help">
+                                        <template for:each={group.widgetHelp} for:item="w">
+                                            <li key={w.key}><b>{w.title}</b> — {w.help}</li>
+                                        </template>
+                                    </ul>
+                                </template>
+
+                                <template for:each={group.controls} for:item="ctrl">
+                                    <div key={ctrl.key} class="nd-control">
+                                        <template if:true={ctrl.isCheck}>
+                                            <lightning-input type="checkbox" label={ctrl.title}
+                                                checked={ctrl.checked} data-key={ctrl.key}
+                                                onchange={handleControlChange}></lightning-input>
+                                        </template>
+                                        <template if:true={ctrl.isText}>
+                                            <lightning-input label={ctrl.label} value={ctrl.value}
+                                                placeholder={ctrl.placeholder} disabled={ctrl.disabled}
+                                                data-key={ctrl.key}
+                                                onchange={handleControlChange}></lightning-input>
+                                        </template>
+                                        <template if:true={ctrl.isFieldPicker}>
+                                            <lightning-combobox label={ctrl.label} value={ctrl.value}
+                                                options={ctrl.options} data-key={ctrl.key}
+                                                onchange={handleControlChange}></lightning-combobox>
+                                        </template>
+                                        <template if:true={ctrl.isRecordType}>
+                                            <lightning-combobox label={ctrl.label} value={ctrl.value}
+                                                options={ctrl.options} data-key={ctrl.key}
+                                                onchange={handleControlChange}></lightning-combobox>
+                                        </template>
+                                        <template if:true={ctrl.isSelect}>
+                                            <lightning-combobox label={ctrl.label} value={ctrl.value}
+                                                options={ctrl.options} data-key={ctrl.key}
+                                                onchange={handleControlChange}></lightning-combobox>
+                                        </template>
+                                        <template if:true={ctrl.isColor}>
+                                            <div class="nd-swatch-row">
+                                                <span class="nd-swatch" style={ctrl.swatchStyle}></span>
+                                                <lightning-input label={ctrl.label} value={ctrl.value}
+                                                    placeholder={ctrl.placeholder} data-key={ctrl.key}
+                                                    onchange={handleControlChange}></lightning-input>
+                                            </div>
+                                        </template>
+                                        <p class="nd-help">
+                                            <code>{ctrl.key}</code> — {ctrl.help}
+                                        </p>
+                                    </div>
+                                </template>
+
+                                <!-- Keys that only exist because of another choice -->
+                                <template if:true={group.hasNested}>
+                                    <div class="nd-nested">
+                                        <template for:each={group.nestedControls} for:item="ctrl">
+                                            <div key={ctrl.key} class="nd-control">
+                                                <template if:true={ctrl.isCheck}>
+                                                    <lightning-input type="checkbox" label={ctrl.title}
+                                                        checked={ctrl.checked} data-key={ctrl.key}
+                                                        onchange={handleControlChange}></lightning-input>
+                                                </template>
+                                                <template if:true={ctrl.isText}>
+                                                    <lightning-input label={ctrl.label} value={ctrl.value}
+                                                        placeholder={ctrl.placeholder}
+                                                        disabled={ctrl.disabled} data-key={ctrl.key}
+                                                        onchange={handleControlChange}></lightning-input>
+                                                </template>
+                                                <template if:true={ctrl.isFieldPicker}>
+                                                    <lightning-combobox label={ctrl.label}
+                                                        value={ctrl.value} options={ctrl.options}
+                                                        data-key={ctrl.key}
+                                                        onchange={handleControlChange}></lightning-combobox>
+                                                </template>
+                                                <template if:true={ctrl.isRecordType}>
+                                                    <lightning-combobox label={ctrl.label}
+                                                        value={ctrl.value} options={ctrl.options}
+                                                        data-key={ctrl.key}
+                                                        onchange={handleControlChange}></lightning-combobox>
+                                                </template>
+                                                <p class="nd-help">
+                                                    <code>{ctrl.key}</code> — {ctrl.help}
+                                                </p>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- The rule in English, generated from the same schema
+                                     module the record page uses. -->
+                                <template if:true={group.sentence}>
+                                    <p class="nd-sentence">{group.sentence}</p>
+                                </template>
+                            </fieldset>
+                        </template>
+                    </template>
+                </article>
+            </div>
+
+            <!-- ============ RIGHT: preview + JSON ============ -->
+            <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
+                <article class="slds-card nd-pane">
+                    <div class="nd-pane-head">
+                        <h2>Live preview</h2>
+                        <span class="nd-count">real component</span>
+                    </div>
+
+                    <template if:true={hasPreviewHint}>
+                        <div class="nd-empty">
+                            <p>{previewHint}</p>
+                        </div>
+                    </template>
+
+                    <template if:true={canPreview}>
+                        <div class="nd-preview">
+                            <c-n-d_-dynamic-section
+                                record-id={previewRecordId}
+                                object-api-name={objectApiName}
+                                nd-section-title="Preview"
+                                nd-json-config-string={jsonOutput}
+                                nd-show-config-diagnostics="true">
+                            </c-n-d_-dynamic-section>
+                        </div>
+                    </template>
+                </article>
+
+                <article class="slds-card nd-pane">
+                    <div class="nd-pane-head">
+                        <h2>Paste into ND_jsonConfigString</h2>
+                        <span class="nd-count">{jsonLength}</span>
+                    </div>
+                    <pre class="nd-json">{jsonPretty}</pre>
+                </article>
+
+                <article class="slds-card nd-pane">
+                    <div class="nd-pane-head">
+                        <h2>Load an existing config</h2>
+                    </div>
+                    <lightning-textarea
+                        label="Paste the current ND_jsonConfigString"
+                        value={importText}
+                        placeholder={importPlaceholder}
+                        onchange={handleImportChange}>
+                    </lightning-textarea>
+                    <template if:true={importError}>
+                        <p class="nd-import-error">{importError}</p>
+                    </template>
+                    <div class="nd-import-actions">
+                        <lightning-button label="Load" onclick={handleImport}></lightning-button>
+                        <lightning-button label="Clear all rows" variant="destructive-text"
+                            onclick={handleClearAll}></lightning-button>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </div>
+</template>

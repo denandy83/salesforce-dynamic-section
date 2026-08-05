@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>Section Config Builder</label>
+    <lwcComponent>nD_SectionConfigBuilder</lwcComponent>
+    <motif>Custom53: Wrench</motif>
+    <description>Builds the ND_jsonConfigString for nD_DynamicSection visually, with a live preview and validation.</description>
+</CustomTab>

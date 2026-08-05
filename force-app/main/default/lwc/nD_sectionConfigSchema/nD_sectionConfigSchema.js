@@ -371,16 +371,148 @@ function describeRequirement(row, context) {
     return `${text}.`;
 }
 
+/* ---------------------------------------------------------------------------------
+ * Document operations.
+ *
+ * Pure array-in / array-out so the builder UI stays thin glue and this logic is
+ * testable without mounting a component — LWC does not expose non-@api internals on
+ * the host element, so anything worth testing has to live outside the class.
+ * ------------------------------------------------------------------------------- */
+
+// Emitted key order. Derived from the registry rather than hand-listed, so a new key
+// lands in a predictable place and App Builder diffs stay readable.
+const OUTPUT_ORDER = ['apiName', 'label', 'colSpan', 'editable', 'showIfField', 'showIfValue']
+    .concat(WIDGET_KEYS)
+    .concat(CONFIG_KEYS
+        .map(d => d.key)
+        .filter(k => !['apiName', 'label', 'colSpan', 'editable', 'showIfField', 'showIfValue'].includes(k)));
+
+/** One row with its keys in canonical order; unknown keys are kept, at the end. */
+function orderRow(row) {
+    const out = {};
+    OUTPUT_ORDER.forEach(k => { if (row[k] !== undefined) out[k] = row[k]; });
+    Object.keys(row).forEach(k => { if (out[k] === undefined) out[k] = row[k]; });
+    return out;
+}
+
+function serialize(rows) {
+    return JSON.stringify(rows.map(orderRow));
+}
+
+function serializePretty(rows) {
+    if (!rows.length) return '[]';
+    return `[\n${rows.map(r => `  ${JSON.stringify(orderRow(r))}`).join(',\n')}\n]`;
+}
+
+/** { rows, error }. Never throws, so a bad paste is a message rather than a crash. */
+function parseConfig(text) {
+    const raw = (text || '').trim();
+    if (!raw) return { rows: null, error: 'Paste a config first.' };
+
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    } catch (e) {
+        return { rows: null, error: `That is not valid JSON: ${e.message}` };
+    }
+    if (!Array.isArray(parsed)) {
+        return { rows: null, error: 'Expected a JSON array of field rows.' };
+    }
+    return { rows: parsed, error: '' };
+}
+
+function withRowAdded(rows, apiName, label) {
+    return rows.concat({ apiName, label, editable: true });
+}
+
+function withRowMoved(rows, index, step) {
+    const target = index + step;
+    if (target < 0 || target >= rows.length) return rows;
+
+    const next = rows.slice();
+    const moved = next[index];
+    next[index] = next[target];
+    next[target] = moved;
+    return next;
+}
+
+function withRowDuplicated(rows, index) {
+    const next = rows.slice();
+    next.splice(index + 1, 0, Object.assign({}, rows[index]));
+    return next;
+}
+
+function withRowRemoved(rows, index) {
+    const next = rows.slice();
+    next.splice(index, 1);
+    return next;
+}
+
+/** Setting a key to blank/false removes it, so the JSON never carries dead entries. */
+function withKeySet(rows, index, key, value) {
+    const next = rows.slice();
+    const row = Object.assign({}, next[index]);
+
+    if (value === '' || value === false || value === null || value === undefined) delete row[key];
+    else row[key] = value;
+
+    next[index] = row;
+    return next;
+}
+
+/**
+ * Switch a row's widget. Clears every other widget key so two can never both be true,
+ * and drops widget-scoped keys that no longer apply (e.g. allowedDomains when moving off
+ * the people widget) rather than leaving them orphaned in the JSON.
+ */
+function withWidgetSet(rows, index, widgetKey) {
+    const next = rows.slice();
+    const row = Object.assign({}, next[index]);
+
+    WIDGET_KEYS.forEach(k => delete row[k]);
+    if (widgetKey && widgetKey !== 'standard') row[widgetKey] = true;
+
+    CONFIG_KEYS.forEach(def => {
+        if (def.group === 'widget' && def.appliesWhen
+            && row[def.key] !== undefined && !def.appliesWhen(row)) {
+            delete row[def.key];
+        }
+    });
+
+    next[index] = row;
+    return next;
+}
+
+/** Where the selection lands after removing a row, keeping the same row selected. */
+function selectionAfterRemoval(selectedIndex, removedIndex, remainingCount) {
+    if (!remainingCount) return -1;
+    if (selectedIndex > removedIndex) return selectedIndex - 1;
+    if (selectedIndex >= remainingCount) return remainingCount - 1;
+    return selectedIndex;
+}
+
 export {
     WIDGETS,
     WIDGET_KEYS,
     GROUPS,
     CONFIG_KEYS,
     KNOWN_KEYS,
+    OUTPUT_ORDER,
     widgetOf,
     isBlank,
     matchesCsv,
     validateConfig,
     suggestKey,
-    describeRequirement
+    describeRequirement,
+    orderRow,
+    serialize,
+    serializePretty,
+    parseConfig,
+    withRowAdded,
+    withRowMoved,
+    withRowDuplicated,
+    withRowRemoved,
+    withKeySet,
+    withWidgetSet,
+    selectionAfterRemoval
 };
