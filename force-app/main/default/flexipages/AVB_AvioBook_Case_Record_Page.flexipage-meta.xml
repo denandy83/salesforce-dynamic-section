@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <FlexiPage xmlns="http://soap.sforce.com/2006/04/metadata">
     <flexiPageRegions>
         <itemInstances>
@@ -55,101 +55,13 @@
         </itemInstances>
         <itemInstances>
             <componentInstance>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveTextColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerBackgroundColor</name>
-                    <value>#005FB2</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicField</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicValue</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerTextColor</name>
-                    <value>#FFFFFF</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_iconName</name>
-                    <value>utility:warning</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_jsonConfigString</name>
-                    <value>[{&quot;apiName&quot;:&quot;AVB_Collaborators__c&quot;,&quot;label&quot;:&quot;Collaborators&quot;,&quot;colSpan&quot;:2,&quot;editable&quot;:true,&quot;isEmailList&quot;:true},{&quot;apiName&quot;:&quot;AVB_Followers__c&quot;,&quot;label&quot;:&quot;Followers&quot;,&quot;colSpan&quot;:2,&quot;editable&quot;:true,&quot;isEmailList&quot;:true,&quot;allowedDomains&quot;:&quot;aviobook.aero&quot;},{&quot;apiName&quot;:&quot;Status&quot;,&quot;label&quot;:&quot;Status&quot;,&quot;editable&quot;:true},{&quot;apiName&quot;:&quot;OwnerId&quot;,&quot;label&quot;:&quot;Case Owner&quot;,&quot;editable&quot;:true},{&quot;apiName&quot;:&quot;Priority&quot;,&quot;label&quot;:&quot;Priority&quot;,&quot;editable&quot;:true,&quot;color&quot;:&quot;#ba0517&quot;,&quot;colorIfValue&quot;:&quot;High,Urgent&quot;},{&quot;apiName&quot;:&quot;AVB_On_Hold_Resolution_Target_Date__c&quot;,&quot;label&quot;:&quot;Remind Me&quot;,&quot;editable&quot;:true},{&quot;apiName&quot;:&quot;AVB_Impact_Type__c&quot;,&quot;label&quot;:&quot;Impact Type&quot;,&quot;showIfField&quot;:&quot;AVB_Impact_Type__c&quot;},{&quot;apiName&quot;:&quot;AVB_Impact_Severity__c&quot;,&quot;label&quot;:&quot;Impact Severity&quot;,&quot;showIfField&quot;:&quot;AVB_Impact_Severity__c&quot;,&quot;color&quot;:&quot;#ba0517&quot;,&quot;colorIfValue&quot;:&quot;High,Significant&quot;},{&quot;apiName&quot;:&quot;Type&quot;,&quot;label&quot;:&quot;Issue Type&quot;,&quot;editable&quot;:true,&quot;requiredBeforeTakeover&quot;:true},{&quot;apiName&quot;:&quot;ParentId&quot;,&quot;label&quot;:&quot;Problem Case&quot;,&quot;isOpenProblem&quot;:true,&quot;editable&quot;:true},{&quot;apiName&quot;:&quot;AVB_Environment__c&quot;,&quot;label&quot;:&quot;Environment&quot;,&quot;showIfField&quot;:&quot;RecordTypeId&quot;,&quot;showIfValue&quot;:&quot;012KB000000kcw4YAA&quot;,&quot;editable&quot;:true,&quot;requiredBeforeTakeover&quot;:true,&quot;requiredIfField&quot;:&quot;Type&quot;,&quot;requiredIfValue&quot;:&quot;Bug or Incident&quot;}]</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_layoutType</name>
-                    <value>2 Columns</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_sectionTitle</name>
-                    <value>Details</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_showConfigDiagnostics</name>
-                    <value>true</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_startCollapsed</name>
-                    <value>false</value>
-                </componentInstanceProperties>
-                <componentName>nD_DynamicSection</componentName>
+                <componentInstanceProperties><name>ND_jsonConfigString</name><value>{"section":{"title":"Details","icon":"utility:warning","columns":2,"headerColor":"#005FB2","headerTextColor":"#FFFFFF"},"fields":[{"apiName":"AVB_Collaborators__c","label":"Collaborators","colSpan":2,"editable":true,"isEmailList":true},{"apiName":"AVB_Followers__c","label":"Followers","colSpan":2,"editable":true,"isEmailList":true,"allowedDomains":"aviobook.aero"},{"apiName":"Status","label":"Status","editable":true},{"apiName":"OwnerId","label":"Case Owner","editable":true},{"apiName":"Priority","label":"Priority","editable":true,"color":"#ba0517","colorIfValue":"High,Urgent"},{"apiName":"AVB_On_Hold_Resolution_Target_Date__c","label":"Remind Me","editable":true},{"apiName":"AVB_Impact_Type__c","label":"Impact Type","showIfField":"AVB_Impact_Type__c"},{"apiName":"AVB_Impact_Severity__c","label":"Impact Severity","showIfField":"AVB_Impact_Severity__c","color":"#ba0517","colorIfValue":"High,Significant"},{"apiName":"Type","label":"Issue Type","editable":true,"requiredBeforeTakeover":true},{"apiName":"ParentId","label":"Problem Case","isOpenProblem":true,"editable":true},{"apiName":"AVB_Environment__c","label":"Environment","showIfField":"RecordTypeId","showIfValue":"012KB000000kcw4YAA","editable":true,"requiredBeforeTakeover":true,"requiredIfField":"Type","requiredIfValue":"Bug or Incident"}]}</value></componentInstanceProperties><componentName>nD_DynamicSection</componentName>
                 <identifier>c_nD_DynamicSection3</identifier>
             </componentInstance>
         </itemInstances>
         <itemInstances>
             <componentInstance>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveTextColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerBackgroundColor</name>
-                    <value>#C2C2C2</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicField</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicValue</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerTextColor</name>
-                    <value>black</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_iconName</name>
-                    <value>utility:check</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_jsonConfigString</name>
-                    <value>[{&quot;apiName&quot;:&quot;AVB_Collaborators__c&quot;,&quot;label&quot;:&quot;Collaborators&quot;,&quot;colSpan&quot;:2,&quot;editable&quot;:true,&quot;isEmailList&quot;:true},{&quot;apiName&quot;:&quot;AVB_Followers__c&quot;,&quot;label&quot;:&quot;Followers&quot;,&quot;colSpan&quot;:2,&quot;editable&quot;:true,&quot;isEmailList&quot;:true,&quot;allowedDomains&quot;:&quot;aviobook.aero&quot;},{&quot;apiName&quot;:&quot;Status&quot;,&quot;label&quot;:&quot;Status&quot;,&quot;editable&quot;:true},{&quot;apiName&quot;:&quot;OwnerId&quot;,&quot;label&quot;:&quot;Case Owner&quot;,&quot;editable&quot;:true},{&quot;apiName&quot;:&quot;Priority&quot;,&quot;label&quot;:&quot;Priority&quot;,&quot;editable&quot;:true,&quot;color&quot;:&quot;#ba0517&quot;,&quot;colorIfValue&quot;:&quot;High,Urgent&quot;},{&quot;apiName&quot;:&quot;AVB_On_Hold_Resolution_Target_Date__c&quot;,&quot;label&quot;:&quot;Remind Me&quot;,&quot;editable&quot;:true},{&quot;apiName&quot;:&quot;AVB_Impact_Type__c&quot;,&quot;label&quot;:&quot;Impact Type&quot;,&quot;showIfField&quot;:&quot;AVB_Impact_Type__c&quot;},{&quot;apiName&quot;:&quot;AVB_Impact_Severity__c&quot;,&quot;label&quot;:&quot;Impact Severity&quot;,&quot;showIfField&quot;:&quot;AVB_Impact_Severity__c&quot;,&quot;color&quot;:&quot;#ba0517&quot;,&quot;colorIfValue&quot;:&quot;High,Significant&quot;},{&quot;apiName&quot;:&quot;Type&quot;,&quot;label&quot;:&quot;Issue Type&quot;,&quot;editable&quot;:true},{&quot;apiName&quot;:&quot;ParentId&quot;,&quot;label&quot;:&quot;Problem Case&quot;,&quot;isOpenProblem&quot;:true,&quot;editable&quot;:true},{&quot;apiName&quot;:&quot;AVB_Environment__c&quot;,&quot;label&quot;:&quot;Environment&quot;,&quot;showIfField&quot;:&quot;RecordTypeId&quot;,&quot;showIfValue&quot;:&quot;012KB000000kcw4YAA&quot;,&quot;editable&quot;:true},{&quot;apiName&quot;:&quot;Slack_Thread__c&quot;,&quot;label&quot;:&quot;Slack Thread&quot;,&quot;isUrlList&quot;:true,&quot;editable&quot;:true}]</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_layoutType</name>
-                    <value>2 Columns</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_sectionTitle</name>
-                    <value>Case Details</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_showConfigDiagnostics</name>
-                    <value>false</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_startCollapsed</name>
-                    <value>false</value>
-                </componentInstanceProperties>
-                <componentName>nD_DynamicSection</componentName>
+                <componentInstanceProperties><name>ND_jsonConfigString</name><value>{"section":{"title":"Case Details","icon":"utility:check","columns":2,"headerColor":"#C2C2C2","headerTextColor":"black"},"fields":[{"apiName":"AVB_Collaborators__c","label":"Collaborators","colSpan":2,"editable":true,"isEmailList":true},{"apiName":"AVB_Followers__c","label":"Followers","colSpan":2,"editable":true,"isEmailList":true,"allowedDomains":"aviobook.aero"},{"apiName":"Status","label":"Status","editable":true},{"apiName":"OwnerId","label":"Case Owner","editable":true},{"apiName":"Priority","label":"Priority","editable":true,"color":"#ba0517","colorIfValue":"High,Urgent"},{"apiName":"AVB_On_Hold_Resolution_Target_Date__c","label":"Remind Me","editable":true},{"apiName":"AVB_Impact_Type__c","label":"Impact Type","showIfField":"AVB_Impact_Type__c"},{"apiName":"AVB_Impact_Severity__c","label":"Impact Severity","showIfField":"AVB_Impact_Severity__c","color":"#ba0517","colorIfValue":"High,Significant"},{"apiName":"Type","label":"Issue Type","editable":true},{"apiName":"ParentId","label":"Problem Case","isOpenProblem":true,"editable":true},{"apiName":"AVB_Environment__c","label":"Environment","showIfField":"RecordTypeId","showIfValue":"012KB000000kcw4YAA","editable":true},{"apiName":"Slack_Thread__c","label":"Slack Thread","isUrlList":true,"editable":true}]}</value></componentInstanceProperties><componentName>nD_DynamicSection</componentName>
                 <identifier>c_nD_DynamicSection</identifier>
             </componentInstance>
         </itemInstances>
@@ -1952,51 +1864,7 @@
         </itemInstances>
         <itemInstances>
             <componentInstance>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveTextColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerBackgroundColor</name>
-                    <value>#F48E31</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicField</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicValue</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerTextColor</name>
-                    <value>#FFFFFF</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_iconName</name>
-                    <value>utility:warning</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_jsonConfigString</name>
-                    <value>[     {         &quot;apiName&quot;: &quot;STSUFR_Display__c&quot;,         &quot;label&quot;: &quot;First Response Sent At&quot;,         &quot;showIfField&quot;: &quot;STSUFR_Display__c&quot;,         &quot;colorIfField&quot;: &quot;Violated_FR__c&quot;,         &quot;color&quot;: &quot;red&quot;     },     {         &quot;apiName&quot;: &quot;STSUA_Display__c&quot;,         &quot;label&quot;: &quot;Analysis Sent At&quot;,         &quot;showIfField&quot;: &quot;STSUA_Display__c&quot;,         &quot;colorIfField&quot;: &quot;Violated_Analysis__c&quot;,         &quot;color&quot;: &quot;red&quot;     },     {         &quot;apiName&quot;: &quot;STSUU_Display__c&quot;,         &quot;label&quot;: &quot;Update Sent At&quot;,         &quot;showIfField&quot;: &quot;STSUU_Display__c&quot;,         &quot;colorIfField&quot;: &quot;Violated_Update__c&quot;,         &quot;color&quot;: &quot;red&quot;     },     {         &quot;apiName&quot;: &quot;STSUF_Display__c&quot;,         &quot;label&quot;: &quot;Fix Sent At&quot;,         &quot;showIfField&quot;: &quot;STSUF_Display__c&quot;,         &quot;colorIfField&quot;: &quot;Violated_Fix__c&quot;,         &quot;color&quot;: &quot;red&quot;     } ]</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_layoutType</name>
-                    <value>2 Columns</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_sectionTitle</name>
-                    <value>SLA Details</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_showConfigDiagnostics</name>
-                    <value>false</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_startCollapsed</name>
-                    <value>false</value>
-                </componentInstanceProperties>
-                <componentName>nD_DynamicSection</componentName>
+                <componentInstanceProperties><name>ND_jsonConfigString</name><value>{"section":{"title":"SLA Details","icon":"utility:warning","columns":2,"headerColor":"#F48E31","headerTextColor":"#FFFFFF"},"fields":[{"apiName":"STSUFR_Display__c","label":"First Response Sent At","showIfField":"STSUFR_Display__c","colorIfField":"Violated_FR__c","color":"red"},{"apiName":"STSUA_Display__c","label":"Analysis Sent At","showIfField":"STSUA_Display__c","colorIfField":"Violated_Analysis__c","color":"red"},{"apiName":"STSUU_Display__c","label":"Update Sent At","showIfField":"STSUU_Display__c","colorIfField":"Violated_Update__c","color":"red"},{"apiName":"STSUF_Display__c","label":"Fix Sent At","showIfField":"STSUF_Display__c","colorIfField":"Violated_Fix__c","color":"red"}]}</value></componentInstanceProperties><componentName>nD_DynamicSection</componentName>
                 <identifier>c_nD_DynamicSection2</identifier>
                 <visibilityRule>
                     <criteria>
@@ -2177,7 +2045,7 @@
         </properties>
         <properties>
             <name>saveOptions</name>
-            <value>[{&quot;name&quot;:&quot;UseDefaultAssignmentRule&quot;,&quot;value&quot;:&quot;SHOW_CHECKBOX_WITH_DEFAULT_OFF&quot;},{&quot;name&quot;:&quot;triggerOtherEmail&quot;,&quot;value&quot;:&quot;SHOW_CHECKBOX_WITH_DEFAULT_OFF&quot;}]</value>
+            <value>[{"name":"UseDefaultAssignmentRule","value":"SHOW_CHECKBOX_WITH_DEFAULT_OFF"},{"name":"triggerOtherEmail","value":"SHOW_CHECKBOX_WITH_DEFAULT_OFF"}]</value>
         </properties>
     </template>
     <type>RecordPage</type>

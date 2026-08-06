@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <FlexiPage xmlns="http://soap.sforce.com/2006/04/metadata">
     <flexiPageRegions>
         <itemInstances>
@@ -265,47 +265,7 @@
         </itemInstances>
         <itemInstances>
             <componentInstance>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveTextColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerBackgroundColor</name>
-                    <value>#F48E31</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicField</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicValue</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerTextColor</name>
-                    <value>#FFFFFF</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_iconName</name>
-                    <value>utility:warning</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_jsonConfigString</name>
-                    <value>[     {         &quot;apiName&quot;: &quot;STSUFR_Display__c&quot;,         &quot;label&quot;: &quot;First Response Sent At&quot;,         &quot;showIfField&quot;: &quot;STSUFR_Display__c&quot;,         &quot;colorIfField&quot;: &quot;Violated_FR__c&quot;,         &quot;color&quot;: &quot;red&quot;     },     {         &quot;apiName&quot;: &quot;STSUA_Display__c&quot;,         &quot;label&quot;: &quot;Analysis Sent At&quot;,         &quot;showIfField&quot;: &quot;STSUA_Display__c&quot;,         &quot;colorIfField&quot;: &quot;Violated_Analysis__c&quot;,         &quot;color&quot;: &quot;red&quot;     },     {         &quot;apiName&quot;: &quot;STSUU_Display__c&quot;,         &quot;label&quot;: &quot;Update Sent At&quot;,         &quot;showIfField&quot;: &quot;STSUU_Display__c&quot;,         &quot;colorIfField&quot;: &quot;Violated_Update__c&quot;,         &quot;color&quot;: &quot;red&quot;     },     {         &quot;apiName&quot;: &quot;STSUF_Display__c&quot;,         &quot;label&quot;: &quot;Fix Sent At&quot;,         &quot;showIfField&quot;: &quot;STSUF_Display__c&quot;,         &quot;colorIfField&quot;: &quot;Violated_Fix__c&quot;,         &quot;color&quot;: &quot;red&quot;     } ]</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_layoutType</name>
-                    <value>2 Columns</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_sectionTitle</name>
-                    <value>SLA Details</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_startCollapsed</name>
-                    <value>false</value>
-                </componentInstanceProperties>
-                <componentName>nD_DynamicSection</componentName>
+                <componentInstanceProperties><name>ND_jsonConfigString</name><value>{"section":{"title":"SLA Details","icon":"utility:warning","columns":2,"headerColor":"#F48E31","headerTextColor":"#FFFFFF"},"fields":[{"apiName":"STSUFR_Display__c","label":"First Response Sent At","showIfField":"STSUFR_Display__c","colorIfField":"Violated_FR__c","color":"red"},{"apiName":"STSUA_Display__c","label":"Analysis Sent At","showIfField":"STSUA_Display__c","colorIfField":"Violated_Analysis__c","color":"red"},{"apiName":"STSUU_Display__c","label":"Update Sent At","showIfField":"STSUU_Display__c","colorIfField":"Violated_Update__c","color":"red"},{"apiName":"STSUF_Display__c","label":"Fix Sent At","showIfField":"STSUF_Display__c","colorIfField":"Violated_Fix__c","color":"red"}]}</value></componentInstanceProperties><componentName>nD_DynamicSection</componentName>
                 <identifier>c_nD_DynamicSection2</identifier>
                 <visibilityRule>
                     <criteria>
@@ -659,47 +619,7 @@
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveTextColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerBackgroundColor</name>
-                    <value>#005FB2</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicField</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicValue</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerTextColor</name>
-                    <value>#FFFFFF</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_iconName</name>
-                    <value>action:approval</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_jsonConfigString</name>
-                    <value>[     {         &quot;apiName&quot;: &quot;Support_Time_Spent_Text__c&quot;,         &quot;label&quot;: &quot;Support Time Spent&quot;     },     {         &quot;apiName&quot;: &quot;X3rd_Party_Time_Spent_Text__c&quot;,         &quot;label&quot;: &quot;On hold Time Spent&quot;     },     {         &quot;apiName&quot;: &quot;Ticket_Life_Time_Spent_text__c&quot;,         &quot;label&quot;: &quot;Ticket Time Spent&quot;     },     {         &quot;apiName&quot;: &quot;wfc_Time_Spent_Text__c&quot;,         &quot;label&quot;: &quot;Waiting for Customer Time Spent&quot;     },     {         &quot;apiName&quot;: &quot;Highest_status__c&quot;,         &quot;label&quot;: &quot;Highest Status&quot;     },     {         &quot;apiName&quot;: &quot;AVB_Highest_Priority__c&quot;,         &quot;label&quot;: &quot;Highest Priority&quot;     },     {         &quot;apiName&quot;: &quot;Incoming_Count__c&quot;,         &quot;label&quot;: &quot;Amount of incoming emails&quot;     },     {         &quot;apiName&quot;: &quot;Outgoing_Count__c&quot;,         &quot;label&quot;: &quot;Amount of outgoing emails&quot;     } ]</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_layoutType</name>
-                    <value>2 Columns</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_sectionTitle</name>
-                    <value>Admin section (press &apos;Update statistics&apos; to get the latest stats)</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_startCollapsed</name>
-                    <value>true</value>
-                </componentInstanceProperties>
-                <componentName>nD_DynamicSection</componentName>
+                <componentInstanceProperties><name>ND_jsonConfigString</name><value>{"section":{"title":"Admin section (press 'Update statistics' to get the latest stats)","icon":"action:approval","columns":2,"startCollapsed":true,"headerColor":"#005FB2","headerTextColor":"#FFFFFF"},"fields":[{"apiName":"Support_Time_Spent_Text__c","label":"Support Time Spent"},{"apiName":"X3rd_Party_Time_Spent_Text__c","label":"On hold Time Spent"},{"apiName":"Ticket_Life_Time_Spent_text__c","label":"Ticket Time Spent"},{"apiName":"wfc_Time_Spent_Text__c","label":"Waiting for Customer Time Spent"},{"apiName":"Highest_status__c","label":"Highest Status"},{"apiName":"AVB_Highest_Priority__c","label":"Highest Priority"},{"apiName":"Incoming_Count__c","label":"Amount of incoming emails"},{"apiName":"Outgoing_Count__c","label":"Amount of outgoing emails"}]}</value></componentInstanceProperties><componentName>nD_DynamicSection</componentName>
                 <identifier>c_nD_DynamicSection3</identifier>
                 <visibilityRule>
                     <booleanFilter>1 OR 2 OR 3</booleanFilter>
@@ -723,47 +643,7 @@
         </itemInstances>
         <itemInstances>
             <componentInstance>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerActiveTextColor</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerBackgroundColor</name>
-                    <value>#C2C2C2</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicField</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerLogicValue</name>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_headerTextColor</name>
-                    <value>black</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_iconName</name>
-                    <value>utility:check</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_jsonConfigString</name>
-                    <value>[     {         &quot;apiName&quot;: &quot;Subject&quot;,         &quot;label&quot;: &quot;Subject&quot;,         &quot;colSpan&quot;: 2,         &quot;editable&quot;: true     },     {         &quot;apiName&quot;: &quot;AVB_Collaborators__c&quot;,         &quot;label&quot;: &quot;Collaborators&quot;,         &quot;colSpan&quot;: 2,         &quot;editable&quot;: true     },     {         &quot;apiName&quot;: &quot;CaseNumber&quot;,         &quot;label&quot;: &quot;Case Number&quot;     },     {         &quot;apiName&quot;: &quot;CreatedDate&quot;,         &quot;label&quot;: &quot;Created&quot;     },     {         &quot;apiName&quot;: &quot;RecordTypeId&quot;,         &quot;label&quot;: &quot;Type&quot;,         &quot;editable&quot;: true     },     {         &quot;apiName&quot;: &quot;Type&quot;,         &quot;label&quot;: &quot;Issue Type&quot;,         &quot;editable&quot;: true     },     {         &quot;apiName&quot;: &quot;Priority&quot;,         &quot;label&quot;: &quot;Priority&quot;,         &quot;editable&quot;: true     },     {         &quot;apiName&quot;: &quot;AVB_Environment__c&quot;,         &quot;label&quot;: &quot;Environment&quot;,         &quot;showIfField&quot;: &quot;RecordTypeId&quot;,         &quot;showIfValue&quot;: &quot;012KB000000kcw4YAA&quot;,         &quot;editable&quot;: true     },     {         &quot;apiName&quot;: &quot;AVB_Impact_Type__c&quot;,         &quot;label&quot;: &quot;Impact Type&quot;,         &quot;showIfField&quot;: &quot;AVB_Impact_Type__c&quot;     },     {         &quot;apiName&quot;: &quot;AVB_Impact_Severity__c&quot;,         &quot;label&quot;: &quot;Impact Severity&quot;,         &quot;showIfField&quot;: &quot;AVB_Impact_Severity__c&quot;     } ]</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_layoutType</name>
-                    <value>2 Columns</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_sectionTitle</name>
-                    <value>Case Details</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>ND_startCollapsed</name>
-                    <value>false</value>
-                </componentInstanceProperties>
-                <componentName>nD_DynamicSection</componentName>
+                <componentInstanceProperties><name>ND_jsonConfigString</name><value>{"section":{"title":"Case Details","icon":"utility:check","columns":2,"headerColor":"#C2C2C2","headerTextColor":"black"},"fields":[{"apiName":"Subject","label":"Subject","colSpan":2,"editable":true},{"apiName":"AVB_Collaborators__c","label":"Collaborators","colSpan":2,"editable":true},{"apiName":"CaseNumber","label":"Case Number"},{"apiName":"CreatedDate","label":"Created"},{"apiName":"RecordTypeId","label":"Type","editable":true},{"apiName":"Type","label":"Issue Type","editable":true},{"apiName":"Priority","label":"Priority","editable":true},{"apiName":"AVB_Environment__c","label":"Environment","showIfField":"RecordTypeId","showIfValue":"012KB000000kcw4YAA","editable":true},{"apiName":"AVB_Impact_Type__c","label":"Impact Type","showIfField":"AVB_Impact_Type__c"},{"apiName":"AVB_Impact_Severity__c","label":"Impact Severity","showIfField":"AVB_Impact_Severity__c"}]}</value></componentInstanceProperties><componentName>nD_DynamicSection</componentName>
                 <identifier>c_nD_DynamicSection</identifier>
             </componentInstance>
         </itemInstances>
