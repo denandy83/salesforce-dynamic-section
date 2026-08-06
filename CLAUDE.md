@@ -41,17 +41,17 @@ fields-only shape. **Section settings live in the JSON** (`title`, `icon`, `colu
   deploy. Originals are in commit `dcee5a9` and `~/Desktop/nd-flexipage-backup-*`.
 - The **8 hosting pages** are committed under `force-app/main/default/flexipages/`, so the
   configs are now in version control rather than only in the org.
-- **Linking to the builder — every App Builder surface was tried and only one works.**
-  | Surface | Result |
+- **Pointing an admin at the builder — the answer is the card's own empty state.** An empty
+  config renders a **setup prompt** naming the App Launcher, the builder, and the property to
+  paste into. That is the single place it is said. Dead ends already tried and removed, so
+  nobody repeats them:
+  | Attempt | Why it failed |
   |---|---|
-  | Custom Property Editor | **Impossible** — `configurationEditor` is Flow-only |
-  | Property panel | Renders inputs only; no link is possible. A pre-filled box (`ND_configBuilderUrl`) is the best it can do |
-  | App Builder canvas | **Swallows clicks** — every component is a drag handle, so a link there looks live and does nothing |
-  | Real record page | **Works.** Gated on the `CustomizeApplication` user permission (`@salesforce/userPermission/CustomizeApplication`), so admins get a clickable link and agents see nothing |
-
-  So: design time (`isDesignTime` = `!this.recordId`) gets **plain text** that says links do
-  not work in the canvas; the real record page gets the clickable link for admins only. An
-  empty config renders a fuller **setup prompt** instead of a blank card.
+  | Custom Property Editor | Platform forbids it — `configurationEditor` is Flow-only |
+  | A link in the property panel | Panels render inputs only |
+  | A `ND_configBuilderUrl` box holding the path | Only ever an input nobody should type in; a `default` also does not populate existing instances |
+  | A link in the App Builder canvas | The canvas swallows clicks — every component is a drag handle, so the link looked live and did nothing |
+  | A permission-gated link on the record page | Worked, but put admin chrome in front of agents' data |
 - **A property `default` does NOT reach instances already on a page** — only ones added
   afterwards. `ND_configBuilderUrl` had to be written into all 22 existing instances
   explicitly (`scratchpad/set_builder_url.py`).

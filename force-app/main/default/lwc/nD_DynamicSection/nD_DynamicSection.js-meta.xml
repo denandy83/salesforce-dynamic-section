@@ -30,9 +30,12 @@
                  twice — once for the ten legacy section properties, once for a well-meant
                  "set up here" box that turned out to be exactly the input nobody should
                  type in. Do not add a third. -->
+            <!-- Kept short on purpose: Salesforce appends its own paragraph about custom
+                 labels to every description, so a long one becomes a wall of text. The full
+                 instruction is in the card itself, which is where it is actually needed. -->
             <property name="ND_jsonConfigString" type="String"
                       label="Field JSON Configuration"
-                      description="Open the App Launcher and choose &quot;Section Config Builder&quot; to set up how this section should look — which fields it shows, the title, icon, colours and layout — then click Copy JSON there and paste the result here. You can type in this box directly, but nothing checks it: a mistyped setting is simply ignored, with no warning on the page."/>
+                      description="Built by the Section Config Builder (App Launcher). Paste its Copy JSON output here."/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

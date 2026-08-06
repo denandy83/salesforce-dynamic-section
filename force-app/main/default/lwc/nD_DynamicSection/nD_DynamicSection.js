@@ -4,7 +4,6 @@ import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import USER_ID from '@salesforce/user/Id';
-import CAN_CUSTOMIZE from '@salesforce/userPermission/CustomizeApplication';
 import getOpenProblems from '@salesforce/apex/ND_ProblemPicker.getOpenProblems';
 import resolveEmails from '@salesforce/apex/ND_EmailResolver.resolveEmails';
 import {
@@ -175,35 +174,6 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     // point whoever just dropped the component at the tool that configures it.
     get isUnconfigured() {
         return !this.configObject.length;
-    }
-
-    /**
-     * True while the component sits in App Builder's canvas rather than on a real record:
-     * the canvas has no record, so no recordId is supplied.
-     *
-     * Nothing clickable can be offered here. App Builder makes every component in the
-     * canvas a drag handle and swallows pointer events, so a link rendered at design time
-     * looks live and does nothing — worse than no link. Design time gets plain text; the
-     * clickable version is on the real record page below.
-     */
-    get isDesignTime() {
-        return !this.recordId;
-    }
-
-    get showDesignTimeNote() {
-        return this.isDesignTime && !this.isUnconfigured;
-    }
-
-    /**
-     * A link to the builder on the REAL record page, for people who configure pages.
-     *
-     * This is the only surface where a link actually works: a property panel renders inputs
-     * only, the canvas eats clicks, and a Custom Property Editor is not permitted for a
-     * record page component at all. Gated on Customize Application — the permission needed
-     * to edit a Lightning page in the first place — so agents never see it.
-     */
-    get showAdminLink() {
-        return !this.isDesignTime && CAN_CUSTOMIZE === true;
     }
 
     get builderUrl() {
