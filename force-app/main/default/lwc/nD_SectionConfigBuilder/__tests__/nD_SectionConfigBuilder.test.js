@@ -697,3 +697,57 @@ describe('colour pickers update during the drag', () => {
         expect(after.ND_jsonConfigString).toContain('#654321');
     });
 });
+
+describe('the record type multi-select', () => {
+    const WITH_MASTER = {
+        apiName: 'Case',
+        fields: {
+            AVB_Environment__c: { apiName: 'AVB_Environment__c', label: 'Environment' },
+            RecordTypeId: { apiName: 'RecordTypeId', label: 'Record Type' }
+        },
+        recordTypeInfos: {
+            '012000000000000AAA': { recordTypeId: '012000000000000AAA', name: 'Master', master: true },
+            '012KB000000kcw4YAA': { recordTypeId: '012KB000000kcw4YAA', name: 'AvioBook Case', master: false },
+            '012KB000000kcw5YAA': { recordTypeId: '012KB000000kcw5YAA', name: 'AvioData Case', master: false }
+        }
+    };
+
+    async function loadRow(element, json) {
+        const textarea = element.shadowRoot.querySelector('lightning-textarea');
+        textarea.value = json;
+        textarea.dispatchEvent(new CustomEvent('change', { detail: { value: json } }));
+        Array.from(element.shadowRoot.querySelectorAll('lightning-button'))
+            .find(b => b.label === 'Load')
+            .click();
+        await Promise.resolve();
+        await Promise.resolve();
+        element.shadowRoot.querySelector(`${FIELD_ROW} .nd-row-btn`).click();
+        await Promise.resolve();
+    }
+
+    // Master is in recordTypeInfos but is not something to scope a row to.
+    it('does not offer Master alongside real record types', async () => {
+        const element = mount();
+        getObjectInfo.emit(WITH_MASTER);
+        await Promise.resolve();
+        await loadRow(element, '[{"apiName":"AVB_Environment__c","showIfField":"RecordTypeId"}]');
+
+        const group = Array.from(element.shadowRoot.querySelectorAll('lightning-checkbox-group'))
+            .find(g => g.label === '…is one of');
+        expect(group.options.map(o => o.label)).toEqual(['AvioBook Case', 'AvioData Case']);
+    });
+
+    it('reports no problem once two record types are chosen', async () => {
+        const element = mount();
+        getObjectInfo.emit(WITH_MASTER);
+        await Promise.resolve();
+        await loadRow(
+            element,
+            '[{"apiName":"AVB_Environment__c","showIfField":"RecordTypeId",'
+            + '"showIfValue":"012KB000000kcw4YAA,012KB000000kcw5YAA"}]'
+        );
+
+        expect(text(element, '.nd-ok')).toMatch(/No unknown keys/);
+        expect(element.shadowRoot.querySelector('.nd-finding')).toBeNull();
+    });
+});

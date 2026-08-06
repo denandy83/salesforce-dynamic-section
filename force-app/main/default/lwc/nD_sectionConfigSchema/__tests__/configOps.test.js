@@ -373,3 +373,46 @@ describe('withRowAdded editability', () => {
         ]);
     });
 });
+
+describe('record type Ids in showIfValue', () => {
+    const CTX = {
+        fields: { AVB_Environment__c: { label: 'Environment', updateable: true } },
+        recordTypes: {
+            '012KB000000kcw4YAA': 'AvioBook Case',
+            '012KB000000kcw5YAA': 'AvioData Case'
+        }
+    };
+    const row = value => [{
+        apiName: 'AVB_Environment__c', showIfField: 'RecordTypeId', showIfValue: value
+    }];
+
+    // showIfValue became comma-separated membership, so the whole string is no longer a
+    // single Id to look up — picking two record types used to warn that the joined string
+    // was not in the org.
+    it('accepts several record type Ids', () => {
+        expect(validateConfig(row('012KB000000kcw4YAA,012KB000000kcw5YAA'), CTX)).toEqual([]);
+    });
+
+    it('accepts one', () => {
+        expect(validateConfig(row('012KB000000kcw4YAA'), CTX)).toEqual([]);
+    });
+
+    it('tolerates spaces around the separators', () => {
+        expect(validateConfig(row(' 012KB000000kcw4YAA , 012KB000000kcw5YAA '), CTX)).toEqual([]);
+    });
+
+    it('names only the Id that is actually missing', () => {
+        const findings = validateConfig(row('012KB000000kcw4YAA,012000000000000AAA'), CTX);
+        expect(findings).toHaveLength(1);
+        expect(findings[0].message).toContain('012000000000000AAA');
+        expect(findings[0].message).not.toContain('012KB000000kcw4YAA');
+        expect(findings[0].message).toContain('is not in this org');
+    });
+
+    it('pluralises when several are missing', () => {
+        const findings = validateConfig(row('012000000000000AAA,012999999999999AAA'), CTX);
+        expect(findings).toHaveLength(1);
+        expect(findings[0].message).toContain('Record type Ids');
+        expect(findings[0].message).toContain('are not in this org');
+    });
+});

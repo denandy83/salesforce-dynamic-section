@@ -262,6 +262,14 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         return this.fieldPickerOptions.filter(o => !used.includes(o.value));
     }
 
+    // Record types excluding Master, which App Builder never scopes a page to either.
+    get assignableRecordTypeIds() {
+        const infos = (this._objectInfo && this._objectInfo.recordTypeInfos) || {};
+        return Object.values(infos)
+            .filter(rt => rt.master !== true)
+            .map(rt => rt.recordTypeId);
+    }
+
     get recordTypeOptions() {
         return [{ label: '— any record type —', value: '' }].concat(
             Object.keys(this.recordTypesById).map(id => ({ label: this.recordTypesById[id], value: id }))
@@ -586,7 +594,11 @@ export default class ND_SectionConfigBuilder extends LightningElement {
 
         if (watched === 'RecordTypeId') {
             const types = this.recordTypesById;
-            const ids = Object.keys(types);
+            // Master is in recordTypeInfos but is not something to scope a row to when the
+            // object has real record types. It stays in recordTypesById so validation can
+            // still recognise a config that references it.
+            const real = this.assignableRecordTypeIds;
+            const ids = real.length ? real : Object.keys(types);
             return ids.length ? ids.map(id => ({ label: types[id], value: id })) : null;
         }
 

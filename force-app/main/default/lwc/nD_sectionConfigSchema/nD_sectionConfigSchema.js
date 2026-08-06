@@ -433,9 +433,23 @@ function validateConfig(config, context) {
             }
         });
 
-        if (row.showIfField === 'RecordTypeId' && !isBlank(row.showIfValue)
-            && ctx.recordTypes && !ctx.recordTypes[row.showIfValue]) {
-            push('warning', `Record type Id ${row.showIfValue} is not in this org.`, 'showIfValue');
+        // showIfValue is comma-separated membership, so each Id has to be checked on its
+        // own and only the genuinely missing ones reported.
+        if (row.showIfField === 'RecordTypeId' && !isBlank(row.showIfValue) && ctx.recordTypes) {
+            const unknown = String(row.showIfValue)
+                .split(',')
+                .map(v => v.trim())
+                .filter(Boolean)
+                .filter(id => !ctx.recordTypes[id]);
+
+            if (unknown.length) {
+                push(
+                    'warning',
+                    `Record type ${unknown.length > 1 ? 'Ids' : 'Id'} ${unknown.join(', ')} `
+                    + `${unknown.length > 1 ? 'are' : 'is'} not in this org.`,
+                    'showIfValue'
+                );
+            }
         }
 
         // A formula or system field cannot be edited whatever the config says, so
