@@ -13,7 +13,10 @@ import {
     selectionAfterRemoval,
     resolveSectionSettings,
     validateSection,
-    validateConfig
+    validateConfig,
+    describeRequirement,
+    joinOr,
+    splitCsv
 } from 'c/nD_sectionConfigSchema';
 
 describe('orderRow / serialize', () => {
@@ -407,5 +410,79 @@ describe('record type Ids in showIfValue', () => {
         expect(findings).toHaveLength(1);
         expect(findings[0].message).toContain('Record type Ids');
         expect(findings[0].message).toContain('are not in this org');
+    });
+});
+
+describe('describeRequirement with several record types', () => {
+    const CTX = {
+        labels: { Type: 'Issue Type', AVB_Environment__c: 'Environment' },
+        recordTypes: {
+            '012KB000000kcw4YAA': 'AvioBook Case',
+            '012KB000000kcw5YAA': 'AvioData Case',
+            '012KB000000kcw6YAA': 'Problem Case'
+        }
+    };
+    const row = showIfValue => ({
+        apiName: 'AVB_Environment__c', label: 'Environment', requiredBeforeTakeover: true,
+        showIfField: 'RecordTypeId', showIfValue,
+        requiredIfField: 'Type', requiredIfValue: 'Bug or Incident'
+    });
+
+    // showIfValue is membership, so the sentence has to name each record type. It used to
+    // look the whole value up as one Id and print the raw comma-joined string on a miss.
+    it('names two record types instead of printing their Ids', () => {
+        expect(describeRequirement(row('012KB000000kcw4YAA,012KB000000kcw5YAA'), CTX)).toBe(
+            'Environment must have a value before someone can take this case, but only on '
+            + 'AvioBook Case or AvioData Case, and only when Issue Type is Bug or Incident.'
+        );
+    });
+
+    it('reads three as an English list', () => {
+        const text = describeRequirement(
+            row('012KB000000kcw4YAA,012KB000000kcw5YAA,012KB000000kcw6YAA'), CTX
+        );
+        expect(text).toContain('only on AvioBook Case, AvioData Case or Problem Case,');
+    });
+
+    it('still reads correctly for one', () => {
+        expect(describeRequirement(row('012KB000000kcw4YAA'), CTX))
+            .toContain('but only on AvioBook Case,');
+    });
+
+    it('tolerates spaces around the separators', () => {
+        expect(describeRequirement(row(' 012KB000000kcw4YAA , 012KB000000kcw5YAA '), CTX))
+            .toContain('AvioBook Case or AvioData Case');
+    });
+
+    it('shows an unrecognised Id as-is rather than dropping it', () => {
+        expect(describeRequirement(row('012KB000000kcw4YAA,012999999999999AAA'), CTX))
+            .toContain('AvioBook Case or 012999999999999AAA');
+    });
+
+    it('contains no comma-joined Id string anywhere', () => {
+        expect(describeRequirement(row('012KB000000kcw4YAA,012KB000000kcw5YAA'), CTX))
+            .not.toContain('012KB000000kcw4YAA,');
+    });
+});
+
+describe('joinOr', () => {
+    it('reads as English for one, two and three', () => {
+        expect(joinOr(['A'])).toBe('A');
+        expect(joinOr(['A', 'B'])).toBe('A or B');
+        expect(joinOr(['A', 'B', 'C'])).toBe('A, B or C');
+    });
+
+    it('is empty for nothing', () => {
+        expect(joinOr([])).toBe('');
+    });
+});
+
+describe('splitCsv', () => {
+    it('trims and drops the empties', () => {
+        expect(splitCsv(' a , b ,, c ')).toEqual(['a', 'b', 'c']);
+    });
+
+    it('is empty for blank-ish input', () => {
+        [undefined, null, ''].forEach(v => expect(splitCsv(v)).toEqual([]));
     });
 });

@@ -18,6 +18,7 @@ import {
     CONFIG_KEYS,
     widgetOf,
     isBlank,
+    splitCsv,
     validateConfig,
     describeRequirement,
     resolveSectionSettings,
@@ -549,7 +550,7 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             isValues: def.control === 'values' && !!valueChoices,
             isValuesText: def.control === 'values' && !valueChoices,
             valueOptions: valueChoices || [],
-            selectedValues: valueChoices ? this.splitCsv(value) : [],
+            selectedValues: valueChoices ? splitCsv(value) : [],
             value: value === undefined ? '' : String(value),
             checked: value === true && !orgBlocked,
             disabled: (gated && isBlank(gate)) || orgBlocked,
@@ -604,11 +605,6 @@ export default class ND_SectionConfigBuilder extends LightningElement {
 
         const values = this.picklistValues[watched];
         return values && values.length ? values.map(v => ({ label: v, value: v })) : null;
-    }
-
-    splitCsv(value) {
-        if (value === undefined || value === null || value === '') return [];
-        return String(value).split(',').map(v => v.trim()).filter(Boolean);
     }
 
     placeholderFor(def, row, gated, gate) {

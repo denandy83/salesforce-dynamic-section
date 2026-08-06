@@ -366,6 +366,18 @@ function isBlank(value) {
     return value === null || value === undefined || String(value).trim() === '';
 }
 
+/** The config's only multi-value idiom, split into its parts. */
+function splitCsv(value) {
+    if (value === undefined || value === null || value === '') return [];
+    return String(value).split(',').map(v => v.trim()).filter(Boolean);
+}
+
+/** "A", "A or B", "A, B or C" — an English list, not a machine one. */
+function joinOr(parts) {
+    if (parts.length <= 1) return parts[0] || '';
+    return `${parts.slice(0, -1).join(', ')} or ${parts[parts.length - 1]}`;
+}
+
 /** Comma-separated membership, the config's only multi-value idiom. */
 function matchesCsv(value, csv) {
     return String(csv)
@@ -517,8 +529,11 @@ function describeRequirement(row, context) {
     let text = `${name} must have a value before someone can take this case`;
 
     if (row.showIfField === 'RecordTypeId' && !isBlank(row.showIfValue)) {
-        const rt = (ctx.recordTypes && ctx.recordTypes[row.showIfValue]) || row.showIfValue;
-        text += `, but only on ${rt}`;
+        // Membership, so there may be several Ids. Each is named on its own; an Id with no
+        // match is shown as-is rather than silently dropped.
+        text += `, but only on ${joinOr(splitCsv(row.showIfValue).map(
+            id => (ctx.recordTypes && ctx.recordTypes[id]) || id
+        ))}`;
     } else if (!isBlank(row.showIfField)) {
         text += `, but only while ${labelOf(row.showIfField)} is set`;
     }
@@ -527,7 +542,7 @@ function describeRequirement(row, context) {
         text += `, and only when ${labelOf(row.requiredIfField)} is `;
         text += isBlank(row.requiredIfValue)
             ? 'set'
-            : String(row.requiredIfValue).split(',').map(v => v.trim()).join(' or ');
+            : joinOr(splitCsv(row.requiredIfValue));
     }
 
     return `${text}.`;
@@ -781,6 +796,8 @@ export {
     widgetOf,
     isBlank,
     matchesCsv,
+    splitCsv,
+    joinOr,
     validateConfig,
     suggestKey,
     describeRequirement,
