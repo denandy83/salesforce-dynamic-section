@@ -49,17 +49,12 @@
                     <template if:true={isUnconfigured}>
                         <div class="nd-setup">
                             <p class="nd-setup-title">This section has no fields yet</p>
-                            <p class="nd-setup-body">
-                                Open the App Launcher and choose
-                                <strong>Section Config Builder</strong> to set up how this
-                                section should look — which fields it shows, the title, icon,
-                                colours and layout. Then copy the JSON and paste it into this
-                                component&rsquo;s <strong>Field JSON Configuration</strong>
-                                property.
-                            </p>
-                            <a href={builderUrl} target="_blank" class="nd-setup-link">
-                                Open the Section Config Builder
-                            </a>
+                            <!-- Each sentence stays on ONE line. LWC collapses the whitespace
+                                 between a text node and an element when a newline sits
+                                 between them, which silently produced "chooseSection Config
+                                 Builder" and "Field JSON Configurationproperty". -->
+                            <p class="nd-setup-body">Open the <strong>App Launcher</strong> and choose <strong>Section Config Builder</strong> to set up how this section should look: which fields it shows, the title, icon, colours and layout.</p>
+                            <p class="nd-setup-body">Then click <strong>Copy JSON</strong> there and paste the result into the <strong>Field JSON Configuration</strong> property of this component.</p>
                         </div>
                     </template>
 

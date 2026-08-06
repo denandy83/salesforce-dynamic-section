@@ -22,22 +22,43 @@ afterEach(() => {
 });
 
 describe('the unconfigured card', () => {
+    function setupText(element) {
+        return Array.from(element.shadowRoot.querySelectorAll('.nd-setup-body'))
+            .map(n => n.textContent)
+            .join(' ');
+    }
+
     it('says what to do, naming the tool and the property', async () => {
         const element = mount({ ND_jsonConfigString: '' });
         await Promise.resolve();
 
-        const body = element.shadowRoot.querySelector('.nd-setup-body').textContent;
+        const body = setupText(element);
         expect(body).toContain('App Launcher');
         expect(body).toContain('Section Config Builder');
         expect(body).toContain('Field JSON Configuration');
     });
 
-    it('offers a link to the builder', async () => {
+    // LWC collapses the whitespace between a text node and an element when a newline sits
+    // between them, which produced "chooseSection Config Builder" and
+    // "Field JSON Configurationproperty" until each sentence was put on one line.
+    it('keeps the spaces around the bold phrases', async () => {
         const element = mount({ ND_jsonConfigString: '' });
         await Promise.resolve();
 
-        expect(element.shadowRoot.querySelector('.nd-setup-link').href)
-            .toContain('/lightning/n/ND_Section_Config_Builder');
+        const body = setupText(element);
+        expect(body).toContain('choose Section Config Builder');
+        expect(body).toContain('Field JSON Configuration property');
+        expect(body).not.toMatch(/[a-z][A-Z][a-z]+ Config/);
+    });
+
+    // A link cannot be clicked in App Builder's canvas: every component there is a drag
+    // handle. Offering one made it look live while doing nothing.
+    it('offers no link at all, since the canvas cannot click one', async () => {
+        const element = mount({ ND_jsonConfigString: '' });
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('.nd-setup a')).toBeNull();
+        expect(element.shadowRoot.querySelector('.nd-setup-link')).toBeNull();
     });
 
     it('shows the prompt for a config that will not parse, rather than a blank card', async () => {

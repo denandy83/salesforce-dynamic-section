@@ -637,7 +637,7 @@
    Shown when the JSON holds no field rows. Its job is to be actionable in App
    Builder's preview, where a silently blank card is the worst outcome. */
 .nd-setup {
-    padding: 1.25rem 1rem;
+    padding: 1.25rem 1.25rem 1.375rem;
     text-align: center;
     border: 1px dashed #c9c9c9;
     border-radius: 0.25rem;
@@ -647,30 +647,25 @@
 .nd-setup-title {
     font-size: 0.875rem;
     font-weight: 700;
+    line-height: 1.4;
     color: #514f4d;
+    margin-bottom: 0.5rem;
 }
 
+/* Two sentences, so they need space between them as well as around the block. */
 .nd-setup-body {
-    margin: 0.25rem auto 0.75rem;
-    max-width: 34rem;
+    margin: 0 auto;
+    max-width: 30rem;
     font-size: 0.75rem;
-    line-height: 1.5;
+    line-height: 1.6;
     color: #706e6b;
 }
 
-.nd-setup-link {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #0176d3;
-    border: 1px solid #0176d3;
-    border-radius: 0.25rem;
-    text-decoration: none;
+.nd-setup-body + .nd-setup-body {
+    margin-top: 0.5rem;
 }
 
-.nd-setup-link:hover,
-.nd-setup-link:focus {
-    background-color: #eef4ff;
-    text-decoration: none;
+.nd-setup-body strong {
+    font-weight: 700;
+    color: #514f4d;
 }
