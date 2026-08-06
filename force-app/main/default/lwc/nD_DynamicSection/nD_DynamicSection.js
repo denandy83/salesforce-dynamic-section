@@ -4,6 +4,7 @@ import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 import USER_ID from '@salesforce/user/Id';
+import CAN_CUSTOMIZE from '@salesforce/userPermission/CustomizeApplication';
 import getOpenProblems from '@salesforce/apex/ND_ProblemPicker.getOpenProblems';
 import resolveEmails from '@salesforce/apex/ND_EmailResolver.resolveEmails';
 import {
@@ -181,25 +182,32 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     /**
-     * True while the component is being edited in App Builder rather than viewed on a real
-     * record.
+     * True while the component sits in App Builder's canvas rather than on a real record:
+     * the canvas has no record, so no recordId is supplied.
      *
-     * App Builder's record-page canvas does not supply a recordId — there is no record to
-     * supply one from — so its absence is the signal. That is worth having because a
-     * property panel cannot render a clickable link, but the canvas can: this is what puts
-     * a real link in front of whoever is configuring the section.
-     *
-     * If the component is ever placed somewhere that genuinely has no recordId, the link
-     * shows to users. That placement is broken anyway, and a link to the configuration tool
-     * is a more useful thing to see than an empty card.
+     * Nothing clickable can be offered here. App Builder makes every component in the
+     * canvas a drag handle and swallows pointer events, so a link rendered at design time
+     * looks live and does nothing — worse than no link. Design time gets plain text; the
+     * clickable version is on the real record page below.
      */
     get isDesignTime() {
         return !this.recordId;
     }
 
-    // The slim bar is redundant when the full setup prompt is already showing its own link
-    get showBuilderBar() {
+    get showDesignTimeNote() {
         return this.isDesignTime && !this.isUnconfigured;
+    }
+
+    /**
+     * A link to the builder on the REAL record page, for people who configure pages.
+     *
+     * This is the only surface where a link actually works: a property panel renders inputs
+     * only, the canvas eats clicks, and a Custom Property Editor is not permitted for a
+     * record page component at all. Gated on Customize Application — the permission needed
+     * to edit a Lightning page in the first place — so agents never see it.
+     */
+    get showAdminLink() {
+        return !this.isDesignTime && CAN_CUSTOMIZE === true;
     }
 
     get builderUrl() {

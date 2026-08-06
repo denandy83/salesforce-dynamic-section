@@ -704,3 +704,10 @@
 .nd-builder-bar-link:focus {
     color: #014486;
 }
+
+/* Design-time variant: no link, so nothing should look interactive. */
+.nd-builder-bar_flat {
+    background-color: #f3f3f3;
+    border-color: #d8d8d8;
+    color: #706e6b;
+}

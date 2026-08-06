@@ -44,15 +44,30 @@
                         </div>
                     </template>
 
-                    <!-- App Builder canvas only: a property panel cannot render a link,
-                         so the clickable one goes here, where the admin already is. -->
-                    <template if:true={showBuilderBar}>
+                    <!-- Design time: plain text only. App Builder makes every component in
+                         the canvas a drag handle and swallows clicks, so a link here would
+                         look live and do nothing. -->
+                    <template if:true={showDesignTimeNote}>
+                        <div class="nd-builder-bar nd-builder-bar_flat">
+                            <lightning-icon icon-name="utility:settings" size="xx-small"
+                                alternative-text="Configure"></lightning-icon>
+                            <span>
+                                Configured by the <strong>Section Config Builder</strong> —
+                                open it from the App Launcher, then paste into
+                                <strong>Field JSON Configuration</strong>. Links are not
+                                clickable in this canvas.
+                            </span>
+                        </div>
+                    </template>
+
+                    <!-- Real record page, and only for someone who can edit Lightning pages:
+                         the one surface where a clickable link actually works. -->
+                    <template if:true={showAdminLink}>
                         <div class="nd-builder-bar">
                             <lightning-icon icon-name="utility:settings" size="xx-small"
                                 alternative-text="Configure"></lightning-icon>
-                            <span>Configured by the Section Config Builder.</span>
                             <a href={builderUrl} target="_blank" class="nd-builder-bar-link">
-                                Open it to change this section
+                                Edit this section in the Section Config Builder
                             </a>
                         </div>
                     </template>

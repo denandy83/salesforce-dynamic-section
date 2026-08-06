@@ -35,11 +35,17 @@ fields-only shape. **Section settings live in the JSON** (`title`, `icon`, `colu
   deploy. Originals are in commit `dcee5a9` and `~/Desktop/nd-flexipage-backup-*`.
 - The **8 hosting pages** are committed under `force-app/main/default/flexipages/`, so the
   configs are now in version control rather than only in the org.
-- **Design-time link.** App Builder property panels cannot render a clickable link, so the
-  component renders one **in the canvas** instead: `isDesignTime` is `!this.recordId`,
-  which is true in App Builder because the record-page canvas has no record to supply one
-  from. A slim bar with a real link shows there and never to agents. An empty config
-  renders a fuller **setup prompt** with the same link rather than a blank card.
+- **Linking to the builder — every App Builder surface was tried and only one works.**
+  | Surface | Result |
+  |---|---|
+  | Custom Property Editor | **Impossible** — `configurationEditor` is Flow-only |
+  | Property panel | Renders inputs only; no link is possible. A pre-filled box (`ND_configBuilderUrl`) is the best it can do |
+  | App Builder canvas | **Swallows clicks** — every component is a drag handle, so a link there looks live and does nothing |
+  | Real record page | **Works.** Gated on the `CustomizeApplication` user permission (`@salesforce/userPermission/CustomizeApplication`), so admins get a clickable link and agents see nothing |
+
+  So: design time (`isDesignTime` = `!this.recordId`) gets **plain text** that says links do
+  not work in the canvas; the real record page gets the clickable link for admins only. An
+  empty config renders a fuller **setup prompt** instead of a blank card.
 - **A property `default` does NOT reach instances already on a page** — only ones added
   afterwards. `ND_configBuilderUrl` had to be written into all 22 existing instances
   explicitly (`scratchpad/set_builder_url.py`).
