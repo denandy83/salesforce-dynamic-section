@@ -10,7 +10,9 @@ import {
     isBlank,
     matchesCsv,
     validateConfig,
-    describeRequirement
+    validateSection,
+    parseConfig,
+    resolveSectionSettings
 } from 'c/nD_sectionConfigSchema';
 
 // --- "isOpenProblem" lookup: baked-in business rule so it never has to be
@@ -44,12 +46,23 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     @api recordId;
     @api objectApiName;
 
-    @api ND_sectionTitle = 'Details';
-    @api ND_iconName = 'utility:warning';
-    @api ND_headerBackgroundColor = '#005FB2';
-    @api ND_headerTextColor = '#FFFFFF';
-    @api ND_startCollapsed = false;
+    // The one property that matters. It carries the section settings AND the field rows,
+    // so the whole section is a single artefact the Config Builder composes.
     @api ND_jsonConfigString = '';
+
+    // --- LEGACY section properties -------------------------------------------------
+    // Superseded by the JSON above and labelled as such in App Builder, but still
+    // DECLARED because the platform refuses to remove a property tag while the component
+    // is on a Lightning page: "You can't remove the property tag named '…'. The component
+    // is in use on one or more Lightning pages." They are read only as a fallback, and
+    // only when the JSON does not set the equivalent value, so a page configured the old
+    // way keeps rendering identically. To delete them, first clear them from every page
+    // that hosts this component, then remove the tags and these lines.
+    @api ND_sectionTitle;
+    @api ND_iconName;
+    @api ND_headerBackgroundColor;
+    @api ND_headerTextColor;
+    @api ND_startCollapsed;
 
     // Dynamic Header Props
     @api ND_headerLogicField;
@@ -57,13 +70,12 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     @api ND_headerActiveColor;
     @api ND_headerActiveTextColor;
 
-    // NEW: Layout Prop
-    @api ND_layoutType = '2 Columns';
+    @api ND_layoutType;
 
-    // Renders config problems in the card while an admin is setting the section up.
-    // Off by default because these messages are for whoever edits the JSON, not for the
-    // agents using the case. The console warning below fires either way.
-    @api ND_showConfigDiagnostics = false;
+    // Accepted and ignored. Validation happens in the Section Config Builder now, and
+    // live-page problems go to the console. Declared because the platform refuses to let
+    // a property tag be removed while the component is on a Lightning page.
+    @api ND_showConfigDiagnostics;
 
     // --- 2. INTERNAL STATE ---
     @track ND_isOpen = true;
@@ -141,18 +153,62 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     _problemDebounce;
 
     connectedCallback() {
-        if (this.ND_startCollapsed) {
+        if (this.sectionSettings.startCollapsed) {
             this.ND_isOpen = false;
         }
     }
 
     // --- 3. HELPERS ---
+    // The parsed document. Accepts both shapes: the current {section, fields} and the
+    // original bare array of field rows, which every page used before the section
+    // settings moved into the JSON.
+    get _parsedConfig() {
+        const raw = (this.ND_jsonConfigString || '').trim();
+        if (!raw) return { rows: [], section: {}, error: '' };
+
+        const result = parseConfig(raw);
+        if (result.error) return { rows: [], section: {}, error: result.error };
+        return { rows: result.rows, section: result.section, error: '' };
+    }
+
     get configObject() {
-        try {
-            return JSON.parse(this.ND_jsonConfigString);
-        } catch (e) {
-            return [];
-        }
+        return this._parsedConfig.rows;
+    }
+
+    /**
+     * Section settings, JSON first and the legacy App Builder properties second.
+     *
+     * The legacy fallback is what lets a page configured the old way keep rendering
+     * exactly as it did after those properties were removed from the App Builder
+     * palette. Everything is now set in the Section Config Builder instead.
+     */
+    get sectionSettings() {
+        return resolveSectionSettings(this._parsedConfig.section, {
+            ND_sectionTitle: this.ND_sectionTitle,
+            ND_iconName: this.ND_iconName,
+            ND_headerBackgroundColor: this.ND_headerBackgroundColor,
+            ND_headerTextColor: this.ND_headerTextColor,
+            ND_startCollapsed: this.ND_startCollapsed,
+            ND_layoutType: this.ND_layoutType,
+            ND_headerLogicField: this.ND_headerLogicField,
+            ND_headerLogicValue: this.ND_headerLogicValue,
+            ND_headerActiveColor: this.ND_headerActiveColor,
+            ND_headerActiveTextColor: this.ND_headerActiveTextColor
+        });
+    }
+
+    get resolvedIcon() {
+        return this.sectionSettings.icon;
+    }
+
+    // Nothing configured at all. Rather than render an empty card with no explanation,
+    // point whoever just dropped the component at the tool that configures it.
+    get isUnconfigured() {
+        return !this.configObject.length;
+    }
+
+    get builderUrl() {
+        return '/lightning/n/ND_Section_Config_Builder';
     }
 
     // Record type names keyed by Id, for readable diagnostics. The UI API describe does
@@ -166,72 +222,28 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         return out;
     }
 
-    // Config problems, from the shared registry. Also catches a config string that does
-    // not parse, which configObject otherwise swallows into an empty array — an empty
-    // section with no explanation was one of the harder failures to diagnose.
+    // Config problems, from the shared registry. There is no longer any in-card display
+    // for these — the Section Config Builder validates before anything is pasted — but
+    // they still reach the browser console, which is the only signal available once a
+    // config is live on a page.
     get configDiagnostics() {
         const raw = (this.ND_jsonConfigString || '').trim();
         if (!raw) return [];
 
-        let parsed;
-        try {
-            parsed = JSON.parse(raw);
-        } catch (e) {
-            return [{
-                key: 'parse',
-                level: 'error',
-                isError: true,
-                name: 'Config',
-                message: `JSON did not parse, so no fields render: ${e.message}`
-            }];
+        const parsed = this._parsedConfig;
+        if (parsed.error) {
+            return [{ level: 'error', name: 'Config', message: `${parsed.error} No fields will render.` }];
         }
 
-        return validateConfig(parsed, {
+        const ctx = {
             fields: this._objectInfo ? this._objectInfo.fields : null,
             recordTypes: this._recordTypeNamesById
-        }).map((f, i) => ({
-            key: `d${i}`,
-            level: f.level,
-            isError: f.level === 'error',
-            name: f.name,
-            message: f.message
-        }));
+        };
+        return validateSection(parsed.section, ctx).concat(validateConfig(parsed.rows, ctx));
     }
 
-    get hasConfigDiagnostics() {
-        return this.ND_showConfigDiagnostics === true && this.configDiagnostics.length > 0;
-    }
-
-    get configDiagnosticsSummary() {
-        const all = this.configDiagnostics;
-        const errors = all.filter(d => d.isError).length;
-        const warnings = all.length - errors;
-        const parts = [];
-        if (errors) parts.push(`${errors} error${errors > 1 ? 's' : ''}`);
-        if (warnings) parts.push(`${warnings} warning${warnings > 1 ? 's' : ''}`);
-        return parts.join(', ');
-    }
-
-    // The take-it requirements in English, so an admin can confirm the rule they meant is
-    // the rule they wrote without cross-referencing the org's validation rules by hand.
-    get takeoverSummary() {
-        const labels = {};
-        const fields = (this._objectInfo && this._objectInfo.fields) || {};
-        Object.keys(fields).forEach(apiName => { labels[apiName] = fields[apiName].label; });
-
-        const ctx = { labels, recordTypes: this._recordTypeNamesById };
-        return this.configObject
-            .filter(item => item.requiredBeforeTakeover === true)
-            .map((item, i) => ({ key: `t${i}`, text: describeRequirement(item, ctx) }))
-            .filter(entry => !!entry.text);
-    }
-
-    get hasTakeoverSummary() {
-        return this.ND_showConfigDiagnostics === true && this.takeoverSummary.length > 0;
-    }
-
-    // Warn in the console whatever the diagnostics setting, but only when the set of
-    // problems actually changes — this getter chain re-runs on every render.
+    // Only warn when the set of problems actually changes: this getter chain re-runs on
+    // every render.
     _warnAboutConfigOnce() {
         const all = this.configDiagnostics;
         const signature = all.map(d => `${d.level}:${d.name}:${d.message}`).join('|');
@@ -239,7 +251,8 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         this._configWarnSignature = signature;
         if (!all.length) return;
         console.warn(
-            `nD_DynamicSection "${this.ND_sectionTitle}": ${all.length} config problem(s).\n` +
+            `nD_DynamicSection "${this.sectionSettings.title}": ${all.length} config problem(s). ` +
+            `Fix them in ${this.builderUrl}\n` +
             all.map(d => `  [${d.level}] ${d.name}: ${d.message}`).join('\n')
         );
     }
@@ -249,18 +262,17 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     get isHeaderActive() {
-        if (!this.ND_headerLogicField || !this.ND_recordData || !this.ND_headerActiveColor) return false;
+        const settings = this.sectionSettings;
+        if (!settings.alertField || !this.ND_recordData || !settings.alertColor) return false;
 
-        const field = this.ND_recordData.fields[this.ND_headerLogicField];
+        const field = this.ND_recordData.fields[settings.alertField];
         if (!field || field.value === undefined) return false;
 
         const rawVal = field.value;
 
         // Multi-value check
-        if (this.ND_headerLogicValue && this.ND_headerLogicValue.trim().length > 0) {
-            const valStr = String(rawVal);
-            const validValues = this.ND_headerLogicValue.split(',').map(v => v.trim());
-            return validValues.includes(valStr);
+        if (settings.alertValue && String(settings.alertValue).trim().length > 0) {
+            return matchesCsv(rawVal, settings.alertValue);
         }
 
         // Strict Truthy check
@@ -293,7 +305,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             fieldsToLoad.add(`${this.objectApiName}.${path}`);
         };
 
-        add(this.ND_headerLogicField);
+        add(this.sectionSettings.alertField);
 
         this.configObject.forEach(item => {
             add(item.apiName);
@@ -630,8 +642,9 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     // --- 5. VISUAL LOGIC ---
+    // A title may interpolate field values, e.g. "Details for {CaseNumber}".
     get computedTitle() {
-        let titleRaw = this.ND_sectionTitle;
+        const titleRaw = this.sectionSettings.title || '';
         if (!this.ND_recordData) return titleRaw;
 
         return titleRaw.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, fieldApiName) => {
@@ -641,14 +654,16 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     get ND_headerStyle() {
-        let finalColor = this.ND_headerBackgroundColor;
-        if (this.isHeaderActive) finalColor = this.ND_headerActiveColor;
+        const settings = this.sectionSettings;
+        const finalColor = this.isHeaderActive ? settings.alertColor : settings.headerColor;
         return `background: linear-gradient(135deg, ${finalColor} 0%, ${finalColor} 80%, #000000 100%);`;
     }
 
     get ND_titleStyle() {
-        let finalColor = this.ND_headerTextColor;
-        if (this.isHeaderActive && this.ND_headerActiveTextColor) finalColor = this.ND_headerActiveTextColor;
+        const settings = this.sectionSettings;
+        const finalColor = (this.isHeaderActive && settings.alertTextColor)
+            ? settings.alertTextColor
+            : settings.headerTextColor;
         return `color: ${finalColor}; font-weight: 600;`;
     }
 
@@ -745,7 +760,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             // C. Layout Logic
             let sizeClass = 'slds-size_1-of-2';
 
-            if (this.ND_layoutType === '1 Column' || item.colSpan === 2) {
+            if (this.sectionSettings.columns === 1 || item.colSpan === 2) {
                 sizeClass = 'slds-size_1-of-1';
             }
 

@@ -2,12 +2,18 @@ import { LightningElement, api, track, wire } from 'lwc';
 import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import {
     WIDGETS,
-    GROUPS,
+    SECTION_GROUPS,
+    FIELD_GROUPS,
+    SECTION_KEYS,
+    ICON_CHOICES,
     CONFIG_KEYS,
     widgetOf,
     isBlank,
     validateConfig,
     describeRequirement,
+    resolveSectionSettings,
+    validateSection,
+    withSectionKeySet,
     serialize,
     serializePretty,
     parseConfig,
@@ -33,12 +39,27 @@ import {
  * text, its dependencies and its validation.
  */
 
+// Only the handful a config is likely to contain by hand. Anything else falls back to
+// the key's default so the picker still opens somewhere sensible.
+const NAMED_COLOURS = {
+    red: '#ff0000', green: '#008000', blue: '#0000ff', black: '#000000',
+    white: '#ffffff', grey: '#808080', gray: '#808080', orange: '#ffa500',
+    yellow: '#ffff00', purple: '#800080', teal: '#008080', navy: '#000080'
+};
+
 export default class ND_SectionConfigBuilder extends LightningElement {
     // Which object's fields the picker offers. Case unless someone overrides it.
     @api objectApiName = 'Case';
 
     @track rows = [];
+    @track section = {};
     @track selectedIndex = -1;
+
+    // The section settings and the field rows are edited in the same middle pane, so one
+    // flag decides which. Start on the section: it is what a new config needs first.
+    @track editingSection = true;
+    iconFilter = '';
+    importNotice = '';
 
     previewRecordId = '';
     previewVisible = true;
@@ -172,6 +193,97 @@ export default class ND_SectionConfigBuilder extends LightningElement {
 
     handleSelectRow(event) {
         this.selectedIndex = Number(event.currentTarget.dataset.index);
+        this.editingSection = false;
+    }
+
+    handleSelectSection() {
+        this.editingSection = true;
+    }
+
+    // Resolved settings, so the rail preview shows what will actually render rather than
+    // blanks where the admin has not overridden a default.
+    get resolvedSection() {
+        return resolveSectionSettings(this.section, {});
+    }
+
+    get sectionRailClass() {
+        return this.editingSection ? 'nd-row nd-row_selected nd-row_section' : 'nd-row nd-row_section';
+    }
+
+    get sectionTitlePreview() {
+        return this.resolvedSection.title;
+    }
+
+    get sectionIconPreview() {
+        return this.resolvedSection.icon;
+    }
+
+    get sectionSwatchStyle() {
+        return `background:${this.resolvedSection.headerColor}`;
+    }
+
+    get isEditingField() {
+        return !this.editingSection && this.hasSelection;
+    }
+
+    get showNothingSelected() {
+        return !this.editingSection && !this.hasSelection;
+    }
+
+    /* --- section settings pane, generated from SECTION_KEYS --------------------- */
+    get sectionGroups() {
+        return SECTION_GROUPS.map(group => {
+            const defs = SECTION_KEYS.filter(d => d.group === group.id);
+            return {
+                key: group.id,
+                legend: group.legend,
+                controls: defs.map(d => this.controlFor(d, this.section))
+            };
+        }).filter(g => g.controls.length);
+    }
+
+    handleSectionChange(event) {
+        const key = event.currentTarget.dataset.key;
+        const def = SECTION_KEYS.find(d => d.key === key);
+        let value;
+
+        if (def && def.control === 'check') value = event.target.checked;
+        else if (event.detail && event.detail.value !== undefined) value = event.detail.value;
+        else value = event.target.value;
+
+        if (key === 'columns' && value !== '') value = Number(value);
+
+        this.section = withSectionKeySet(this.section, key, value);
+        this.refreshPreview();
+    }
+
+    /* --- icon picker ------------------------------------------------------------ */
+    handleIconFilter(event) {
+        this.iconFilter = (event.target.value || '').trim().toLowerCase();
+    }
+
+    handlePickIcon(event) {
+        this.section = withSectionKeySet(this.section, 'icon', event.currentTarget.dataset.icon);
+        this.refreshPreview();
+    }
+
+    // The catalogue is a shortlist, not a limit: any icon name can be typed into the
+    // field above the grid, and the preview shows whatever is entered so a wrong name is
+    // immediately visible rather than silently blank.
+    get iconChoices() {
+        const current = this.resolvedSection.icon;
+        const filter = this.iconFilter;
+        return ICON_CHOICES
+            .filter(name => !filter || name.toLowerCase().includes(filter))
+            .map(name => ({
+                key: name,
+                name,
+                cssClass: name === current ? 'nd-icon-choice nd-icon-choice_on' : 'nd-icon-choice'
+            }));
+    }
+
+    get iconChoiceCount() {
+        return `${this.iconChoices.length} of ${ICON_CHOICES.length}`;
     }
 
     handleAddFieldChange(event) {
@@ -217,7 +329,7 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         const row = this.selectedRow;
         if (!row) return [];
 
-        return GROUPS.map(group => {
+        return FIELD_GROUPS.map(group => {
             const defs = CONFIG_KEYS.filter(
                 d => d.group === group.id && (!d.appliesWhen || d.appliesWhen(row))
             );
@@ -242,7 +354,8 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         }).filter(g => g.isWidgetGroup || g.controls.length || g.nestedControls.length);
     }
 
-    controlFor(def, row) {
+    controlFor(def, source) {
+        const row = source || {};
         const value = row[def.key];
         const gate = def.requires ? row[def.requires] : null;
         const gated = !!def.requires;
@@ -262,19 +375,41 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             isFieldPicker: def.control === 'fieldPicker',
             isSelect: def.control === 'select',
             isColor: def.control === 'color',
+            isIcon: def.control === 'icon',
             isRecordType: asRecordType,
             value: value === undefined ? '' : String(value),
             checked: value === true,
             disabled: gated && isBlank(gate),
             placeholder: this.placeholderFor(def, row, gated, gate),
             options: this.optionsFor(def, asRecordType),
-            swatchStyle: def.control === 'color' ? `background:${value || 'transparent'}` : ''
+            swatchStyle: def.control === 'color' ? `background:${value || 'transparent'}` : '',
+            colorValue: def.control === 'color' ? this.asHex(value, def.fallback) : ''
         };
+    }
+
+    /**
+     * A value the native colour input will accept.
+     *
+     * <input type="color"> only understands #rrggbb, but a stored value may legitimately
+     * be a CSS colour name or a short hex — the live AvioBook config contains "red". The
+     * text box beside the picker keeps whatever was written; this only feeds the swatch.
+     */
+    asHex(value, fallback) {
+        const raw = String(value === undefined || value === null ? '' : value).trim();
+        if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+        if (/^#[0-9a-f]{3}$/i.test(raw)) {
+            return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`.toLowerCase();
+        }
+        if (NAMED_COLOURS[raw.toLowerCase()]) return NAMED_COLOURS[raw.toLowerCase()];
+        if (/^#[0-9a-f]{6}$/i.test(String(fallback || ''))) return String(fallback).toLowerCase();
+        return '#000000';
     }
 
     placeholderFor(def, row, gated, gate) {
         if (gated && isBlank(gate)) return `set ${def.requires} first`;
-        if (def.key === 'label') return this.labelFor(row.apiName);
+        // Only a field row has an apiName to borrow a default label from
+        if (def.key === 'label' && row.apiName) return this.labelFor(row.apiName);
+        if (def.fallback !== undefined && def.fallback !== false) return String(def.fallback);
         return def.placeholder || '';
     }
 
@@ -330,10 +465,11 @@ export default class ND_SectionConfigBuilder extends LightningElement {
 
     // --- validation ---------------------------------------------------------------
     get findings() {
-        return validateConfig(this.rows, {
+        const ctx = {
             fields: this.hasObjectInfo ? this.objectFields : null,
             recordTypes: this.recordTypesById
-        });
+        };
+        return validateSection(this.section, ctx).concat(validateConfig(this.rows, ctx));
     }
 
     get findingItems() {
@@ -363,16 +499,22 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     }
 
     handleJumpToFinding(event) {
-        this.selectedIndex = Number(event.currentTarget.dataset.index);
+        const index = Number(event.currentTarget.dataset.index);
+        if (index < 0) {
+            this.editingSection = true;
+            return;
+        }
+        this.selectedIndex = index;
+        this.editingSection = false;
     }
 
     // --- JSON in and out ----------------------------------------------------------
     get jsonOutput() {
-        return serialize(this.rows);
+        return serialize(this.rows, this.section);
     }
 
     get jsonPretty() {
-        return serializePretty(this.rows);
+        return serializePretty(this.rows, this.section);
     }
 
     get jsonLength() {
@@ -390,18 +532,28 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     }
 
     handleImport() {
-        const { rows, error } = parseConfig(this.importText);
+        const { rows, section, error, legacyShape } = parseConfig(this.importText);
         this.importError = error;
         if (!rows) return;
 
         this.rows = rows;
+        this.section = section || {};
         this.selectedIndex = rows.length ? 0 : -1;
+        this.editingSection = legacyShape;
+        this.importNotice = legacyShape
+            ? 'Loaded an older config that held field rows only. Section settings start from '
+              + 'their defaults — set them now and the copied JSON will carry them, so the '
+              + 'component no longer needs any other App Builder property.'
+            : '';
         this.refreshPreview();
     }
 
     handleClearAll() {
         this.rows = [];
+        this.section = {};
         this.selectedIndex = -1;
+        this.editingSection = true;
+        this.importNotice = '';
         this.refreshPreview();
     }
 
@@ -473,9 +625,7 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         if (this._previewSignature === signature) return;
         this._previewSignature = signature;
 
-        preview.ND_sectionTitle = 'Preview';
+        // One assignment: the JSON carries the title, icon, colours and layout too.
         preview.ND_jsonConfigString = json;
-        preview.ND_showConfigDiagnostics = true;
-        preview.ND_startCollapsed = false;
     }
 }

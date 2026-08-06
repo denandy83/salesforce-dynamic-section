@@ -9,14 +9,32 @@ import {
     withRowRemoved,
     withKeySet,
     withWidgetSet,
-    selectionAfterRemoval
+    withSectionKeySet,
+    selectionAfterRemoval,
+    resolveSectionSettings,
+    validateSection
 } from 'c/nD_sectionConfigSchema';
 
 describe('orderRow / serialize', () => {
     it('emits a canonical key order regardless of insertion order', () => {
         const row = { editable: true, apiName: 'Status', label: 'Status' };
         expect(Object.keys(orderRow(row))).toEqual(['apiName', 'label', 'editable']);
-        expect(serialize([row])).toBe('[{"apiName":"Status","label":"Status","editable":true}]');
+        expect(serialize([row], {})).toBe(
+            '{"section":{},"fields":[{"apiName":"Status","label":"Status","editable":true}]}'
+        );
+    });
+
+    it('emits section settings alongside the field rows', () => {
+        const json = serialize([{ apiName: 'Status' }], { title: 'Case Details', icon: 'utility:cases' });
+        expect(json).toBe(
+            '{"section":{"title":"Case Details","icon":"utility:cases"},'
+            + '"fields":[{"apiName":"Status"}]}'
+        );
+    });
+
+    it('drops blank section settings so defaults stay implicit', () => {
+        expect(serialize([], { title: '', icon: undefined, headerColor: '#005FB2' }))
+            .toBe('{"section":{"headerColor":"#005FB2"},"fields":[]}');
     });
 
     it('keeps unknown keys instead of dropping them, at the end', () => {
@@ -30,23 +48,35 @@ describe('orderRow / serialize', () => {
     });
 
     it('pretty-prints one row per line and handles the empty case', () => {
-        expect(serializePretty([])).toBe('[]');
-        expect(serializePretty([{ apiName: 'A' }, { apiName: 'B' }]))
-            .toBe('[\n  {"apiName":"A"},\n  {"apiName":"B"}\n]');
+        expect(serializePretty([], {})).toBe('{\n  "section": {},\n  "fields": []\n}');
+        expect(serializePretty([{ apiName: 'A' }, { apiName: 'B' }], {}))
+            .toBe('{\n  "section": {},\n  "fields": [\n    {"apiName":"A"},\n    {"apiName":"B"}\n  ]\n}');
     });
 });
 
 describe('parseConfig', () => {
-    it('accepts an array of rows', () => {
-        expect(parseConfig('[{"apiName":"Status"}]')).toEqual({
-            rows: [{ apiName: 'Status' }],
-            error: ''
-        });
+    it('accepts the current shape', () => {
+        const result = parseConfig('{"section":{"title":"Hi"},"fields":[{"apiName":"Status"}]}');
+        expect(result.rows).toEqual([{ apiName: 'Status' }]);
+        expect(result.section).toEqual({ title: 'Hi' });
+        expect(result.legacyShape).toBe(false);
+        expect(result.error).toBe('');
     });
 
-    it('round-trips serialize output', () => {
+    it('still accepts a bare array, flagged as the legacy shape', () => {
+        const result = parseConfig('[{"apiName":"Status"}]');
+        expect(result.rows).toEqual([{ apiName: 'Status' }]);
+        expect(result.section).toEqual({});
+        expect(result.legacyShape).toBe(true);
+        expect(result.error).toBe('');
+    });
+
+    it('round-trips serialize output including section settings', () => {
         const rows = [{ apiName: 'Type', label: 'Issue Type', editable: true, requiredBeforeTakeover: true }];
-        expect(parseConfig(serialize(rows)).rows).toEqual(rows);
+        const section = { title: 'Case Details', icon: 'utility:cases', columns: 1 };
+        const back = parseConfig(serialize(rows, section));
+        expect(back.rows).toEqual(rows);
+        expect(back.section).toEqual(section);
     });
 
     it('rejects empty input', () => {
@@ -60,8 +90,8 @@ describe('parseConfig', () => {
         expect(result.error).toMatch(/not valid JSON/);
     });
 
-    it('rejects a bare object', () => {
-        expect(parseConfig('{"apiName":"Status"}').error).toMatch(/Expected a JSON array/);
+    it('rejects an object with no fields array', () => {
+        expect(parseConfig('{"apiName":"Status"}').error).toMatch(/Expected either a JSON array/);
     });
 });
 
@@ -178,5 +208,115 @@ describe('selectionAfterRemoval', () => {
 
     it('stays put when a later row went away', () => {
         expect(selectionAfterRemoval(0, 1, 2)).toBe(0);
+    });
+});
+
+describe('resolveSectionSettings', () => {
+    it('falls back to defaults when nothing is set', () => {
+        const s = resolveSectionSettings({}, {});
+        expect(s.title).toBe('Details');
+        expect(s.icon).toBe('utility:warning');
+        expect(s.headerColor).toBe('#005FB2');
+        expect(s.headerTextColor).toBe('#FFFFFF');
+        expect(s.columns).toBe(2);
+        expect(s.startCollapsed).toBe(false);
+    });
+
+    it('prefers the JSON over the legacy App Builder property', () => {
+        const s = resolveSectionSettings({ title: 'From JSON' }, { ND_sectionTitle: 'From App Builder' });
+        expect(s.title).toBe('From JSON');
+    });
+
+    it('uses the legacy property when the JSON says nothing', () => {
+        const s = resolveSectionSettings({}, {
+            ND_sectionTitle: 'Case Details',
+            ND_iconName: 'utility:cases',
+            ND_headerBackgroundColor: '#144761'
+        });
+        expect(s.title).toBe('Case Details');
+        expect(s.icon).toBe('utility:cases');
+        expect(s.headerColor).toBe('#144761');
+    });
+
+    it('translates the legacy layout string into a column count', () => {
+        expect(resolveSectionSettings({}, { ND_layoutType: '1 Column' }).columns).toBe(1);
+        expect(resolveSectionSettings({}, { ND_layoutType: '2 Columns' }).columns).toBe(2);
+    });
+
+    it('lets the JSON override a legacy one-column layout', () => {
+        expect(resolveSectionSettings({ columns: 2 }, { ND_layoutType: '1 Column' }).columns).toBe(2);
+    });
+
+    it('carries the legacy header alert across', () => {
+        const s = resolveSectionSettings({}, {
+            ND_headerLogicField: 'Priority',
+            ND_headerLogicValue: 'High,Urgent',
+            ND_headerActiveColor: '#ba0517'
+        });
+        expect(s.alertField).toBe('Priority');
+        expect(s.alertValue).toBe('High,Urgent');
+        expect(s.alertColor).toBe('#ba0517');
+    });
+
+    it('treats a blank JSON value as unset rather than as an override', () => {
+        expect(resolveSectionSettings({ title: '' }, { ND_sectionTitle: 'Kept' }).title).toBe('Kept');
+    });
+});
+
+describe('validateSection', () => {
+    const CTX = { fields: { Priority: { label: 'Priority' } } };
+
+    it('accepts a fully specified section', () => {
+        expect(validateSection({
+            title: 'Case Details', icon: 'utility:cases', columns: 2,
+            headerColor: '#005FB2', headerTextColor: '#FFFFFF',
+            alertField: 'Priority', alertValue: 'High,Urgent', alertColor: '#ba0517'
+        }, CTX)).toEqual([]);
+    });
+
+    it('catches an unknown section setting and suggests the real one', () => {
+        const findings = validateSection({ titel: 'Oops' }, CTX);
+        expect(findings).toHaveLength(1);
+        expect(findings[0].message).toContain('titel');
+        expect(findings[0].message).toContain('title');
+    });
+
+    it('catches an alert value with no alert field', () => {
+        const findings = validateSection({ alertValue: 'High' }, CTX);
+        expect(findings.some(f => /"alertValue" is set but "alertField" is not/.test(f.message))).toBe(true);
+    });
+
+    it('catches an alert field the org does not have', () => {
+        const findings = validateSection({ alertField: 'Nope__c', alertColor: '#fff' }, CTX);
+        expect(findings.some(f => /does not exist/.test(f.message))).toBe(true);
+    });
+
+    it('warns when an alert condition has no colour to switch to', () => {
+        const findings = validateSection({ alertField: 'Priority', alertValue: 'High' }, CTX);
+        expect(findings.some(f => f.level === 'warning' && /never change/.test(f.message))).toBe(true);
+    });
+
+    it('warns about something that is not an icon name', () => {
+        const findings = validateSection({ icon: 'warning' }, CTX);
+        expect(findings.some(f => f.level === 'warning' && /icon name/.test(f.message))).toBe(true);
+    });
+
+    it('tags section findings with row -1 so they are distinguishable from rows', () => {
+        expect(validateSection({ titel: 'x' }, CTX)[0].row).toBe(-1);
+    });
+});
+
+describe('withSectionKeySet', () => {
+    it('sets and clears without mutating', () => {
+        const section = { title: 'Hi' };
+        expect(withSectionKeySet(section, 'icon', 'utility:cases'))
+            .toEqual({ title: 'Hi', icon: 'utility:cases' });
+        expect('title' in withSectionKeySet(section, 'title', '')).toBe(false);
+        expect(section).toEqual({ title: 'Hi' });
+    });
+
+    it('drops a false checkbox so the default stays implicit', () => {
+        expect('startCollapsed' in withSectionKeySet({ startCollapsed: true }, 'startCollapsed', false))
+            .toBe(false);
     });
 });

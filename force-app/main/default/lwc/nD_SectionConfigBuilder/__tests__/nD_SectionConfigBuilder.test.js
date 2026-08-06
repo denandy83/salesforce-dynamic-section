@@ -26,6 +26,10 @@ function mount() {
     return element;
 }
 
+// The rail holds a Section entry as well as the field rows, so tests that count rows
+// have to exclude it.
+const FIELD_ROW = 'li.nd-row:not(.nd-row_section)';
+
 function text(element, selector) {
     const node = element.shadowRoot.querySelector(selector);
     return node ? node.textContent.trim() : null;
@@ -48,7 +52,7 @@ describe('first load', () => {
     it('reports an empty array as the output', async () => {
         const element = mount();
         await Promise.resolve();
-        expect(text(element, '.nd-json')).toBe('[]');
+        expect(text(element, '.nd-json')).toBe('{\n  "section": {},\n  "fields": []\n}');
     });
 
     it('reports a clean config check', async () => {
@@ -111,10 +115,10 @@ describe('the paste-in path', () => {
 
         await importConfig(element, '[{"apiName":"Type","label":"Issue Type","editable":true}]');
 
-        const rows = element.shadowRoot.querySelectorAll('.nd-row');
+        const rows = element.shadowRoot.querySelectorAll(FIELD_ROW);
         expect(rows).toHaveLength(1);
-        expect(text(element, '.nd-row-title')).toContain('Issue Type');
-        expect(text(element, '.nd-row-api')).toBe('Type');
+        expect(text(element, `${FIELD_ROW} .nd-row-title`)).toContain('Issue Type');
+        expect(text(element, `${FIELD_ROW} .nd-row-api`)).toBe('Type');
     });
 
     it('surfaces a typo as a finding and flags the row invalid', async () => {
@@ -138,7 +142,7 @@ describe('the paste-in path', () => {
         await importConfig(element, '[{nope}]');
 
         expect(text(element, '.nd-import-error')).toMatch(/not valid JSON/);
-        expect(element.shadowRoot.querySelectorAll('.nd-row')).toHaveLength(1);
+        expect(element.shadowRoot.querySelectorAll(FIELD_ROW)).toHaveLength(1);
     });
 });
 
@@ -152,6 +156,10 @@ describe('the property pane is generated from the registry', () => {
             .find(b => b.label === 'Load')
             .click();
         await Promise.resolve();
+        await Promise.resolve();
+
+        // A legacy import opens on the Section pane; click into the field row.
+        element.shadowRoot.querySelector(`${FIELD_ROW} .nd-row-btn`).click();
         await Promise.resolve();
     }
 
@@ -256,8 +264,11 @@ describe('live preview', () => {
         // Assert the REAL property name. An earlier version checked
         // `ndJsonConfigString`, which is only the expando the template attribute
         // created — it passed while the section received no config at all.
-        expect(preview.ND_jsonConfigString).toBe(json);
-        expect(preview.ND_sectionTitle).toBe('Preview');
+        //
+        // One property now: the JSON carries the section settings too, so the preview
+        // receives the whole document rather than the bare array that was pasted in.
+        expect(preview.ND_jsonConfigString)
+            .toBe('{"section":{},"fields":[{"apiName":"Status","editable":true}]}');
     });
 
     it('sets the uppercase-named properties in JS, never as attributes', async () => {
@@ -287,7 +298,8 @@ describe('live preview', () => {
         expect(preview.hasAttribute('nd-json-config-string')).toBe(false);
         expect(preview.hasAttribute('nd-section-title')).toBe(false);
         // …while the property itself did arrive
-        expect(preview.ND_jsonConfigString).toBe(json);
+        expect(preview.ND_jsonConfigString)
+            .toBe('{"section":{},"fields":[{"apiName":"Status","editable":true}]}');
     });
 
     it('explains why there is no preview yet', async () => {

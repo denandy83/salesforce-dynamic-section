@@ -59,13 +59,145 @@ const WIDGETS = [
 
 const WIDGET_KEYS = WIDGETS.map(w => w.key).filter(Boolean);
 
-const GROUPS = [
-    { id: 'field', legend: 'Field' },
-    { id: 'visibility', legend: 'Show this row only when…' },
-    { id: 'widget', legend: 'Render as' },
-    { id: 'alert', legend: 'Underline the value when…' },
-    { id: 'takeover', legend: 'Require before "take it!"' }
+/* ---------------------------------------------------------------------------------
+ * Section-level settings.
+ *
+ * These used to be separate App Builder properties. They now live inside the same JSON
+ * as the field rows so the whole section is one artefact that the builder can compose,
+ * validate and preview in one piece — and so App Builder needs exactly one field.
+ * ------------------------------------------------------------------------------- */
+const SECTION_KEYS = [
+    {
+        key: 'title',
+        group: 'sectionBasics',
+        label: 'Section title',
+        control: 'text',
+        fallback: 'Details',
+        legacy: 'ND_sectionTitle',
+        help: 'Heading shown at the top of the card.'
+    },
+    {
+        key: 'icon',
+        group: 'sectionBasics',
+        label: 'Header icon',
+        control: 'icon',
+        fallback: 'utility:warning',
+        legacy: 'ND_iconName',
+        help: 'Any SLDS icon name, e.g. utility:warning. Pick one below or type it.'
+    },
+    {
+        key: 'columns',
+        group: 'sectionBasics',
+        label: 'Columns',
+        control: 'select',
+        fallback: 2,
+        options: [{ value: 2, title: 'Two columns' }, { value: 1, title: 'One column' }],
+        help: 'One column forces every row full width.'
+    },
+    {
+        key: 'startCollapsed',
+        group: 'sectionBasics',
+        label: 'Start collapsed',
+        control: 'check',
+        fallback: false,
+        title: 'Section starts collapsed',
+        help: 'Users can still expand it.'
+    },
+
+    {
+        key: 'headerColor',
+        group: 'sectionHeader',
+        label: 'Header background',
+        control: 'color',
+        fallback: '#005FB2',
+        legacy: 'ND_headerBackgroundColor',
+        help: 'Normal header background colour.'
+    },
+    {
+        key: 'headerTextColor',
+        group: 'sectionHeader',
+        label: 'Header text',
+        control: 'color',
+        fallback: '#FFFFFF',
+        legacy: 'ND_headerTextColor',
+        help: 'Normal header text colour.'
+    },
+
+    {
+        key: 'alertField',
+        group: 'sectionAlert',
+        label: 'Recolour the header when this field…',
+        control: 'fieldPicker',
+        blank: true,
+        legacy: 'ND_headerLogicField',
+        help: 'One field only. Leave empty for a header that never changes colour.'
+    },
+    {
+        key: 'alertValue',
+        group: 'sectionAlert',
+        label: '…is one of',
+        control: 'text',
+        requires: 'alertField',
+        legacy: 'ND_headerLogicValue',
+        placeholder: 'High,Urgent',
+        help: 'Comma-separated membership. Empty means any non-blank value.'
+    },
+    {
+        key: 'alertColor',
+        group: 'sectionAlert',
+        label: 'Alert background',
+        control: 'color',
+        requires: 'alertField',
+        legacy: 'ND_headerActiveColor',
+        help: 'Header background while the condition holds. Required for the alert to do anything.'
+    },
+    {
+        key: 'alertTextColor',
+        group: 'sectionAlert',
+        label: 'Alert text',
+        control: 'color',
+        requires: 'alertField',
+        legacy: 'ND_headerActiveTextColor',
+        help: 'Header text while the condition holds. Falls back to the normal header text colour.'
+    }
 ];
+
+const SECTION_KEY_NAMES = SECTION_KEYS.map(d => d.key);
+
+/**
+ * Curated SLDS utility icons for the picker. Not exhaustive on purpose — any icon name
+ * can still be typed, and the picker previews whatever is entered so a wrong name is
+ * visible immediately rather than silently blank.
+ */
+const ICON_CHOICES = [
+    'utility:warning', 'utility:error', 'utility:info', 'utility:info_alt', 'utility:announcement',
+    'utility:cases', 'utility:case', 'utility:priority', 'utility:flag', 'utility:bug',
+    'utility:clock', 'utility:date_input', 'utility:event', 'utility:hourglass', 'utility:reminder',
+    'utility:user', 'utility:people', 'utility:groups', 'utility:adduser', 'utility:company',
+    'utility:email', 'utility:chat', 'utility:comments', 'utility:call', 'utility:notification',
+    'utility:link', 'utility:attach', 'utility:file', 'utility:knowledge_base', 'utility:description',
+    'utility:settings', 'utility:setup', 'utility:builder', 'utility:apex', 'utility:flow',
+    'utility:lock', 'utility:unlock', 'utility:shield', 'utility:key', 'utility:ban',
+    'utility:check', 'utility:success', 'utility:approval', 'utility:task', 'utility:checkin',
+    'utility:search', 'utility:filter', 'utility:sort', 'utility:list', 'utility:table',
+    'utility:trending', 'utility:metrics', 'utility:dashboard', 'utility:chart', 'utility:report',
+    'utility:world', 'utility:location', 'utility:home', 'utility:office365', 'utility:database',
+    'standard:case', 'standard:account', 'standard:contact', 'standard:problem', 'standard:incident'
+];
+
+const GROUPS = [
+    { id: 'sectionBasics', legend: 'Section', scope: 'section' },
+    { id: 'sectionHeader', legend: 'Header colours', scope: 'section' },
+    { id: 'sectionAlert', legend: 'Recolour the header when…', scope: 'section' },
+    { id: 'field', legend: 'Field', scope: 'field' },
+    { id: 'visibility', legend: 'Show this row only when…', scope: 'field' },
+    { id: 'widget', legend: 'Render as', scope: 'field' },
+    { id: 'alert', legend: 'Underline the value when…', scope: 'field' },
+    { id: 'takeover', legend: 'Require before "take it!"', scope: 'field' }
+];
+
+const SECTION_GROUPS = GROUPS.filter(g => g.scope === 'section');
+const FIELD_GROUPS = GROUPS.filter(g => g.scope === 'field');
 
 /**
  * Every supported key.
@@ -395,30 +527,145 @@ function orderRow(row) {
     return out;
 }
 
-function serialize(rows) {
-    return JSON.stringify(rows.map(orderRow));
+/** Section settings in registry order, dropping anything blank. */
+function orderSection(section) {
+    const out = {};
+    const settings = section || {};
+    SECTION_KEYS.forEach(def => {
+        const value = settings[def.key];
+        if (value === undefined || value === '' || value === null) return;
+        out[def.key] = value;
+    });
+    return out;
 }
 
-function serializePretty(rows) {
-    if (!rows.length) return '[]';
-    return `[\n${rows.map(r => `  ${JSON.stringify(orderRow(r))}`).join(',\n')}\n]`;
+/** The whole document: section settings plus field rows. */
+function serialize(rows, section) {
+    return JSON.stringify({ section: orderSection(section), fields: (rows || []).map(orderRow) });
 }
 
-/** { rows, error }. Never throws, so a bad paste is a message rather than a crash. */
+/** Same document, laid out one field row per line so it can be read in a diff. */
+function serializePretty(rows, section) {
+    const sectionJson = JSON.stringify(orderSection(section));
+    const list = rows || [];
+    if (!list.length) return `{\n  "section": ${sectionJson},\n  "fields": []\n}`;
+
+    const lines = list.map(r => `    ${JSON.stringify(orderRow(r))}`).join(',\n');
+    return `{\n  "section": ${sectionJson},\n  "fields": [\n${lines}\n  ]\n}`;
+}
+
+/**
+ * { rows, section, error, legacyShape }. Never throws, so a bad paste is a message
+ * rather than a crash.
+ *
+ * Two shapes are accepted:
+ *   { "section": {…}, "fields": […] }   the current shape, everything in one document
+ *   [ … ]                               the original shape, field rows only
+ *
+ * A bare array still parses because every record page in the org was configured that
+ * way, with the section settings held as separate App Builder properties. Those pages
+ * keep working untouched; `legacyShape` lets a caller offer to migrate.
+ */
 function parseConfig(text) {
     const raw = (text || '').trim();
-    if (!raw) return { rows: null, error: 'Paste a config first.' };
+    if (!raw) return { rows: null, section: null, error: 'Paste a config first.', legacyShape: false };
 
     let parsed;
     try {
         parsed = JSON.parse(raw);
     } catch (e) {
-        return { rows: null, error: `That is not valid JSON: ${e.message}` };
+        return { rows: null, section: null, error: `That is not valid JSON: ${e.message}`, legacyShape: false };
     }
-    if (!Array.isArray(parsed)) {
-        return { rows: null, error: 'Expected a JSON array of field rows.' };
+
+    if (Array.isArray(parsed)) {
+        return { rows: parsed, section: {}, error: '', legacyShape: true };
     }
-    return { rows: parsed, error: '' };
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.fields)) {
+        return {
+            rows: parsed.fields,
+            section: (parsed.section && typeof parsed.section === 'object') ? parsed.section : {},
+            error: '',
+            legacyShape: false
+        };
+    }
+    return {
+        rows: null,
+        section: null,
+        error: 'Expected either a JSON array of field rows, or an object with a "fields" array.',
+        legacyShape: false
+    };
+}
+
+/**
+ * Resolve the settings the section should actually use.
+ *
+ * Precedence: the JSON wins, then the legacy App Builder property, then the built-in
+ * default. The legacy step is what lets a page configured the old way keep rendering
+ * exactly as before after the App Builder properties are removed from the palette.
+ */
+function resolveSectionSettings(section, legacyProps) {
+    const json = section || {};
+    const legacy = legacyProps || {};
+    const out = {};
+
+    SECTION_KEYS.forEach(def => {
+        if (json[def.key] !== undefined && json[def.key] !== '') {
+            out[def.key] = json[def.key];
+            return;
+        }
+        const legacyValue = def.legacy ? legacy[def.legacy] : undefined;
+        if (legacyValue !== undefined && legacyValue !== '' && legacyValue !== null) {
+            out[def.key] = legacyValue;
+            return;
+        }
+        if (def.fallback !== undefined) out[def.key] = def.fallback;
+    });
+
+    // The legacy layout property was the string "1 Column" / "2 Columns"
+    if (json.columns === undefined && legacy.ND_layoutType) {
+        out.columns = legacy.ND_layoutType === '1 Column' ? 1 : 2;
+    }
+    if (json.startCollapsed === undefined && legacy.ND_startCollapsed !== undefined) {
+        out.startCollapsed = legacy.ND_startCollapsed === true;
+    }
+
+    return out;
+}
+
+/** Problems with the section half of the document. Same finding shape as field rows. */
+function validateSection(section, context) {
+    const ctx = context || {};
+    const settings = section || {};
+    const findings = [];
+    const push = (level, message, key) => findings.push({ row: -1, name: 'Section', level, message, key });
+
+    Object.keys(settings).forEach(key => {
+        if (SECTION_KEY_NAMES.includes(key)) return;
+        const suggestion = SECTION_KEY_NAMES.find(known => editDistance(key.toLowerCase(), known.toLowerCase()) <= 2);
+        push('error', `Unknown section setting "${key}"${suggestion ? `. Did you mean "${suggestion}"?` : '.'}`, key);
+    });
+
+    SECTION_KEYS.forEach(def => {
+        const value = settings[def.key];
+        if (value === undefined || value === '') return;
+
+        if (def.requires && isBlank(settings[def.requires])) {
+            push('error', `"${def.key}" is set but "${def.requires}" is not.`, def.key);
+        }
+        if (def.control === 'fieldPicker' && ctx.fields && !ctx.fields[value]) {
+            push('error', `Field ${value} does not exist on this object.`, def.key);
+        }
+        if (def.control === 'icon' && !/^[a-z]+:[a-z0-9_]+$/.test(String(value))) {
+            push('warning', `"${value}" does not look like an icon name (expected e.g. utility:warning).`, def.key);
+        }
+    });
+
+    // An alert condition with no colour to switch to does nothing at all
+    if (!isBlank(settings.alertField) && isBlank(settings.alertColor)) {
+        push('warning', 'The header alert has a condition but no alert background colour, so it will never change.', 'alertColor');
+    }
+
+    return findings;
 }
 
 function withRowAdded(rows, apiName, label) {
@@ -491,10 +738,24 @@ function selectionAfterRemoval(selectedIndex, removedIndex, remainingCount) {
     return selectedIndex;
 }
 
+
+/** Setting a section value to blank/false removes it, so defaults stay implicit. */
+function withSectionKeySet(section, key, value) {
+    const next = Object.assign({}, section || {});
+    if (value === '' || value === false || value === null || value === undefined) delete next[key];
+    else next[key] = value;
+    return next;
+}
+
 export {
     WIDGETS,
     WIDGET_KEYS,
     GROUPS,
+    SECTION_GROUPS,
+    FIELD_GROUPS,
+    SECTION_KEYS,
+    SECTION_KEY_NAMES,
+    ICON_CHOICES,
     CONFIG_KEYS,
     KNOWN_KEYS,
     OUTPUT_ORDER,
@@ -505,6 +766,10 @@ export {
     suggestKey,
     describeRequirement,
     orderRow,
+    orderSection,
+    resolveSectionSettings,
+    validateSection,
+    withSectionKeySet,
     serialize,
     serializePretty,
     parseConfig,

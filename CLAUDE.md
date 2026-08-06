@@ -15,7 +15,23 @@ section for Lightning record pages (primarily **Case**).
 ## Components
 
 ### `lwc/nD_DynamicSection` (runtime, config-driven)
-Reads a JSON array from the `ND_jsonConfigString` App Builder property. Each entry is a field row.
+Reads ONE JSON document from the `ND_jsonConfigString` App Builder property:
+`{"section":{…},"fields":[…]}`. A bare `[…]` array is still accepted as the legacy
+fields-only shape. **Section settings live in the JSON** (`title`, `icon`, `columns`,
+`startCollapsed`, `headerColor`, `headerTextColor`, `alertField`, `alertValue`,
+`alertColor`, `alertTextColor`) — see `SECTION_KEYS` in the schema module.
+- **The old section properties still exist and still work as a fallback.** They are
+  labelled `z. … (legacy — use the Config Builder)` in App Builder and read only when the
+  JSON does not set the equivalent. **They cannot be deleted:** the platform refuses —
+  *"You can't remove the property tag named '…'. The component is in use on one or more
+  Lightning pages"* (verified UAT 2026-08-06, 8 pages). To remove them for good, first
+  clear them from every hosting page, then drop the tags.
+- `ND_showConfigDiagnostics` is **declared but ignored** for the same reason. Config
+  problems go to `console.warn` only; validation happens in the builder.
+- An empty config renders a **setup prompt** linking to `/lightning/n/ND_Section_Config_Builder`
+  rather than a blank card.
+
+Each `fields` entry is a field row.
 Supported per-field keys:
 - `apiName` (required), `label`, `editable`, `colSpan` (2 = full width)
 - **Visibility:** `showIfField` + `showIfValue` (string equality; omit value = truthy check)
@@ -87,6 +103,23 @@ Supported per-field keys:
   bad field, which used to blank every custom widget (owner, problem, links) while the standard
   fields kept working.
 - **Constraint:** all conditional logic is equality / membership / truthy only — **no comparison operators and no date logic** (e.g. "date on or before today" is NOT expressible in config yet).
+
+### `lwc/nD_SectionConfigBuilder` (+ tab `ND_Section_Config_Builder`)
+The visual editor, at **`/lightning/n/ND_Section_Config_Builder`**. Three panes: Section +
+field rows (add/delete/duplicate/reorder) · registry-generated properties · live preview of
+the REAL `nD_DynamicSection` against a record Id, plus the JSON to copy and a box to paste
+an existing config into.
+- **Section panel** — title, icon picker (filterable grid of `ICON_CHOICES` + free text,
+  live preview), colour pickers (native `<input type="color">` — LWC has no colour base
+  component — paired with a text box so CSS names and brand hexes still work), columns,
+  collapse, header alert.
+- Importing a legacy bare array flags it and opens on the Section panel, since those
+  settings need filling in before the JSON supersedes the old properties.
+- Preview receives **only** `ND_jsonConfigString`, assigned in `renderedCallback`. **`ND_*`
+  properties cannot be set from template attributes** — LWC cannot derive an attribute name
+  with a leading capital, so `nd-json-config-string=` silently creates an expando and the
+  child gets nothing. This cost an hour; the giveaway was the preview header showing the
+  default title.
 
 ### `lwc/nD_sectionConfigSchema` (service module, no UI)
 **The single definition of the config vocabulary.** Exports `CONFIG_KEYS` (one entry per supported

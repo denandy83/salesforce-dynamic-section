@@ -33,6 +33,28 @@
             <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
                 <article class="slds-card nd-pane">
                     <div class="nd-pane-head">
+                        <h2>Section</h2>
+                    </div>
+
+                    <!-- Section-level settings: title, icon, colours, layout, header alert.
+                         These used to be separate App Builder properties. -->
+                    <ul class="nd-rows nd-rows_section">
+                        <li class={sectionRailClass}>
+                            <button type="button" class="nd-row-btn" onclick={handleSelectSection}>
+                                <span class="nd-row-title">
+                                    <lightning-icon icon-name={sectionIconPreview} size="xx-small"
+                                        alternative-text="Header icon"></lightning-icon>
+                                    {sectionTitlePreview}
+                                </span>
+                                <span class="nd-row-api">title · icon · colours · layout</span>
+                                <span class="nd-badges">
+                                    <span class="nd-swatch nd-swatch_inline" style={sectionSwatchStyle}></span>
+                                </span>
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="nd-pane-head nd-pane-head_second">
                         <h2>Field rows</h2>
                         <span class="nd-count">{rowCountLabel}</span>
                     </div>
@@ -123,14 +145,101 @@
             <!-- ============ MIDDLE: the properties ============ -->
             <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
                 <article class="slds-card nd-pane">
-                    <template if:false={hasSelection}>
+                    <template if:true={showNothingSelected}>
                         <div class="nd-empty">
                             <p class="nd-empty-title">Nothing selected</p>
-                            <p>Pick a row on the left to edit it.</p>
+                            <p>Pick <strong>Section</strong> or a field row on the left.</p>
                         </div>
                     </template>
 
-                    <template if:true={hasSelection}>
+                    <!-- SECTION SETTINGS -->
+                    <template if:true={editingSection}>
+                        <template for:each={sectionGroups} for:item="group">
+                            <fieldset key={group.key} class="nd-group">
+                                <legend>{group.legend}</legend>
+                                <template for:each={group.controls} for:item="ctrl">
+                                    <div key={ctrl.key} class="nd-control">
+                                        <template if:true={ctrl.isCheck}>
+                                            <lightning-input type="checkbox" label={ctrl.title}
+                                                checked={ctrl.checked} data-key={ctrl.key}
+                                                onchange={handleSectionChange}></lightning-input>
+                                        </template>
+                                        <template if:true={ctrl.isText}>
+                                            <lightning-input label={ctrl.label} value={ctrl.value}
+                                                placeholder={ctrl.placeholder} disabled={ctrl.disabled}
+                                                data-key={ctrl.key}
+                                                onchange={handleSectionChange}></lightning-input>
+                                        </template>
+                                        <template if:true={ctrl.isSelect}>
+                                            <lightning-combobox label={ctrl.label} value={ctrl.value}
+                                                options={ctrl.options} data-key={ctrl.key}
+                                                onchange={handleSectionChange}></lightning-combobox>
+                                        </template>
+                                        <template if:true={ctrl.isFieldPicker}>
+                                            <lightning-combobox label={ctrl.label} value={ctrl.value}
+                                                options={ctrl.options} data-key={ctrl.key}
+                                                onchange={handleSectionChange}></lightning-combobox>
+                                        </template>
+
+                                        <!-- Colour: a native picker for choosing, a text box
+                                             for pasting a brand hex or a CSS colour name. -->
+                                        <template if:true={ctrl.isColor}>
+                                            <label class="nd-color-label">{ctrl.label}</label>
+                                            <div class="nd-color-row">
+                                                <input type="color" class="nd-color-input"
+                                                    value={ctrl.colorValue} data-key={ctrl.key}
+                                                    title={ctrl.label}
+                                                    onchange={handleSectionChange} />
+                                                <input type="text" class="nd-color-text"
+                                                    value={ctrl.value} placeholder={ctrl.placeholder}
+                                                    data-key={ctrl.key}
+                                                    onchange={handleSectionChange} />
+                                            </div>
+                                        </template>
+
+                                        <!-- Icon: type any name, or pick from the shortlist.
+                                             The preview shows whatever is entered. -->
+                                        <template if:true={ctrl.isIcon}>
+                                            <div class="nd-icon-current">
+                                                <lightning-icon icon-name={sectionIconPreview}
+                                                    size="small"
+                                                    alternative-text="Current icon"></lightning-icon>
+                                                <lightning-input label={ctrl.label} value={ctrl.value}
+                                                    placeholder={ctrl.placeholder} data-key={ctrl.key}
+                                                    onchange={handleSectionChange}></lightning-input>
+                                            </div>
+                                            <div class="nd-icon-search">
+                                                <lightning-input label="Filter icons"
+                                                    variant="label-hidden" placeholder="Filter icons…"
+                                                    onchange={handleIconFilter}></lightning-input>
+                                                <span class="nd-count">{iconChoiceCount}</span>
+                                            </div>
+                                            <div class="nd-icon-grid">
+                                                <template for:each={iconChoices} for:item="choice">
+                                                    <button key={choice.key} type="button"
+                                                        class={choice.cssClass}
+                                                        title={choice.name}
+                                                        data-icon={choice.name}
+                                                        onclick={handlePickIcon}>
+                                                        <lightning-icon icon-name={choice.name}
+                                                            size="x-small"
+                                                            alternative-text={choice.name}></lightning-icon>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </template>
+
+                                        <p class="nd-help">
+                                            <code>{ctrl.key}</code> — {ctrl.help}
+                                        </p>
+                                    </div>
+                                </template>
+                            </fieldset>
+                        </template>
+                    </template>
+
+                    <!-- FIELD ROW -->
+                    <template if:true={isEditingField}>
                         <template for:each={propertyGroups} for:item="group">
                             <fieldset key={group.key} class="nd-group">
                                 <legend>{group.legend}</legend>
@@ -289,6 +398,9 @@
                     </lightning-textarea>
                     <template if:true={importError}>
                         <p class="nd-import-error">{importError}</p>
+                    </template>
+                    <template if:true={importNotice}>
+                        <p class="nd-import-notice">{importNotice}</p>
                     </template>
                     <div class="nd-import-actions">
                         <lightning-button label="Load" onclick={handleImport}></lightning-button>

@@ -633,62 +633,44 @@
     pointer-events: none;
 }
 
-/* --- Admin config check -------------------------------------------------------
-   Deliberately plainer than .nd-error: this is setup feedback for whoever edits the
-   JSON, not a failure the agent using the case has to act on. Only rendered when
-   ND_showConfigDiagnostics is switched on in App Builder. */
-.nd-diag {
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 100%;
-    margin: -0.25rem 0 0.75rem 0;
-    padding: 0.5rem 0.625rem;
-    background-color: #fff7e8;
-    border: 1px solid #f0d3a0;
+/* --- Unconfigured empty state ------------------------------------------------
+   Shown when the JSON holds no field rows. Its job is to be actionable in App
+   Builder's preview, where a silently blank card is the worst outcome. */
+.nd-setup {
+    padding: 1.25rem 1rem;
+    text-align: center;
+    border: 1px dashed #c9c9c9;
     border-radius: 0.25rem;
+    background-color: #fafaf9;
 }
 
-.nd-diag_info {
-    background-color: #eef4ff;
-    border-color: #b6cef5;
-}
-
-.nd-diag-title {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-size: 0.75rem;
+.nd-setup-title {
+    font-size: 0.875rem;
     font-weight: 700;
-    line-height: 1.3;
     color: #514f4d;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
-.nd-diag-list {
-    margin: 0.25rem 0 0 0;
-    padding-left: 1rem;
-    list-style: disc outside;
-}
-
-.nd-diag-item {
+.nd-setup-body {
+    margin: 0.25rem auto 0.75rem;
+    max-width: 34rem;
     font-size: 0.75rem;
-    line-height: 1.4;
-    color: #3e3e3c;
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    line-height: 1.5;
+    color: #706e6b;
 }
 
-/* The row name, so a finding can be traced back to a config entry at a glance. */
-.nd-diag-row {
-    font-weight: 700;
+.nd-setup-link {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #0176d3;
+    border: 1px solid #0176d3;
+    border-radius: 0.25rem;
+    text-decoration: none;
 }
 
-.nd-diag-row::after {
-    content: " \2014 ";
-    font-weight: 400;
-}
-
-.nd-diag-item[data-level="error"] .nd-diag-row {
-    color: #ba0517;
+.nd-setup-link:hover,
+.nd-setup-link:focus {
+    background-color: #eef4ff;
+    text-decoration: none;
 }

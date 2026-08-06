@@ -5,7 +5,7 @@
             <div class="nd-header" style={ND_headerStyle} onclick={ND_toggleSection}>
                 <div class="slds-media slds-media_center">
                     <div class="slds-media__figure">
-                        <lightning-icon icon-name={ND_iconName} size="x-small" variant="inverse"></lightning-icon>
+                        <lightning-icon icon-name={resolvedIcon} size="x-small" variant="inverse"></lightning-icon>
                     </div>
                     <div class="slds-media__body">
                         <span class="nd-header-title" style={ND_titleStyle}>
@@ -44,38 +44,19 @@
                         </div>
                     </template>
 
-                    <!-- Admin-facing config check. Hidden unless ND_showConfigDiagnostics
-                         is on, so agents never see it; the console warning always fires. -->
-                    <template if:true={hasConfigDiagnostics}>
-                        <div class="nd-diag" role="status">
-                            <p class="nd-diag-title">
-                                <lightning-icon icon-name="utility:settings" size="xx-small"
-                                    alternative-text="Config check"></lightning-icon>
-                                Config check &mdash; {configDiagnosticsSummary}
+                    <!-- Nothing configured. A blank card gives whoever just dropped the
+                         component no idea what to do next, so point at the tool. -->
+                    <template if:true={isUnconfigured}>
+                        <div class="nd-setup">
+                            <p class="nd-setup-title">This section has no fields yet</p>
+                            <p class="nd-setup-body">
+                                Build its configuration in the Section Config Builder, then paste
+                                the result into the <strong>Field JSON Configuration</strong>
+                                property of this component.
                             </p>
-                            <ul class="nd-diag-list">
-                                <template for:each={configDiagnostics} for:item="diag">
-                                    <li key={diag.key} class="nd-diag-item" data-level={diag.level}>
-                                        <span class="nd-diag-row">{diag.name}</span>
-                                        <span>{diag.message}</span>
-                                    </li>
-                                </template>
-                            </ul>
-                        </div>
-                    </template>
-
-                    <template if:true={hasTakeoverSummary}>
-                        <div class="nd-diag nd-diag_info">
-                            <p class="nd-diag-title">
-                                <lightning-icon icon-name="utility:lock" size="xx-small"
-                                    alternative-text="Take it requirements"></lightning-icon>
-                                Before &ldquo;take it!&rdquo;
-                            </p>
-                            <ul class="nd-diag-list">
-                                <template for:each={takeoverSummary} for:item="rule">
-                                    <li key={rule.key} class="nd-diag-item">{rule.text}</li>
-                                </template>
-                            </ul>
+                            <a href={builderUrl} target="_blank" class="nd-setup-link">
+                                Open the Section Config Builder
+                            </a>
                         </div>
                     </template>
 
