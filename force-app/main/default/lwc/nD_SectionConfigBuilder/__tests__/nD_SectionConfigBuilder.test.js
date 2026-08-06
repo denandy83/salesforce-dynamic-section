@@ -564,8 +564,9 @@ describe('a field the org will not let anyone edit', () => {
     };
 
     async function addField(element, apiName) {
+        // "Add a field" is the filter input now; the combobox below it holds the matches
         const combo = Array.from(element.shadowRoot.querySelectorAll('lightning-combobox'))
-            .find(c => c.label === 'Add a field');
+            .find(c => c.label === 'Matching fields');
         combo.dispatchEvent(new CustomEvent('change', { detail: { value: apiName } }));
         await Promise.resolve();
 
@@ -749,5 +750,115 @@ describe('the record type multi-select', () => {
 
         expect(text(element, '.nd-ok')).toMatch(/No unknown keys/);
         expect(element.shadowRoot.querySelector('.nd-finding')).toBeNull();
+    });
+});
+
+describe('finding a field among many', () => {
+    // Case has 127 fields and lightning-combobox has no type-ahead, so "Record Type ID" at
+    // position 86 was unreachable in practice. Every field list is filterable now.
+    const MANY = {
+        apiName: 'Case',
+        fields: Object.assign(
+            { RecordTypeId: { apiName: 'RecordTypeId', label: 'Record Type ID' } },
+            ...Array.from({ length: 40 }, (unused, i) => ({
+                [`Filler${i}__c`]: { apiName: `Filler${i}__c`, label: `Filler ${i}` }
+            }))
+        ),
+        recordTypeInfos: {}
+    };
+
+    function addFilter(element) {
+        return Array.from(element.shadowRoot.querySelectorAll('lightning-input'))
+            .find(i => i.label === 'Add a field');
+    }
+
+    function matches(element) {
+        return Array.from(element.shadowRoot.querySelectorAll('lightning-combobox'))
+            .find(c => c.label === 'Matching fields');
+    }
+
+    it('offers RecordTypeId at all', async () => {
+        const element = mount();
+        getObjectInfo.emit(MANY);
+        await Promise.resolve();
+
+        expect(matches(element).options.map(o => o.value)).toContain('RecordTypeId');
+    });
+
+    it('narrows the list by label', async () => {
+        const element = mount();
+        getObjectInfo.emit(MANY);
+        await Promise.resolve();
+
+        const filter = addFilter(element);
+        filter.value = 'record type';
+        filter.dispatchEvent(new CustomEvent('change'));
+        await Promise.resolve();
+
+        expect(matches(element).options.map(o => o.value)).toEqual(['RecordTypeId']);
+    });
+
+    it('narrows the list by API name too', async () => {
+        const element = mount();
+        getObjectInfo.emit(MANY);
+        await Promise.resolve();
+
+        const filter = addFilter(element);
+        filter.value = 'RecordTypeId';
+        filter.dispatchEvent(new CustomEvent('change'));
+        await Promise.resolve();
+
+        expect(matches(element).options.map(o => o.value)).toEqual(['RecordTypeId']);
+    });
+
+    it('is case-insensitive', async () => {
+        const element = mount();
+        getObjectInfo.emit(MANY);
+        await Promise.resolve();
+
+        const filter = addFilter(element);
+        filter.value = 'RECORD TYPE';
+        filter.dispatchEvent(new CustomEvent('change'));
+        await Promise.resolve();
+
+        expect(matches(element).options.map(o => o.value)).toEqual(['RecordTypeId']);
+    });
+
+    // An empty dropdown looks broken, so a filter that matches nothing shows everything
+    it('shows the whole list again when nothing matches', async () => {
+        const element = mount();
+        getObjectInfo.emit(MANY);
+        await Promise.resolve();
+
+        const filter = addFilter(element);
+        filter.value = 'zzzznothing';
+        filter.dispatchEvent(new CustomEvent('change'));
+        await Promise.resolve();
+
+        expect(matches(element).options.length).toBe(41);
+    });
+
+    it('reports how much of the list is showing', async () => {
+        const element = mount();
+        getObjectInfo.emit(MANY);
+        await Promise.resolve();
+        expect(element.shadowRoot.textContent).toContain('41 fields');
+
+        const filter = addFilter(element);
+        filter.value = 'record type';
+        filter.dispatchEvent(new CustomEvent('change'));
+        await Promise.resolve();
+
+        expect(element.shadowRoot.textContent).toContain('1 of 41');
+    });
+
+    it('gives the condition pickers their own filters', async () => {
+        const element = mount();
+        getObjectInfo.emit(MANY);
+        await Promise.resolve();
+
+        // The section pane is open on load and holds the alertField picker
+        const filters = Array.from(element.shadowRoot.querySelectorAll('.nd-picker-filter'));
+        expect(filters.length).toBeGreaterThan(0);
     });
 });

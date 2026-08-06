@@ -77,6 +77,10 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     // flag decides which. Start on the section: it is what a new config needs first.
     @track editingSection = true;
     importNotice = '';
+    // Filter text per field picker, keyed by config key ('__add' for the Add a field box).
+    // The object has 127 fields and lightning-combobox has no type-ahead, so scrolling to
+    // one blind is not realistic.
+    @track fieldFilters = {};
 
     previewRecordId = '';
     previewVisible = true;
@@ -260,7 +264,37 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     // Fields not already used by a row, so the same field cannot be added twice.
     get addableFieldOptions() {
         const used = this.rows.map(r => r.apiName);
-        return this.fieldPickerOptions.filter(o => !used.includes(o.value));
+        return this.filterFieldOptions(
+            this.fieldPickerOptions.filter(o => !used.includes(o.value)),
+            '__add'
+        );
+    }
+
+    get addFieldCount() {
+        const total = this.fieldPickerOptions.length - this.rows.length;
+        const shown = this.addableFieldOptions.length;
+        return shown === total ? `${total} fields` : `${shown} of ${total}`;
+    }
+
+    /**
+     * Narrow a field list by whatever was typed into its filter box.
+     *
+     * Matches the label and the API name, so both "record type" and "RecordTypeId" find the
+     * same field. A filter that matches nothing returns everything rather than an empty
+     * dropdown, which would look broken.
+     */
+    filterFieldOptions(options, key) {
+        const needle = (this.fieldFilters[key] || '').trim().toLowerCase();
+        if (!needle) return options;
+        const hits = options.filter(o => o.label.toLowerCase().includes(needle));
+        return hits.length ? hits : options;
+    }
+
+    handleFieldFilter(event) {
+        const key = event.currentTarget.dataset.filter;
+        this.fieldFilters = Object.assign({}, this.fieldFilters, {
+            [key]: event.target.value || ''
+        });
     }
 
     // Record types excluding Master, which App Builder never scopes a page to either.
@@ -547,6 +581,8 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             isColor: def.control === 'color',
             isIcon: def.control === 'icon',
             isRecordType: asRecordType,
+            filterKey: def.key,
+            filterValue: this.fieldFilters[def.key] || '',
             isValues: def.control === 'values' && !!valueChoices,
             isValuesText: def.control === 'values' && !valueChoices,
             valueOptions: valueChoices || [],
@@ -619,7 +655,7 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         if (asRecordType) return this.recordTypeOptions;
         if (def.control === 'fieldPicker') {
             const base = def.blank ? [{ label: '— none —', value: '' }] : [];
-            return base.concat(this.fieldPickerOptions);
+            return base.concat(this.filterFieldOptions(this.fieldPickerOptions, def.key));
         }
         if (def.control === 'select') {
             return def.options.map(o => ({ label: o.title, value: String(o.value) }));

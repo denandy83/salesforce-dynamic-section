@@ -491,3 +491,24 @@
     color: #5c5c5c;
     box-shadow: inset 0 0 0 1px #939393;
 }
+
+/* --- field filters ------------------------------------------------------------
+   127 fields on Case and no type-ahead in lightning-combobox, so every field list
+   gets a filter. */
+.nd-field-filter {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+.nd-field-filter > :first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Sits under its combobox: the list is the thing being chosen from, the filter is
+   the tool for narrowing it. */
+.nd-picker-filter {
+    display: block;
+    margin-top: 0.125rem;
+}

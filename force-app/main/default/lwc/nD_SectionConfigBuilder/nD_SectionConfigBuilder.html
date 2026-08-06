@@ -130,8 +130,17 @@
                     </ul>
 
                     <div class="nd-adder">
+                        <!-- The object has 127 fields and lightning-combobox has no
+                             type-ahead, so a filter is the only way to reach one. -->
+                        <div class="nd-field-filter">
+                            <lightning-input label="Add a field" placeholder="Type to filter, e.g. record type"
+                                data-filter="__add"
+                                onchange={handleFieldFilter}></lightning-input>
+                            <span class="nd-count">{addFieldCount}</span>
+                        </div>
                         <lightning-combobox
-                            label="Add a field"
+                            label="Matching fields"
+                            variant="label-hidden"
                             placeholder="Choose a field…"
                             value={fieldToAdd}
                             options={addableFieldOptions}
@@ -203,6 +212,12 @@
                                             <lightning-combobox label={ctrl.label} value={ctrl.value}
                                                 options={ctrl.options} data-key={ctrl.key}
                                                 onchange={handleSectionChange}></lightning-combobox>
+                                            <lightning-input class="nd-picker-filter"
+                                                label="Filter" variant="label-hidden"
+                                                placeholder="Type to filter this list…"
+                                                value={ctrl.filterValue}
+                                                data-filter={ctrl.filterKey}
+                                                onchange={handleFieldFilter}></lightning-input>
                                         </template>
                                         <template if:true={ctrl.isValues}>
                                             <lightning-checkbox-group label={ctrl.label}
@@ -316,6 +331,12 @@
                                             <lightning-combobox label={ctrl.label} value={ctrl.value}
                                                 options={ctrl.options} data-key={ctrl.key}
                                                 onchange={handleControlChange}></lightning-combobox>
+                                            <lightning-input class="nd-picker-filter"
+                                                label="Filter" variant="label-hidden"
+                                                placeholder="Type to filter this list…"
+                                                value={ctrl.filterValue}
+                                                data-filter={ctrl.filterKey}
+                                                onchange={handleFieldFilter}></lightning-input>
                                         </template>
                                         <template if:true={ctrl.isRecordType}>
                                             <lightning-combobox label={ctrl.label} value={ctrl.value}
@@ -394,6 +415,12 @@
                                                         value={ctrl.value} options={ctrl.options}
                                                         data-key={ctrl.key}
                                                         onchange={handleControlChange}></lightning-combobox>
+                                                    <lightning-input class="nd-picker-filter"
+                                                        label="Filter" variant="label-hidden"
+                                                        placeholder="Type to filter this list…"
+                                                        value={ctrl.filterValue}
+                                                        data-filter={ctrl.filterKey}
+                                                        onchange={handleFieldFilter}></lightning-input>
                                                 </template>
                                                 <template if:true={ctrl.isRecordType}>
                                                     <lightning-combobox label={ctrl.label}

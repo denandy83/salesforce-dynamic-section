@@ -139,6 +139,10 @@ Supported per-field keys:
   box. Applies to `showIfValue`, `colorIfValue`, `requiredIfValue` and the section's `alertValue`.
 
 ### `lwc/nD_SectionConfigBuilder` (+ tab `ND_Section_Config_Builder`)
+- **Every field list is filterable.** Case has **127 fields** and `lightning-combobox` has
+  **no type-ahead**, so a field partway down the list (Record Type ID is #86 alphabetically)
+  cannot be reached by scrolling. Filters match label *and* API name, are case-insensitive,
+  and fall back to the full list when nothing matches so the dropdown never looks broken.
 The visual editor, at **`/lightning/n/ND_Section_Config_Builder`**. Three panes: Section +
 field rows (add/delete/duplicate/reorder) · registry-generated properties · live preview of
 the REAL `nD_DynamicSection` against a record Id, plus the JSON to copy and a box to paste
