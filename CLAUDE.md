@@ -139,10 +139,16 @@ Supported per-field keys:
   box. Applies to `showIfValue`, `colorIfValue`, `requiredIfValue` and the section's `alertValue`.
 
 ### `lwc/nD_SectionConfigBuilder` (+ tab `ND_Section_Config_Builder`)
-- **Every field list is filterable.** Case has **127 fields** and `lightning-combobox` has
-  **no type-ahead**, so a field partway down the list (Record Type ID is #86 alphabetically)
-  cannot be reached by scrolling. Filters match label *and* API name, are case-insensitive,
-  and fall back to the full list when nothing matches so the dropdown never looks broken.
+- **"Add a field" is a live search list, not a dropdown.** Case has **127 fields** and
+  `lightning-combobox` has **no type-ahead**, so scrolling to one is not realistic. Typing
+  narrows the list as you go (`oninput`, not `onchange`), matching label *and* API name,
+  case-insensitively; clicking a match adds the row in one action.
+- **Fields already used stay in the list, marked "already a row".** They used to be filtered
+  out silently, which is why `RecordTypeId` looked absent from the org: six live configs
+  already have a RecordTypeId row, so the picker removed it and the count quietly went from
+  127 to 115. Clicking a used field now opens that row instead of adding a duplicate.
+- The condition pickers (`showIfField`, `colorIfField`, `requiredIfField`, `alertField`) keep
+  a `lightning-combobox` with a filter box beneath, also live on `oninput`.
 The visual editor, at **`/lightning/n/ND_Section_Config_Builder`**. Three panes: Section +
 field rows (add/delete/duplicate/reorder) · registry-generated properties · live preview of
 the REAL `nD_DynamicSection` against a record Id, plus the JSON to copy and a box to paste

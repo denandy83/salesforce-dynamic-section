@@ -105,35 +105,37 @@ describe('first load', () => {
 });
 
 describe('field pickers come from the describe', () => {
+    function matched(element) {
+        return Array.from(element.shadowRoot.querySelectorAll('.nd-match'))
+            .map(b => b.dataset.field);
+    }
+
     it('offers the object fields once the describe arrives', async () => {
         const element = mount();
         getObjectInfo.emit(OBJECT_INFO);
         await Promise.resolve();
 
-        const combo = element.shadowRoot.querySelector('lightning-combobox');
-        expect(combo).not.toBeNull();
-        const values = combo.options.map(o => o.value);
-        expect(values).toContain('Status');
-        expect(values).toContain('AVB_Environment__c');
+        const fields = matched(element);
+        expect(fields).toContain('Status');
+        expect(fields).toContain('AVB_Environment__c');
     });
 
-    it('labels options with the field label and api name', async () => {
+    it('shows the field label and the API name together', async () => {
         const element = mount();
         getObjectInfo.emit(OBJECT_INFO);
         await Promise.resolve();
 
-        const combo = element.shadowRoot.querySelector('lightning-combobox');
-        const typeOption = combo.options.find(o => o.value === 'Type');
-        expect(typeOption.label).toBe('Issue Type · Type');
+        const row = element.shadowRoot.querySelector('.nd-match[data-field="Type"]');
+        expect(row.querySelector('.nd-match-label').textContent).toBe('Issue Type');
+        expect(row.querySelector('.nd-match-api').textContent).toBe('Type');
     });
 
-    it('shows no options when the describe fails', async () => {
+    it('offers nothing when the describe fails', async () => {
         const element = mount();
         getObjectInfo.error();
         await Promise.resolve();
 
-        const combo = element.shadowRoot.querySelector('lightning-combobox');
-        expect(combo.options).toEqual([]);
+        expect(matched(element)).toEqual([]);
     });
 });
 
@@ -564,15 +566,7 @@ describe('a field the org will not let anyone edit', () => {
     };
 
     async function addField(element, apiName) {
-        // "Add a field" is the filter input now; the combobox below it holds the matches
-        const combo = Array.from(element.shadowRoot.querySelectorAll('lightning-combobox'))
-            .find(c => c.label === 'Matching fields');
-        combo.dispatchEvent(new CustomEvent('change', { detail: { value: apiName } }));
-        await Promise.resolve();
-
-        Array.from(element.shadowRoot.querySelectorAll('lightning-button'))
-            .find(b => b.label === 'Add row')
-            .click();
+        element.shadowRoot.querySelector(`.nd-match[data-field="${apiName}"]`).click();
         await Promise.resolve();
         await Promise.resolve();
     }
@@ -754,8 +748,8 @@ describe('the record type multi-select', () => {
 });
 
 describe('finding a field among many', () => {
-    // Case has 127 fields and lightning-combobox has no type-ahead, so "Record Type ID" at
-    // position 86 was unreachable in practice. Every field list is filterable now.
+    // Case has 127 fields, lightning-combobox has no type-ahead, and fields already used by
+    // a row were silently removed — which is exactly why RecordTypeId looked missing.
     const MANY = {
         apiName: 'Case',
         fields: Object.assign(
@@ -767,98 +761,141 @@ describe('finding a field among many', () => {
         recordTypeInfos: {}
     };
 
-    function addFilter(element) {
+    function search(element) {
         return Array.from(element.shadowRoot.querySelectorAll('lightning-input'))
             .find(i => i.label === 'Add a field');
     }
 
-    function matches(element) {
-        return Array.from(element.shadowRoot.querySelectorAll('lightning-combobox'))
-            .find(c => c.label === 'Matching fields');
+    async function type(element, needle) {
+        const box = search(element);
+        box.value = needle;
+        // oninput, not onchange: it has to narrow while typing
+        box.dispatchEvent(new CustomEvent('input'));
+        await Promise.resolve();
     }
 
-    it('offers RecordTypeId at all', async () => {
+    function matched(element) {
+        return Array.from(element.shadowRoot.querySelectorAll('.nd-match'))
+            .map(b => b.dataset.field);
+    }
+
+    it('offers RecordTypeId', async () => {
         const element = mount();
         getObjectInfo.emit(MANY);
         await Promise.resolve();
 
-        expect(matches(element).options.map(o => o.value)).toContain('RecordTypeId');
+        expect(matched(element)).toContain('RecordTypeId');
     });
 
-    it('narrows the list by label', async () => {
+    it('narrows while typing, by label', async () => {
         const element = mount();
         getObjectInfo.emit(MANY);
         await Promise.resolve();
+        await type(element, 'record type');
 
-        const filter = addFilter(element);
-        filter.value = 'record type';
-        filter.dispatchEvent(new CustomEvent('change'));
-        await Promise.resolve();
-
-        expect(matches(element).options.map(o => o.value)).toEqual(['RecordTypeId']);
+        expect(matched(element)).toEqual(['RecordTypeId']);
     });
 
-    it('narrows the list by API name too', async () => {
+    it('narrows by API name too', async () => {
         const element = mount();
         getObjectInfo.emit(MANY);
         await Promise.resolve();
+        await type(element, 'RecordTypeId');
 
-        const filter = addFilter(element);
-        filter.value = 'RecordTypeId';
-        filter.dispatchEvent(new CustomEvent('change'));
-        await Promise.resolve();
-
-        expect(matches(element).options.map(o => o.value)).toEqual(['RecordTypeId']);
+        expect(matched(element)).toEqual(['RecordTypeId']);
     });
 
     it('is case-insensitive', async () => {
         const element = mount();
         getObjectInfo.emit(MANY);
         await Promise.resolve();
+        await type(element, 'RECORD TYPE');
 
-        const filter = addFilter(element);
-        filter.value = 'RECORD TYPE';
-        filter.dispatchEvent(new CustomEvent('change'));
-        await Promise.resolve();
-
-        expect(matches(element).options.map(o => o.value)).toEqual(['RecordTypeId']);
+        expect(matched(element)).toEqual(['RecordTypeId']);
     });
 
-    // An empty dropdown looks broken, so a filter that matches nothing shows everything
-    it('shows the whole list again when nothing matches', async () => {
+    it('says so when nothing matches', async () => {
         const element = mount();
         getObjectInfo.emit(MANY);
         await Promise.resolve();
+        await type(element, 'zzzznothing');
 
-        const filter = addFilter(element);
-        filter.value = 'zzzznothing';
-        filter.dispatchEvent(new CustomEvent('change'));
-        await Promise.resolve();
-
-        expect(matches(element).options.length).toBe(41);
+        expect(matched(element)).toEqual([]);
+        expect(element.shadowRoot.textContent).toContain('No field matches that.');
     });
 
-    it('reports how much of the list is showing', async () => {
+    it('adds the field on a single click', async () => {
         const element = mount();
         getObjectInfo.emit(MANY);
         await Promise.resolve();
-        expect(element.shadowRoot.textContent).toContain('41 fields');
+        await type(element, 'record type');
 
-        const filter = addFilter(element);
-        filter.value = 'record type';
-        filter.dispatchEvent(new CustomEvent('change'));
+        element.shadowRoot.querySelector('.nd-match[data-field="RecordTypeId"]').click();
         await Promise.resolve();
 
-        expect(element.shadowRoot.textContent).toContain('1 of 41');
+        expect(text(element, '.nd-json')).toContain('"apiName":"RecordTypeId"');
     });
 
-    it('gives the condition pickers their own filters', async () => {
+    it('clears the search after adding, ready for the next one', async () => {
         const element = mount();
         getObjectInfo.emit(MANY);
         await Promise.resolve();
+        await type(element, 'record type');
 
-        // The section pane is open on load and holds the alertField picker
-        const filters = Array.from(element.shadowRoot.querySelectorAll('.nd-picker-filter'));
-        expect(filters.length).toBeGreaterThan(0);
+        element.shadowRoot.querySelector('.nd-match[data-field="RecordTypeId"]').click();
+        await Promise.resolve();
+
+        expect(matched(element).length).toBeGreaterThan(1);
+    });
+});
+
+describe('a field that is already a row', () => {
+    const FIELDS = {
+        apiName: 'Case',
+        fields: {
+            RecordTypeId: { apiName: 'RecordTypeId', label: 'Record Type ID' },
+            Status: { apiName: 'Status', label: 'Status' }
+        },
+        recordTypeInfos: {}
+    };
+
+    async function load(element, json) {
+        const textarea = element.shadowRoot.querySelector('lightning-textarea');
+        textarea.value = json;
+        textarea.dispatchEvent(new CustomEvent('change', { detail: { value: json } }));
+        Array.from(element.shadowRoot.querySelectorAll('lightning-button'))
+            .find(b => b.label === 'Load')
+            .click();
+        await Promise.resolve();
+        await Promise.resolve();
+    }
+
+    // Six of the live configs already had a RecordTypeId row, so the old picker removed it
+    // from the list and said nothing — the field looked absent from the org.
+    it('stays in the list, marked, instead of vanishing', async () => {
+        const element = mount();
+        getObjectInfo.emit(FIELDS);
+        await Promise.resolve();
+        await load(element, '[{"apiName":"RecordTypeId","label":"Record Type"}]');
+
+        const used = element.shadowRoot.querySelector('.nd-match_used');
+        expect(used).not.toBeNull();
+        expect(used.dataset.field).toBe('RecordTypeId');
+        expect(used.textContent).toContain('already a row');
+    });
+
+    it('opens the existing row rather than adding a duplicate', async () => {
+        const element = mount();
+        getObjectInfo.emit(FIELDS);
+        await Promise.resolve();
+        await load(element, '[{"apiName":"RecordTypeId","label":"Record Type"}]');
+
+        element.shadowRoot.querySelector('.nd-match[data-field="RecordTypeId"]').click();
+        await Promise.resolve();
+
+        // Still one row, and its properties are now open
+        expect(element.shadowRoot.querySelectorAll(FIELD_ROW)).toHaveLength(1);
+        expect(text(element, '.nd-json')).toContain('"apiName":"RecordTypeId"');
+        expect(element.shadowRoot.querySelector('.nd-group legend').textContent).toBe('Field');
     });
 });

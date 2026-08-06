@@ -512,3 +512,80 @@
     display: block;
     margin-top: 0.125rem;
 }
+
+/* --- field search results ------------------------------------------------------
+   A clickable list rather than a dropdown: lightning-combobox has no type-ahead and
+   cannot show which fields are already rows. */
+.nd-matches {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 0.375rem;
+    max-height: 13rem;
+    overflow-y: auto;
+    border: 1px solid #e5e5e5;
+    border-radius: 0.25rem;
+    background-color: #ffffff;
+}
+
+.nd-match {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    width: 100%;
+    padding: 0.3125rem 0.5rem;
+    background: none;
+    border: 0;
+    border-left: 2px solid transparent;
+    text-align: left;
+    cursor: pointer;
+}
+
+.nd-match:hover {
+    background-color: #eef4ff;
+    border-left-color: #0176d3;
+}
+
+.nd-match:focus-visible {
+    outline: 2px solid #0176d3;
+    outline-offset: -2px;
+}
+
+.nd-match-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #181818;
+}
+
+.nd-match-api {
+    font-family: monospace;
+    font-size: 0.6875rem;
+    color: #8c8c8c;
+}
+
+/* Already a row: kept in the list rather than silently removed, which is what made
+   RecordTypeId look missing. */
+.nd-match_used {
+    background-color: #fafaf9;
+}
+
+.nd-match_used .nd-match-label {
+    color: #706e6b;
+}
+
+.nd-match-note {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #a86403;
+    background-color: #fff7e8;
+    box-shadow: inset 0 0 0 1px #fe9339;
+    border-radius: 2px;
+    padding: 0 0.25rem;
+}
+
+.nd-no-match {
+    margin-top: 0.375rem;
+}

@@ -129,25 +129,39 @@
                         </template>
                     </ul>
 
+                    <!-- One control: type and the list narrows as you go, click to add.
+                         lightning-combobox has no type-ahead, and with 127 fields a plain
+                         dropdown cannot be navigated. oninput rather than onchange, so it
+                         filters while typing instead of when the box loses focus. -->
                     <div class="nd-adder">
-                        <!-- The object has 127 fields and lightning-combobox has no
-                             type-ahead, so a filter is the only way to reach one. -->
                         <div class="nd-field-filter">
-                            <lightning-input label="Add a field" placeholder="Type to filter, e.g. record type"
-                                data-filter="__add"
-                                onchange={handleFieldFilter}></lightning-input>
-                            <span class="nd-count">{addFieldCount}</span>
+                            <lightning-input label="Add a field"
+                                placeholder="Type to search, e.g. record type"
+                                value={fieldSearch}
+                                oninput={handleFieldSearch}
+                                onchange={handleFieldSearch}></lightning-input>
+                            <span class="nd-count">{fieldMatchCount}</span>
                         </div>
-                        <lightning-combobox
-                            label="Matching fields"
-                            variant="label-hidden"
-                            placeholder="Choose a field…"
-                            value={fieldToAdd}
-                            options={addableFieldOptions}
-                            onchange={handleAddFieldChange}>
-                        </lightning-combobox>
-                        <lightning-button label="Add row" variant="brand" onclick={handleAddRow}>
-                        </lightning-button>
+
+                        <template if:false={hasFieldMatches}>
+                            <p class="nd-help nd-no-match">No field matches that.</p>
+                        </template>
+
+                        <ul class="nd-matches">
+                            <template for:each={fieldMatches} for:item="match">
+                                <li key={match.key}>
+                                    <button type="button" class={match.cssClass}
+                                        data-field={match.apiName}
+                                        onclick={handlePickField}>
+                                        <span class="nd-match-label">{match.label}</span>
+                                        <span class="nd-match-api">{match.apiName}</span>
+                                        <template if:true={match.used}>
+                                            <span class="nd-match-note">{match.note}</span>
+                                        </template>
+                                    </button>
+                                </li>
+                            </template>
+                        </ul>
                     </div>
                 </article>
 
@@ -217,6 +231,7 @@
                                                 placeholder="Type to filter this list…"
                                                 value={ctrl.filterValue}
                                                 data-filter={ctrl.filterKey}
+                                                oninput={handleFieldFilter}
                                                 onchange={handleFieldFilter}></lightning-input>
                                         </template>
                                         <template if:true={ctrl.isValues}>
@@ -336,6 +351,7 @@
                                                 placeholder="Type to filter this list…"
                                                 value={ctrl.filterValue}
                                                 data-filter={ctrl.filterKey}
+                                                oninput={handleFieldFilter}
                                                 onchange={handleFieldFilter}></lightning-input>
                                         </template>
                                         <template if:true={ctrl.isRecordType}>
@@ -420,6 +436,7 @@
                                                         placeholder="Type to filter this list…"
                                                         value={ctrl.filterValue}
                                                         data-filter={ctrl.filterKey}
+                                                        oninput={handleFieldFilter}
                                                         onchange={handleFieldFilter}></lightning-input>
                                                 </template>
                                                 <template if:true={ctrl.isRecordType}>

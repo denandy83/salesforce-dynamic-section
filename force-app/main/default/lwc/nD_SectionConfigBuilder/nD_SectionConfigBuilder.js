@@ -54,6 +54,9 @@ import {
 // read once in connectedCallback. Everything else is a getter and updates in place.
 const REMOUNT_ON_SECTION_KEYS = ['startCollapsed'];
 
+// Enough to scroll, few enough to render without lag on an object with 127 fields.
+const FIELD_MATCH_LIMIT = 60;
+
 const TAB_LABEL = 'Config Builder';
 const TAB_ICON = 'utility:builder';
 
@@ -91,7 +94,7 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     importText = '';
     importError = '';
     copyLabel = 'Copy JSON';
-    fieldToAdd = '';
+    fieldSearch = '';
 
     _objectInfo;
     _tabNamed = false;
@@ -261,19 +264,73 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             .map(apiName => ({ label: `${this.labelFor(apiName)} · ${apiName}`, value: apiName }));
     }
 
-    // Fields not already used by a row, so the same field cannot be added twice.
-    get addableFieldOptions() {
+    /**
+     * Fields matching what has been typed, as a clickable list.
+     *
+     * Fields already used by a row stay in the list, marked. They used to be filtered out
+     * silently, which is how RecordTypeId came to look missing: six of the live configs
+     * already have a RecordTypeId row, so the picker removed it and said nothing while the
+     * count quietly dropped from 127 to 115.
+     */
+    get fieldMatches() {
+        const needle = this.fieldSearch.trim().toLowerCase();
         const used = this.rows.map(r => r.apiName);
-        return this.filterFieldOptions(
-            this.fieldPickerOptions.filter(o => !used.includes(o.value)),
-            '__add'
-        );
+
+        return Object.keys(this.objectFields)
+            .map(apiName => ({ apiName, label: this.labelFor(apiName) }))
+            .filter(f => !needle
+                || f.label.toLowerCase().includes(needle)
+                || f.apiName.toLowerCase().includes(needle))
+            .sort((a, b) => a.label.localeCompare(b.label))
+            .slice(0, FIELD_MATCH_LIMIT)
+            .map(f => {
+                const isUsed = used.includes(f.apiName);
+                return {
+                    key: f.apiName,
+                    apiName: f.apiName,
+                    label: f.label,
+                    used: isUsed,
+                    note: isUsed ? 'already a row — click to open it' : '',
+                    cssClass: isUsed ? 'nd-match nd-match_used' : 'nd-match'
+                };
+            });
     }
 
-    get addFieldCount() {
-        const total = this.fieldPickerOptions.length - this.rows.length;
-        const shown = this.addableFieldOptions.length;
-        return shown === total ? `${total} fields` : `${shown} of ${total}`;
+    get fieldMatchCount() {
+        const total = Object.keys(this.objectFields).length;
+        const shown = this.fieldMatches.length;
+        if (!this.fieldSearch.trim()) return `${total} fields`;
+        return shown >= FIELD_MATCH_LIMIT ? `first ${shown} of ${total}` : `${shown} of ${total}`;
+    }
+
+    get hasFieldMatches() {
+        return this.fieldMatches.length > 0;
+    }
+
+    handleFieldSearch(event) {
+        this.fieldSearch = event.target.value || '';
+    }
+
+    /**
+     * Clicking a match adds it, or opens it when it is already a row. Adding on click keeps
+     * it to one action; a separate Add button was a second click for no decision.
+     */
+    handlePickField(event) {
+        const apiName = event.currentTarget.dataset.field;
+        const existing = this.rows.findIndex(r => r.apiName === apiName);
+
+        if (existing >= 0) {
+            this.selectedIndex = existing;
+            this.editingSection = false;
+            return;
+        }
+
+        const editable = !this.isNotUpdateable(apiName);
+        this.rows = withRowAdded(this.rows, apiName, this.labelFor(apiName), editable);
+        this.selectedIndex = this.rows.length - 1;
+        this.editingSection = false;
+        this.fieldSearch = '';
+        this.refreshPreview();
     }
 
     /**
@@ -475,21 +532,6 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             name,
             cssClass: name === current ? 'nd-icon-choice nd-icon-choice_on' : 'nd-icon-choice'
         }));
-    }
-
-    handleAddFieldChange(event) {
-        this.fieldToAdd = event.detail.value;
-    }
-
-    handleAddRow() {
-        if (!this.fieldToAdd) return;
-        const editable = !this.isNotUpdateable(this.fieldToAdd);
-        this.rows = withRowAdded(this.rows, this.fieldToAdd, this.labelFor(this.fieldToAdd), editable);
-        this.selectedIndex = this.rows.length - 1;
-        // Adding a row means you want to configure it, so move the pane off the section
-        this.editingSection = false;
-        this.fieldToAdd = '';
-        this.refreshPreview();
     }
 
     handleMoveRow(event) {
