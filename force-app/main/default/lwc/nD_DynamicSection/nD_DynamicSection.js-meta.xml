@@ -3,7 +3,7 @@
     <apiVersion>62.0</apiVersion>
     <isExposed>true</isExposed>
     <masterLabel>ND Dynamic Section</masterLabel>
-    <description>Configurable detail section. Build its configuration in the Section Config Builder (/lightning/n/ND_Section_Config_Builder) and paste the result into Field JSON Configuration.</description>
+    <description>Configurable detail section. Open "Section Config Builder" from the App Launcher to build its configuration, then paste the result into Field JSON Configuration.</description>
     <targets>
         <target>lightning__RecordPage</target>
     </targets>
@@ -14,30 +14,25 @@
                 <supportedFormFactor type="Small" />
             </supportedFormFactors>
 
-            <!-- One property, and only one. The section title, icon, colours, layout and
-                 header alert were separate properties here; they live inside this JSON so
-                 the whole section is a single artefact the Section Config Builder composes,
-                 validates and previews in one piece.
+            <!-- ONE property, and it has to stay that way.
 
-                 Removing those tags meant taking the component off all 8 hosting pages
-                 first. The platform refuses while it is present on any page, even with
-                 every value cleared: "You can't remove the property tag named '…'. The
-                 component is in use on one or more Lightning pages." Anyone adding a
-                 property here should know it is equally hard to take back out. -->
-            <!-- Deliberately FIRST so it reads as the instruction for the field below it.
-                 App Builder property panels cannot render a clickable link, so the next
-                 best thing is a box already containing the path, ready to copy into a new
-                 tab. It is not decoration: the component uses it for the link in its own
-                 "not configured yet" prompt, so pointing it somewhere else moves that link
-                 too. -->
-            <property name="ND_configBuilderUrl" type="String"
-                      label="① Set up here → Section Config Builder"
-                      default="/lightning/n/ND_Section_Config_Builder"
-                      description="Copy this path into a new browser tab (or find &quot;Config Builder&quot; in the App Launcher) to build the configuration below visually — field rows, section title, icon picker, colour pickers, layout, header alert, a live preview of this component, and validation that catches misspelled keys. Then click Copy JSON there and paste it into Field JSON Configuration. Leave this value alone unless the builder tab has been renamed; it is also the link shown inside the section when it has no configuration yet."/>
+                 Everything the section needs is in this JSON: field rows plus the title,
+                 icon, colours, layout and header alert. The instructions live in the
+                 description because that is the ONLY place text can go in an App Builder
+                 property panel — there is no label-only or help-only property type, so any
+                 attempt to add guidance as its own entry produces an input box nobody
+                 should type in.
 
+                 Adding a property here is also very hard to undo: the platform refuses to
+                 remove a property tag while the component is on any Lightning page, even
+                 with every value cleared, so it takes taking the component off all 8 pages,
+                 deploying, removing the tag, then putting the pages back. That was done
+                 twice — once for the ten legacy section properties, once for a well-meant
+                 "set up here" box that turned out to be exactly the input nobody should
+                 type in. Do not add a third. -->
             <property name="ND_jsonConfigString" type="String"
-                      label="② Field JSON Configuration"
-                      description="PASTE FROM THE SECTION CONFIG BUILDER (path in the box above). It carries everything: field rows and the section title, icon, colours, layout and header alert. Hand-editing works but is unvalidated — a mistyped key does nothing and reports nothing on the page, only to the browser console."/>
+                      label="Field JSON Configuration"
+                      description="Open the App Launcher and choose &quot;Section Config Builder&quot; to set up how this section should look — which fields it shows, the title, icon, colours and layout — then click Copy JSON there and paste the result here. You can type in this box directly, but nothing checks it: a mistyped setting is simply ignored, with no warning on the page."/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

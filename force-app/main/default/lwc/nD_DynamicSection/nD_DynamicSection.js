@@ -24,9 +24,10 @@ const PROBLEM_RECORD_TYPE_DEVELOPER_NAME = 'AVB_Problem_Case';
 const PROBLEM_EXCLUDED_STATUSES = ['Closed', 'Merged'];
 const PROBLEM_SEARCH_DEBOUNCE_MS = 300;
 
-// Where the section points anyone who has to configure it. Overridable from App Builder
-// in case the builder tab is ever renamed.
-const DEFAULT_BUILDER_URL = '/lightning/n/ND_Section_Config_Builder';
+// Where the section points anyone who has to configure it. Hardcoded on purpose: it was
+// briefly an App Builder property, which meant an input box in the panel that nobody
+// should type in, and properties are painfully hard to remove once added.
+const BUILDER_URL = '/lightning/n/ND_Section_Config_Builder';
 
 // --- "take it!" pre-flight. Accepting a case out of the Service Queue makes
 // AVB_Case_Flow_After_Update set Status to Open, which starts the SLA clock, and the
@@ -55,11 +56,6 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     // artefact the Config Builder composes.
     @api ND_jsonConfigString = '';
 
-    // Where to send someone who needs to configure this. App Builder cannot render a
-    // clickable link in a property panel, so the path sits in a copyable box there; the
-    // component reuses the same value for the link in its unconfigured prompt, which keeps
-    // the two from drifting apart.
-    @api ND_configBuilderUrl;
 
     // --- 2. INTERNAL STATE ---
     @track ND_isOpen = true;
@@ -211,7 +207,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     get builderUrl() {
-        return this.ND_configBuilderUrl || DEFAULT_BUILDER_URL;
+        return BUILDER_URL;
     }
 
     // Record type names keyed by Id, for readable diagnostics. The UI API describe does

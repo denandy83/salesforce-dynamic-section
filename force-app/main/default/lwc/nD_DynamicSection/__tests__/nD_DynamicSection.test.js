@@ -58,14 +58,6 @@ describe('the admin link on a real record', () => {
         expect(link.href).toContain('/lightning/n/ND_Section_Config_Builder');
     });
 
-    it('honours an overridden builder path', async () => {
-        const element = onRecord({ ND_configBuilderUrl: '/lightning/n/Something_Else' });
-        await Promise.resolve();
-
-        expect(element.shadowRoot.querySelector('.nd-builder-bar-link').href)
-            .toContain('/lightning/n/Something_Else');
-    });
-
     it('does not show the design-time note on a real record', async () => {
         const element = onRecord();
         await Promise.resolve();
