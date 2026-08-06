@@ -354,3 +354,82 @@ describe('console tab label', () => {
         expect(setTabLabel).toHaveBeenCalledTimes(1);
     });
 });
+
+describe('a field the org will not let anyone edit', () => {
+    const WITH_FORMULA = {
+        apiName: 'Case',
+        fields: {
+            Status: { apiName: 'Status', label: 'Status', updateable: true, calculated: false },
+            AVB_ICAO_Account__c: {
+                apiName: 'AVB_ICAO_Account__c', label: 'ICAO Account',
+                updateable: false, calculated: true
+            }
+        },
+        recordTypeInfos: {}
+    };
+
+    async function addField(element, apiName) {
+        const combo = Array.from(element.shadowRoot.querySelectorAll('lightning-combobox'))
+            .find(c => c.label === 'Add a field');
+        combo.dispatchEvent(new CustomEvent('change', { detail: { value: apiName } }));
+        await Promise.resolve();
+
+        Array.from(element.shadowRoot.querySelectorAll('lightning-button'))
+            .find(b => b.label === 'Add row')
+            .click();
+        await Promise.resolve();
+        await Promise.resolve();
+    }
+
+    it('does not claim a formula field is editable when it is added', async () => {
+        const element = mount();
+        getObjectInfo.emit(WITH_FORMULA);
+        await Promise.resolve();
+        await addField(element, 'AVB_ICAO_Account__c');
+
+        expect(text(element, '.nd-json'))
+            .toContain('{"apiName":"AVB_ICAO_Account__c","label":"ICAO Account"}');
+        expect(text(element, '.nd-json')).not.toContain('"editable":true');
+    });
+
+    it('marks it in the rail so it is obvious without selecting it', async () => {
+        const element = mount();
+        getObjectInfo.emit(WITH_FORMULA);
+        await Promise.resolve();
+        await addField(element, 'AVB_ICAO_Account__c');
+
+        expect(text(element, '.nd-badge_locked')).toBe('formula');
+    });
+
+    it('disables the editable checkbox and explains why', async () => {
+        const element = mount();
+        getObjectInfo.emit(WITH_FORMULA);
+        await Promise.resolve();
+        await addField(element, 'AVB_ICAO_Account__c');
+
+        const checkbox = Array.from(element.shadowRoot.querySelectorAll('lightning-input'))
+            .find(i => i.label === 'Users can edit this field');
+        expect(checkbox.disabled).toBe(true);
+        expect(checkbox.checked).toBe(false);
+
+        const help = Array.from(element.shadowRoot.querySelectorAll('.nd-help'))
+            .map(n => n.textContent)
+            .find(t => t.includes('cannot be edited'));
+        expect(help).toContain('formula field');
+    });
+
+    it('leaves an ordinary field editable and enabled', async () => {
+        const element = mount();
+        getObjectInfo.emit(WITH_FORMULA);
+        await Promise.resolve();
+        await addField(element, 'Status');
+
+        expect(text(element, '.nd-json')).toContain('"editable":true');
+        expect(element.shadowRoot.querySelector('.nd-badge_locked')).toBeNull();
+
+        const checkbox = Array.from(element.shadowRoot.querySelectorAll('lightning-input'))
+            .find(i => i.label === 'Users can edit this field');
+        expect(checkbox.disabled).toBe(false);
+        expect(checkbox.checked).toBe(true);
+    });
+});

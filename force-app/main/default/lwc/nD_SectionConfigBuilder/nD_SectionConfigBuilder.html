@@ -161,7 +161,8 @@
                                     <div key={ctrl.key} class="nd-control">
                                         <template if:true={ctrl.isCheck}>
                                             <lightning-input type="checkbox" label={ctrl.title}
-                                                checked={ctrl.checked} data-key={ctrl.key}
+                                                checked={ctrl.checked} disabled={ctrl.disabled}
+                                                data-key={ctrl.key}
                                                 onchange={handleSectionChange}></lightning-input>
                                         </template>
                                         <template if:true={ctrl.isText}>
@@ -266,7 +267,8 @@
                                     <div key={ctrl.key} class="nd-control">
                                         <template if:true={ctrl.isCheck}>
                                             <lightning-input type="checkbox" label={ctrl.title}
-                                                checked={ctrl.checked} data-key={ctrl.key}
+                                                checked={ctrl.checked} disabled={ctrl.disabled}
+                                                data-key={ctrl.key}
                                                 onchange={handleControlChange}></lightning-input>
                                         </template>
                                         <template if:true={ctrl.isText}>
@@ -311,7 +313,8 @@
                                             <div key={ctrl.key} class="nd-control">
                                                 <template if:true={ctrl.isCheck}>
                                                     <lightning-input type="checkbox" label={ctrl.title}
-                                                        checked={ctrl.checked} data-key={ctrl.key}
+                                                        checked={ctrl.checked} disabled={ctrl.disabled}
+                                                        data-key={ctrl.key}
                                                         onchange={handleControlChange}></lightning-input>
                                                 </template>
                                                 <template if:true={ctrl.isText}>

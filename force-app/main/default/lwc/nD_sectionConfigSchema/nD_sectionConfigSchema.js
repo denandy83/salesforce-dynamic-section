@@ -246,6 +246,10 @@ const CONFIG_KEYS = [
         title: 'Users can edit this field',
         badge: 'read only',
         badgeWhenFalsy: true,
+        // Formula, rollup, autonumber and system fields report updateable:false on the
+        // describe. Ticking this on one of them cannot work, so an editor should refuse
+        // rather than imply the field became editable.
+        requiresUpdateable: true,
         help: 'Unchecked renders the value as read-only output.'
     },
 
@@ -425,6 +429,19 @@ function validateConfig(config, context) {
         if (row.showIfField === 'RecordTypeId' && !isBlank(row.showIfValue)
             && ctx.recordTypes && !ctx.recordTypes[row.showIfValue]) {
             push('warning', `Record type Id ${row.showIfValue} is not in this org.`, 'showIfValue');
+        }
+
+        // A formula or system field cannot be edited whatever the config says, so
+        // "editable" on one is a promise the page cannot keep.
+        const described = ctx.fields && row.apiName ? ctx.fields[row.apiName] : null;
+        if (row.editable === true && described && described.updateable === false) {
+            push(
+                'warning',
+                `${row.apiName} is not updateable in this org`
+                + `${described.calculated ? ' (it is a formula field)' : ''}`
+                + ', so it will render read-only whatever "editable" says.',
+                'editable'
+            );
         }
     });
 
@@ -668,8 +685,14 @@ function validateSection(section, context) {
     return findings;
 }
 
-function withRowAdded(rows, apiName, label) {
-    return rows.concat({ apiName, label, editable: true });
+/**
+ * A new row, editable by default — unless the caller knows the org will not accept an
+ * update, in which case claiming editability would be a lie the page cannot keep.
+ */
+function withRowAdded(rows, apiName, label, editable = true) {
+    const row = { apiName, label };
+    if (editable) row.editable = true;
+    return rows.concat(row);
 }
 
 function withRowMoved(rows, index, step) {

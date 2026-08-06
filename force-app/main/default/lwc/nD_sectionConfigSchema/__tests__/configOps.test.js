@@ -12,7 +12,8 @@ import {
     withSectionKeySet,
     selectionAfterRemoval,
     resolveSectionSettings,
-    validateSection
+    validateSection,
+    validateConfig
 } from 'c/nD_sectionConfigSchema';
 
 describe('orderRow / serialize', () => {
@@ -318,5 +319,57 @@ describe('withSectionKeySet', () => {
     it('drops a false checkbox so the default stays implicit', () => {
         expect('startCollapsed' in withSectionKeySet({ startCollapsed: true }, 'startCollapsed', false))
             .toBe(false);
+    });
+});
+
+describe('fields the org will not let anyone edit', () => {
+    const CTX = {
+        fields: {
+            Status: { label: 'Status', updateable: true, calculated: false },
+            CaseNumber: { label: 'Case Number', updateable: false, calculated: false },
+            AVB_ICAO_Account__c: { label: 'ICAO Account', updateable: false, calculated: true }
+        }
+    };
+
+    it('warns that editable cannot work on a formula field, and says it is a formula', () => {
+        const findings = validateConfig([{ apiName: 'AVB_ICAO_Account__c', editable: true }], CTX);
+        const warning = findings.find(f => f.key === 'editable');
+        expect(warning).toBeDefined();
+        expect(warning.level).toBe('warning');
+        expect(warning.message).toContain('not updateable');
+        expect(warning.message).toContain('formula field');
+    });
+
+    it('warns for a non-updateable field that is not a formula, without calling it one', () => {
+        const findings = validateConfig([{ apiName: 'CaseNumber', editable: true }], CTX);
+        const warning = findings.find(f => f.key === 'editable');
+        expect(warning.message).toContain('not updateable');
+        expect(warning.message).not.toContain('formula');
+    });
+
+    it('says nothing when such a field is left read-only', () => {
+        expect(validateConfig([{ apiName: 'AVB_ICAO_Account__c' }], CTX)).toEqual([]);
+    });
+
+    it('says nothing about an ordinary updateable field', () => {
+        expect(validateConfig([{ apiName: 'Status', editable: true }], CTX)).toEqual([]);
+    });
+
+    it('stays quiet before the describe has arrived', () => {
+        expect(validateConfig([{ apiName: 'AVB_ICAO_Account__c', editable: true }], {})).toEqual([]);
+    });
+});
+
+describe('withRowAdded editability', () => {
+    it('marks a normal field editable', () => {
+        expect(withRowAdded([], 'Status', 'Status')).toEqual([
+            { apiName: 'Status', label: 'Status', editable: true }
+        ]);
+    });
+
+    it('omits editable entirely when the org will not accept an update', () => {
+        expect(withRowAdded([], 'AVB_ICAO_Account__c', 'ICAO Account', false)).toEqual([
+            { apiName: 'AVB_ICAO_Account__c', label: 'ICAO Account' }
+        ]);
     });
 });

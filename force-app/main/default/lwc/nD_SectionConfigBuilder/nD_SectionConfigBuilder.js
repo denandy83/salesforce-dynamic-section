@@ -128,6 +128,17 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         return labels;
     }
 
+    // The describe is the authority on whether a field can be written at all.
+    isNotUpdateable(apiName) {
+        const field = apiName ? this.objectFields[apiName] : null;
+        return !!field && field.updateable === false;
+    }
+
+    isFormula(apiName) {
+        const field = apiName ? this.objectFields[apiName] : null;
+        return !!(field && field.calculated);
+    }
+
     labelFor(apiName) {
         const field = this.objectFields[apiName];
         return (field && field.label) || apiName;
@@ -192,6 +203,16 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     badgesFor(row, invalid) {
         const badges = [];
         if (invalid) badges.push({ key: 'bad', label: 'invalid', cssClass: 'nd-badge nd-badge_bad' });
+
+        // Org-derived, not config-derived: worth showing so a formula field is obvious in
+        // the list rather than only once the row is selected.
+        if (this.isNotUpdateable(row.apiName)) {
+            badges.push({
+                key: 'notUpdateable',
+                label: this.isFormula(row.apiName) ? 'formula' : 'not editable',
+                cssClass: 'nd-badge nd-badge_locked'
+            });
+        }
 
         const widget = widgetOf(row);
         if (widget) {
@@ -319,8 +340,11 @@ export default class ND_SectionConfigBuilder extends LightningElement {
 
     handleAddRow() {
         if (!this.fieldToAdd) return;
-        this.rows = withRowAdded(this.rows, this.fieldToAdd, this.labelFor(this.fieldToAdd));
+        const editable = !this.isNotUpdateable(this.fieldToAdd);
+        this.rows = withRowAdded(this.rows, this.fieldToAdd, this.labelFor(this.fieldToAdd), editable);
         this.selectedIndex = this.rows.length - 1;
+        // Adding a row means you want to configure it, so move the pane off the section
+        this.editingSection = false;
         this.fieldToAdd = '';
         this.refreshPreview();
     }
@@ -340,6 +364,7 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         const index = Number(event.currentTarget.dataset.index);
         this.rows = withRowDuplicated(this.rows, index);
         this.selectedIndex = index + 1;
+        this.editingSection = false;
         this.refreshPreview();
     }
 
@@ -386,6 +411,9 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         const value = row[def.key];
         const gate = def.requires ? row[def.requires] : null;
         const gated = !!def.requires;
+        // A formula/rollup/system field reports updateable:false. Offering "editable" on
+        // one would imply the page could edit it, which it cannot.
+        const orgBlocked = def.requiresUpdateable && this.isNotUpdateable(row.apiName);
         // showIfValue against RecordTypeId is the one place an 18-character Id would
         // otherwise be typed by hand, so it becomes a picklist of record type names.
         const asRecordType = def.control === 'recordType' && gate === 'RecordTypeId';
@@ -393,9 +421,13 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         return {
             key: def.key,
             label: def.label,
-            help: asRecordType
-                ? 'Record types are listed by name; the Id is written to the JSON.'
-                : def.help,
+            help: orgBlocked
+                ? `${row.apiName} cannot be edited in this org`
+                  + `${this.isFormula(row.apiName) ? ' — it is a formula field' : ''}`
+                  + ', so this row always renders read-only.'
+                : (asRecordType
+                    ? 'Record types are listed by name; the Id is written to the JSON.'
+                    : def.help),
             title: def.title || def.label,
             isText: def.control === 'text' || (def.control === 'recordType' && !asRecordType),
             isCheck: def.control === 'check',
@@ -405,8 +437,8 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             isIcon: def.control === 'icon',
             isRecordType: asRecordType,
             value: value === undefined ? '' : String(value),
-            checked: value === true,
-            disabled: gated && isBlank(gate),
+            checked: value === true && !orgBlocked,
+            disabled: (gated && isBlank(gate)) || orgBlocked,
             placeholder: this.placeholderFor(def, row, gated, gate),
             options: this.optionsFor(def, asRecordType),
             swatchStyle: def.control === 'color' ? `background:${value || 'transparent'}` : '',
