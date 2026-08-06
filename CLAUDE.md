@@ -20,12 +20,18 @@ Reads ONE JSON document from the `ND_jsonConfigString` App Builder property:
 fields-only shape. **Section settings live in the JSON** (`title`, `icon`, `columns`,
 `startCollapsed`, `headerColor`, `headerTextColor`, `alertField`, `alertValue`,
 `alertColor`, `alertTextColor`) — see `SECTION_KEYS` in the schema module.
-- **Two App Builder properties, in this order:** `ND_configBuilderUrl` (① a copyable box
-  holding `/lightning/n/ND_Section_Config_Builder` — App Builder cannot render a clickable
-  link, and the component reuses this value for the link in its unconfigured prompt) and
-  `ND_jsonConfigString` (② the whole configuration). The ten old section properties were
-  deleted on 2026-08-06 along with `ND_showConfigDiagnostics`. Config problems go to
+- **`ND_jsonConfigString` is the ONE App Builder property, and must stay that way.** The
+  setup instructions live in its `description`, because that is the only place text can go
+  in a property panel: **there is no label-only or help-only property type**, so guidance
+  added as its own entry becomes an input box nobody should type in. Config problems go to
   `console.warn` only; validation happens in the builder.
+- **⚠️ Never add a property here casually.** The platform refuses to remove a property tag
+  while the component is on any Lightning page, and clearing every value is not enough — it
+  takes stripping the component from all 8 pages, deploying, removing the tag, restoring the
+  pages, deploying. That sequence has been run **twice**: once for the ten legacy section
+  properties, once for a `ND_configBuilderUrl` box that turned out to be exactly the input
+  nobody should type in. Scripts for it are in the scratchpad
+  (`strip_flexipages.py`, `migrate_flexipages.py`); originals in commit `dcee5a9`.
 - **⚠️ Adding a property here is hard to undo.** The platform refuses to remove a property
   tag while the component is on any Lightning page — *"You can't remove the property tag
   named '…'. The component is in use on one or more Lightning pages"* — and **clearing every
