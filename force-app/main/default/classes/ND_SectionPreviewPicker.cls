@@ -88,6 +88,46 @@ public with sharing class ND_SectionPreviewPicker {
         return null;
     }
 
+    /**
+     * Picklist values for several fields at once, so the builder can offer real choices
+     * instead of a free-text box for "…is one of" conditions.
+     *
+     * Values across ALL record types, deliberately: a config row can be shown on one
+     * record type and coloured by a value only available on another, and an admin needs
+     * to see every value the field can hold. Non-picklist fields are simply absent from
+     * the result, which is how the caller knows to fall back to a text box.
+     */
+    @AuraEnabled(cacheable=true)
+    public static Map<String, List<String>> getPicklistValues(
+        String objectApiName,
+        List<String> fieldNames
+    ) {
+        Map<String, List<String>> out = new Map<String, List<String>>();
+        if (fieldNames == null || fieldNames.isEmpty()) return out;
+
+        Schema.DescribeSObjectResult describe = describeOrThrow(objectApiName);
+        Map<String, Schema.SObjectField> fields = describe.fields.getMap();
+
+        for (String fieldName : fieldNames) {
+            if (String.isBlank(fieldName)) continue;
+            Schema.SObjectField token = fields.get(fieldName.toLowerCase());
+            if (token == null) continue;
+
+            Schema.DescribeFieldResult field = token.getDescribe();
+            Schema.DisplayType type = field.getType();
+            if (type != Schema.DisplayType.PICKLIST && type != Schema.DisplayType.MULTIPICKLIST) {
+                continue;
+            }
+
+            List<String> values = new List<String>();
+            for (Schema.PicklistEntry entry : field.getPicklistValues()) {
+                if (entry.isActive()) values.add(entry.getValue());
+            }
+            out.put(field.getName(), values);
+        }
+        return out;
+    }
+
     // --- internals ----------------------------------------------------------------
 
     private static List<SObject> queryRecent(String objectName, String fieldList, Boolean viewedOnly) {

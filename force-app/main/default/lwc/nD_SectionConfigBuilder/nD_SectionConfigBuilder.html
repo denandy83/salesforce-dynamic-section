@@ -204,6 +204,20 @@
                                                 options={ctrl.options} data-key={ctrl.key}
                                                 onchange={handleSectionChange}></lightning-combobox>
                                         </template>
+                                        <template if:true={ctrl.isValues}>
+                                            <lightning-checkbox-group label={ctrl.label}
+                                                options={ctrl.valueOptions}
+                                                value={ctrl.selectedValues}
+                                                disabled={ctrl.disabled}
+                                                data-key={ctrl.key}
+                                                onchange={handleSectionChange}></lightning-checkbox-group>
+                                        </template>
+                                        <template if:true={ctrl.isValuesText}>
+                                            <lightning-input label={ctrl.label} value={ctrl.value}
+                                                placeholder={ctrl.placeholder} disabled={ctrl.disabled}
+                                                data-key={ctrl.key}
+                                                onchange={handleSectionChange}></lightning-input>
+                                        </template>
 
                                         <!-- Colour: a native picker for choosing, a text box
                                              for pasting a brand hex or a CSS colour name. -->
@@ -304,6 +318,23 @@
                                                 options={ctrl.options} data-key={ctrl.key}
                                                 onchange={handleControlChange}></lightning-combobox>
                                         </template>
+                                        <!-- "…is one of": real choices when the watched
+                                             field has them, free text when it does not.
+                                             Stored as a comma-separated string either way. -->
+                                        <template if:true={ctrl.isValues}>
+                                            <lightning-checkbox-group label={ctrl.label}
+                                                options={ctrl.valueOptions}
+                                                value={ctrl.selectedValues}
+                                                disabled={ctrl.disabled}
+                                                data-key={ctrl.key}
+                                                onchange={handleControlChange}></lightning-checkbox-group>
+                                        </template>
+                                        <template if:true={ctrl.isValuesText}>
+                                            <lightning-input label={ctrl.label} value={ctrl.value}
+                                                placeholder={ctrl.placeholder} disabled={ctrl.disabled}
+                                                data-key={ctrl.key}
+                                                onchange={handleControlChange}></lightning-input>
+                                        </template>
                                         <template if:true={ctrl.isSelect}>
                                             <lightning-combobox label={ctrl.label} value={ctrl.value}
                                                 options={ctrl.options} data-key={ctrl.key}
@@ -359,6 +390,21 @@
                                                         value={ctrl.value} options={ctrl.options}
                                                         data-key={ctrl.key}
                                                         onchange={handleControlChange}></lightning-combobox>
+                                                </template>
+                                                <template if:true={ctrl.isValues}>
+                                                    <lightning-checkbox-group label={ctrl.label}
+                                                        options={ctrl.valueOptions}
+                                                        value={ctrl.selectedValues}
+                                                        disabled={ctrl.disabled}
+                                                        data-key={ctrl.key}
+                                                        onchange={handleControlChange}></lightning-checkbox-group>
+                                                </template>
+                                                <template if:true={ctrl.isValuesText}>
+                                                    <lightning-input label={ctrl.label}
+                                                        value={ctrl.value}
+                                                        placeholder={ctrl.placeholder}
+                                                        disabled={ctrl.disabled} data-key={ctrl.key}
+                                                        onchange={handleControlChange}></lightning-input>
                                                 </template>
                                                 <p class="nd-help">
                                                     <code>{ctrl.key}</code> — {ctrl.help}

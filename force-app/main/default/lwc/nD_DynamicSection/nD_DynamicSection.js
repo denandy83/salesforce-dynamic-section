@@ -725,7 +725,11 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         if (item.showIfField) {
             if (!this.ND_recordData || !this.ND_recordData.fields[item.showIfField]) return false;
             const fieldVal = this.ND_recordData.fields[item.showIfField].value;
-            if (item.showIfValue !== undefined) return fieldVal === item.showIfValue;
+            // Comma-separated membership, matching colorIfValue and requiredIfValue. This
+            // used to be exact equality, which made showIfValue the only condition in the
+            // config that could not hold a list — so a row could be scoped to one record
+            // type but never to two. A single value still behaves identically.
+            if (item.showIfValue !== undefined) return matchesCsv(fieldVal, item.showIfValue);
             return !!fieldVal;
         }
         return true;

@@ -34,7 +34,9 @@ fields-only shape. **Section settings live in the JSON** (`title`, `icon`, `colu
 Each `fields` entry is a field row.
 Supported per-field keys:
 - `apiName` (required), `label`, `editable`, `colSpan` (2 = full width)
-- **Visibility:** `showIfField` + `showIfValue` (string equality; omit value = truthy check)
+- **Visibility:** `showIfField` + `showIfValue` (comma-separated **membership**; omit value = truthy
+  check). Was exact equality until 2026-08-06 — the only condition that could not hold a list, so a
+  row could be scoped to one record type but never two. A single value behaves identically.
 - **Field alert:** `color` + `colorIfField`/`colorIfValue` (comma-separated equality/membership) → bottom underline on the field value/control
 - `isRecordLink` — value is a record Id; opens via `NavigationMixin` (corner open-window icon)
 - `isUrl` — single link: empty = paste input, saved = clickable link + `×` to clear
@@ -102,7 +104,14 @@ Supported per-field keys:
   console warning rather than breaking the component. `getRecord` fails the whole request on one
   bad field, which used to blank every custom widget (owner, problem, links) while the standard
   fields kept working.
-- **Constraint:** all conditional logic is equality / membership / truthy only — **no comparison operators and no date logic** (e.g. "date on or before today" is NOT expressible in config yet).
+- **Constraint:** all conditional logic is equality / membership / truthy only — **no comparison
+  operators and no date logic** (e.g. "date on or before today" is NOT expressible in config yet).
+  There is also **one condition per row** — a row has a single `showIfField`, so two conditions
+  cannot be combined.
+- **Every `…is one of` control is a multi-select in the builder** where the watched field has fixed
+  values: record types (offered by name, Ids written) and picklists (via
+  `ND_SectionPreviewPicker.getPicklistValues`). Anything else falls back to a comma-separated text
+  box. Applies to `showIfValue`, `colorIfValue`, `requiredIfValue` and the section's `alertValue`.
 
 ### `lwc/nD_SectionConfigBuilder` (+ tab `ND_Section_Config_Builder`)
 The visual editor, at **`/lightning/n/ND_Section_Config_Builder`**. Three panes: Section +

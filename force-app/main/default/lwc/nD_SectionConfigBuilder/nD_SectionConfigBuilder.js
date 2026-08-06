@@ -8,6 +8,7 @@ import {
 } from 'lightning/platformWorkspaceApi';
 import getRecentRecords from '@salesforce/apex/ND_SectionPreviewPicker.getRecentRecords';
 import resolveRecordId from '@salesforce/apex/ND_SectionPreviewPicker.resolveRecordId';
+import getPicklistValues from '@salesforce/apex/ND_SectionPreviewPicker.getPicklistValues';
 import {
     WIDGETS,
     SECTION_GROUPS,
@@ -79,6 +80,7 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     previewRecordId = '';
     previewVisible = true;
     @track recentRecords = [];
+    @track picklistValues = {};
     recordSearch = '';
     recordSearchError = '';
     importText = '';
@@ -169,6 +171,36 @@ export default class ND_SectionConfigBuilder extends LightningElement {
                 this.recordSearchError = 'Could not look that up.';
                 console.warn('nD_SectionConfigBuilder: record lookup failed', error);
             });
+    }
+
+    /**
+     * Fields any "…is one of" control might need choices for. One wire covers all of them
+     * because several conditions can each watch a different field at the same time, and
+     * the alternative is a separate wire per condition.
+     */
+    get valueSourceFields() {
+        const row = this.selectedRow || {};
+        const wanted = new Set();
+
+        CONFIG_KEYS.concat(SECTION_KEYS).forEach(def => {
+            if (!def.valuesFrom) return;
+            const source = def.group && def.group.startsWith('section') ? this.section : row;
+            const field = source[def.valuesFrom];
+            if (field) wanted.add(field);
+            // colorIfValue with no colorIfField watches the row's own field
+            else if (def.valuesFromSelf && row.apiName) wanted.add(row.apiName);
+        });
+
+        return Array.from(wanted).sort();
+    }
+
+    @wire(getPicklistValues, { objectApiName: '$objectApiName', fieldNames: '$valueSourceFields' })
+    wiredPicklistValues({ data, error }) {
+        this.picklistValues = data || {};
+        if (error) {
+            this.picklistValues = {};
+            console.warn('nD_SectionConfigBuilder: could not load picklist values', error);
+        }
     }
 
     @wire(getObjectInfo, { objectApiName: '$objectApiName' })
@@ -373,6 +405,7 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         else if (event.detail && event.detail.value !== undefined) value = event.detail.value;
         else value = event.target.value;
 
+        if (Array.isArray(value)) value = value.join(',');
         if (key === 'columns' && value !== '') value = Number(value);
 
         this.section = withSectionKeySet(this.section, key, value);
@@ -481,6 +514,8 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         // A formula/rollup/system field reports updateable:false. Offering "editable" on
         // one would imply the page could edit it, which it cannot.
         const orgBlocked = def.requiresUpdateable && this.isNotUpdateable(row.apiName);
+        // Real choices when the watched field has them; a text box when it does not.
+        const valueChoices = def.control === 'values' ? this.choicesFor(def, row) : null;
         // showIfValue against RecordTypeId is the one place an 18-character Id would
         // otherwise be typed by hand, so it becomes a picklist of record type names.
         const asRecordType = def.control === 'recordType' && gate === 'RecordTypeId';
@@ -503,6 +538,10 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             isColor: def.control === 'color',
             isIcon: def.control === 'icon',
             isRecordType: asRecordType,
+            isValues: def.control === 'values' && !!valueChoices,
+            isValuesText: def.control === 'values' && !valueChoices,
+            valueOptions: valueChoices || [],
+            selectedValues: valueChoices ? this.splitCsv(value) : [],
             value: value === undefined ? '' : String(value),
             checked: value === true && !orgBlocked,
             disabled: (gated && isBlank(gate)) || orgBlocked,
@@ -529,6 +568,35 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         if (NAMED_COLOURS[raw.toLowerCase()]) return NAMED_COLOURS[raw.toLowerCase()];
         if (/^#[0-9a-f]{6}$/i.test(String(fallback || ''))) return String(fallback).toLowerCase();
         return '#000000';
+    }
+
+    /**
+     * Options for a "…is one of" control, or null when the watched field has no fixed set
+     * of values and free text is the only sensible input.
+     *
+     * Record types are offered by name while their Ids are what gets written, so nobody
+     * has to recognise an 18-character Id.
+     */
+    choicesFor(def, source) {
+        const row = source || {};
+        const watched = def.valuesFrom
+            ? (row[def.valuesFrom] || (def.valuesFromSelf ? row.apiName : ''))
+            : '';
+        if (!watched) return null;
+
+        if (watched === 'RecordTypeId') {
+            const types = this.recordTypesById;
+            const ids = Object.keys(types);
+            return ids.length ? ids.map(id => ({ label: types[id], value: id })) : null;
+        }
+
+        const values = this.picklistValues[watched];
+        return values && values.length ? values.map(v => ({ label: v, value: v })) : null;
+    }
+
+    splitCsv(value) {
+        if (value === undefined || value === null || value === '') return [];
+        return String(value).split(',').map(v => v.trim()).filter(Boolean);
     }
 
     placeholderFor(def, row, gated, gate) {
@@ -576,6 +644,9 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         if (def && def.control === 'check') value = event.target.checked;
         else if (event.detail && event.detail.value !== undefined) value = event.detail.value;
         else value = event.target.value;
+
+        // A multi-select hands back an array; the config format is a comma-separated string
+        if (Array.isArray(value)) value = value.join(',');
 
         // colSpan is the only numeric key; keep it a number so it matches what the runtime
         // compares against (item.colSpan === 2).

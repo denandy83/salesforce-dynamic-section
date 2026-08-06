@@ -136,8 +136,9 @@ const SECTION_KEYS = [
         key: 'alertValue',
         group: 'sectionAlert',
         label: '…is one of',
-        control: 'text',
+        control: 'values',
         requires: 'alertField',
+        valuesFrom: 'alertField',
         legacy: 'ND_headerLogicValue',
         placeholder: 'High,Urgent',
         help: 'Comma-separated membership. Empty means any non-blank value.'
@@ -266,10 +267,11 @@ const CONFIG_KEYS = [
     {
         key: 'showIfValue',
         group: 'visibility',
-        label: '…equals this value',
-        control: 'recordType',
+        label: '…is one of',
+        control: 'values',
         requires: 'showIfField',
-        help: 'Empty means "any non-blank value". Exact string equality, not membership.'
+        valuesFrom: 'showIfField',
+        help: 'Comma-separated membership. Empty means "any non-blank value".'
     },
 
     {
@@ -305,7 +307,11 @@ const CONFIG_KEYS = [
         key: 'colorIfValue',
         group: 'alert',
         label: '…is one of',
-        control: 'text',
+        control: 'values',
+        valuesFrom: 'colorIfField',
+        // colorIfField empty means "watch this row's own field", so the choices come from
+        // the row's own apiName in that case.
+        valuesFromSelf: true,
         placeholder: 'High,Urgent',
         help: 'Comma-separated membership.'
     },
@@ -346,9 +352,10 @@ const CONFIG_KEYS = [
         key: 'requiredIfValue',
         group: 'takeover',
         label: '…is one of',
-        control: 'text',
+        control: 'values',
         nested: true,
         requires: 'requiredIfField',
+        valuesFrom: 'requiredIfField',
         placeholder: 'Bug or Incident',
         appliesWhen: row => row.requiredBeforeTakeover === true,
         help: 'Comma-separated. Empty means "any non-blank value".'

@@ -3,6 +3,7 @@ import ND_SectionConfigBuilder from 'c/nD_SectionConfigBuilder';
 import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import getRecentRecords from '@salesforce/apex/ND_SectionPreviewPicker.getRecentRecords';
 import resolveRecordId from '@salesforce/apex/ND_SectionPreviewPicker.resolveRecordId';
+import getPicklistValues from '@salesforce/apex/ND_SectionPreviewPicker.getPicklistValues';
 
 // Both Apex imports need explicit mocks: getRecentRecords is consumed through @wire and
 // needs a test wire adapter to push data in; resolveRecordId is imperative and needs a
@@ -18,6 +19,14 @@ jest.mock(
 jest.mock(
     '@salesforce/apex/ND_SectionPreviewPicker.resolveRecordId',
     () => ({ default: jest.fn(() => Promise.resolve(null)) }),
+    { virtual: true }
+);
+jest.mock(
+    '@salesforce/apex/ND_SectionPreviewPicker.getPicklistValues',
+    () => {
+        const { createApexTestWireAdapter } = require('@salesforce/wire-service-jest-util');
+        return { default: createApexTestWireAdapter(jest.fn()) };
+    },
     { virtual: true }
 );
 import {
@@ -37,7 +46,8 @@ const OBJECT_INFO = {
         Status: { apiName: 'Status', label: 'Status' },
         Type: { apiName: 'Type', label: 'Issue Type' },
         AVB_Environment__c: { apiName: 'AVB_Environment__c', label: 'Environment' },
-        RecordTypeId: { apiName: 'RecordTypeId', label: 'Record Type' }
+        RecordTypeId: { apiName: 'RecordTypeId', label: 'Record Type' },
+        Subject: { apiName: 'Subject', label: 'Subject' }
     },
     recordTypeInfos: {
         '012KB000000kcw4YAA': { recordTypeId: '012KB000000kcw4YAA', name: 'AvioBook Case' },
@@ -255,16 +265,74 @@ describe('the property pane is generated from the registry', () => {
         );
     });
 
-    it('offers record type names rather than Ids for showIfValue', async () => {
+    it('offers record type names rather than Ids for showIfValue, as a multi-select', async () => {
         const element = mount();
         getObjectInfo.emit(OBJECT_INFO);
         await Promise.resolve();
         await loadOneRow(element, '[{"apiName":"AVB_Environment__c","showIfField":"RecordTypeId"}]');
 
-        const combos = Array.from(element.shadowRoot.querySelectorAll('lightning-combobox'));
-        const labels = combos.flatMap(c => (c.options || []).map(o => o.label));
-        expect(labels).toContain('AvioBook Case');
-        expect(labels).toContain('AvioData Case');
+        const group = Array.from(element.shadowRoot.querySelectorAll('lightning-checkbox-group'))
+            .find(g => g.label === '…is one of');
+        expect(group).not.toBeUndefined();
+        expect(group.options.map(o => o.label)).toEqual(['AvioBook Case', 'AvioData Case']);
+        // Names are shown; the Ids are what gets written
+        expect(group.options.map(o => o.value))
+            .toEqual(['012KB000000kcw4YAA', '012KB000000kcw5YAA']);
+    });
+
+    it('preselects the values already in the config and writes several back', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+        await loadOneRow(
+            element,
+            '[{"apiName":"AVB_Environment__c","showIfField":"RecordTypeId",'
+            + '"showIfValue":"012KB000000kcw4YAA"}]'
+        );
+
+        const group = Array.from(element.shadowRoot.querySelectorAll('lightning-checkbox-group'))
+            .find(g => g.label === '…is one of');
+        expect(group.value).toEqual(['012KB000000kcw4YAA']);
+
+        group.dispatchEvent(new CustomEvent('change', {
+            detail: { value: ['012KB000000kcw4YAA', '012KB000000kcw5YAA'] }
+        }));
+        await Promise.resolve();
+
+        expect(text(element, '.nd-json'))
+            .toContain('"showIfValue":"012KB000000kcw4YAA,012KB000000kcw5YAA"');
+    });
+
+    it('offers picklist values for a picklist field', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+        await loadOneRow(element, '[{"apiName":"AVB_Environment__c","showIfField":"Type"}]');
+
+        getPicklistValues.emit({ Type: ['Bug or Incident', 'Service Request'] });
+        await Promise.resolve();
+
+        const group = Array.from(element.shadowRoot.querySelectorAll('lightning-checkbox-group'))
+            .find(g => g.label === '…is one of');
+        expect(group.options.map(o => o.value)).toEqual(['Bug or Incident', 'Service Request']);
+    });
+
+    it('falls back to a text box when the watched field has no fixed values', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+        await loadOneRow(element, '[{"apiName":"AVB_Environment__c","showIfField":"Subject"}]');
+
+        getPicklistValues.emit({});
+        await Promise.resolve();
+
+        const group = Array.from(element.shadowRoot.querySelectorAll('lightning-checkbox-group'))
+            .find(g => g.label === '…is one of');
+        expect(group).toBeUndefined();
+
+        const input = Array.from(element.shadowRoot.querySelectorAll('lightning-input'))
+            .find(i => i.label === '…is one of');
+        expect(input).not.toBeUndefined();
     });
 });
 

@@ -135,6 +135,66 @@ private class ND_SectionPreviewPickerTest {
     }
 
     @isTest
+    static void returnsActivePicklistValuesForPicklistFields() {
+        Test.startTest();
+        Map<String, List<String>> values = ND_SectionPreviewPicker.getPicklistValues(
+            'Case', new List<String>{ 'Status', 'Priority' }
+        );
+        Test.stopTest();
+
+        System.assert(values.containsKey('Status'), 'Status is a picklist');
+        System.assert(values.containsKey('Priority'), 'Priority is a picklist');
+        System.assert(!values.get('Status').isEmpty(), 'Status should have values');
+    }
+
+    // A non-picklist field is absent rather than empty, which is how the caller knows to
+    // fall back to a free-text box.
+    @isTest
+    static void omitsFieldsThatAreNotPicklists() {
+        Test.startTest();
+        Map<String, List<String>> values = ND_SectionPreviewPicker.getPicklistValues(
+            'Case', new List<String>{ 'Subject', 'CaseNumber', 'Status' }
+        );
+        Test.stopTest();
+
+        System.assert(!values.containsKey('Subject'), 'Subject is text, not a picklist');
+        System.assert(!values.containsKey('CaseNumber'), 'CaseNumber is not a picklist');
+        System.assert(values.containsKey('Status'), 'Status still comes back');
+    }
+
+    @isTest
+    static void ignoresUnknownAndBlankFieldNames() {
+        Test.startTest();
+        Map<String, List<String>> values = ND_SectionPreviewPicker.getPicklistValues(
+            'Case', new List<String>{ 'NotAField__c', '', null, 'Status' }
+        );
+        Test.stopTest();
+
+        System.assertEquals(1, values.size(), 'Only the real picklist should come back');
+        System.assert(values.containsKey('Status'));
+    }
+
+    @isTest
+    static void isCaseInsensitiveAboutFieldNames() {
+        Test.startTest();
+        Map<String, List<String>> values = ND_SectionPreviewPicker.getPicklistValues(
+            'Case', new List<String>{ 'sTaTuS' }
+        );
+        Test.stopTest();
+
+        System.assert(values.containsKey('Status'), 'The canonical field name should be the key');
+    }
+
+    @isTest
+    static void returnsAnEmptyMapForNoFields() {
+        System.assertEquals(
+            0,
+            ND_SectionPreviewPicker.getPicklistValues('Case', new List<String>()).size()
+        );
+        System.assertEquals(0, ND_SectionPreviewPicker.getPicklistValues('Case', null).size());
+    }
+
+    @isTest
     static void rejectsABlankObject() {
         Boolean threw = false;
         try {
