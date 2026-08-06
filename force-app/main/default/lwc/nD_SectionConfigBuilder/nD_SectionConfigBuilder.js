@@ -6,6 +6,8 @@ import {
     setTabLabel,
     setTabIcon
 } from 'lightning/platformWorkspaceApi';
+import getRecentRecords from '@salesforce/apex/ND_SectionPreviewPicker.getRecentRecords';
+import resolveRecordId from '@salesforce/apex/ND_SectionPreviewPicker.resolveRecordId';
 import {
     WIDGETS,
     SECTION_GROUPS,
@@ -46,6 +48,10 @@ import {
  */
 
 // What the console workspace tab is called. Without this it reads "Loading..." forever.
+// Section settings the preview cannot pick up without being rebuilt: startCollapsed is
+// read once in connectedCallback. Everything else is a getter and updates in place.
+const REMOUNT_ON_SECTION_KEYS = ['startCollapsed'];
+
 const TAB_LABEL = 'Config Builder';
 const TAB_ICON = 'utility:builder';
 
@@ -68,11 +74,13 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     // The section settings and the field rows are edited in the same middle pane, so one
     // flag decides which. Start on the section: it is what a new config needs first.
     @track editingSection = true;
-    iconFilter = '';
     importNotice = '';
 
     previewRecordId = '';
     previewVisible = true;
+    @track recentRecords = [];
+    recordSearch = '';
+    recordSearchError = '';
     importText = '';
     importError = '';
     copyLabel = 'Copy JSON';
@@ -95,6 +103,72 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     wiredIsConsoleNavigation(isConsole) {
         this.isConsoleNavigation = isConsole === true;
         if (this.isConsoleNavigation) this._nameConsoleTab();
+    }
+
+    /**
+     * Records the user recently looked at, so a preview target can be picked instead of
+     * pasting an 18-character Id. Falls back to recently modified for a user who has
+     * viewed nothing yet.
+     */
+    @wire(getRecentRecords, { objectApiName: '$objectApiName' })
+    wiredRecentRecords({ data, error }) {
+        if (data) {
+            this.recentRecords = data;
+            // Nothing chosen yet: start on the most recent record so the preview has
+            // something real to render the moment the page opens.
+            if (!this.previewRecordId && data.length) this.previewRecordId = data[0].id;
+            return;
+        }
+        if (error) {
+            this.recentRecords = [];
+            console.warn('nD_SectionConfigBuilder: could not load recent records', error);
+        }
+    }
+
+    get recentRecordOptions() {
+        return this.recentRecords.map(r => ({
+            label: r.sublabel ? `${r.label} — ${r.sublabel}` : r.label,
+            value: r.id
+        }));
+    }
+
+    get hasRecentRecords() {
+        return this.recentRecords.length > 0;
+    }
+
+    handleRecentRecordChange(event) {
+        this.previewRecordId = event.detail.value;
+        this.recordSearchError = '';
+        this.refreshPreview();
+    }
+
+    /**
+     * Accepts a case number as well as an Id, resolved by Apex — a case number is what
+     * someone reading a ticket actually has to hand, and it is stored zero-padded, so
+     * "12024" has to match "00012024".
+     */
+    handleRecordSearch(event) {
+        const term = (event.target.value || '').trim();
+        this.recordSearch = term;
+        if (!term) {
+            this.recordSearchError = '';
+            return;
+        }
+
+        resolveRecordId({ objectApiName: this.objectApiName, term })
+            .then(recordId => {
+                if (recordId) {
+                    this.previewRecordId = recordId;
+                    this.recordSearchError = '';
+                } else {
+                    this.recordSearchError = `No ${this.objectApiName} matches "${term}".`;
+                }
+                this.refreshPreview();
+            })
+            .catch(error => {
+                this.recordSearchError = 'Could not look that up.';
+                console.warn('nD_SectionConfigBuilder: record lookup failed', error);
+            });
     }
 
     @wire(getObjectInfo, { objectApiName: '$objectApiName' })
@@ -302,14 +376,14 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         if (key === 'columns' && value !== '') value = Number(value);
 
         this.section = withSectionKeySet(this.section, key, value);
-        this.refreshPreview();
+
+        // Colours, title, icon and columns are all read from the config string by getters,
+        // so the preview picks them up on the next render. Remounting would make the whole
+        // card flash on every drag of the colour picker.
+        if (REMOUNT_ON_SECTION_KEYS.includes(key)) this.refreshPreview();
     }
 
     /* --- icon picker ------------------------------------------------------------ */
-    handleIconFilter(event) {
-        this.iconFilter = (event.target.value || '').trim().toLowerCase();
-    }
-
     handlePickIcon(event) {
         this.section = withSectionKeySet(this.section, 'icon', event.currentTarget.dataset.icon);
         this.refreshPreview();
@@ -320,18 +394,11 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     // immediately visible rather than silently blank.
     get iconChoices() {
         const current = this.resolvedSection.icon;
-        const filter = this.iconFilter;
-        return ICON_CHOICES
-            .filter(name => !filter || name.toLowerCase().includes(filter))
-            .map(name => ({
-                key: name,
-                name,
-                cssClass: name === current ? 'nd-icon-choice nd-icon-choice_on' : 'nd-icon-choice'
-            }));
-    }
-
-    get iconChoiceCount() {
-        return `${this.iconChoices.length} of ${ICON_CHOICES.length}`;
+        return ICON_CHOICES.map(name => ({
+            key: name,
+            name,
+            cssClass: name === current ? 'nd-icon-choice nd-icon-choice_on' : 'nd-icon-choice'
+        }));
     }
 
     handleAddFieldChange(event) {
@@ -633,14 +700,17 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         this.refreshPreview();
     }
 
+    // A record Id is all that is needed. Rows are not required: the header — title, icon
+    // and colours — is the first thing being configured and the first thing worth seeing.
     get canPreview() {
-        return this.previewVisible && this.previewRecordId.length >= 15 && this.rows.length > 0;
+        return this.previewVisible && this.previewRecordId.length >= 15;
     }
 
     get previewHint() {
-        if (!this.rows.length) return 'Add a field row to see a preview.';
         if (this.previewRecordId.length < 15) {
-            return 'Paste a record Id above to preview against real data.';
+            return this.hasRecentRecords
+                ? 'Pick a record above to preview against real data.'
+                : 'Enter a record Id or case number above to preview against real data.';
         }
         return null;
     }

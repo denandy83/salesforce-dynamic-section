@@ -3,15 +3,38 @@
 
         <!-- Header: what object we're building for, and what to preview against -->
         <div class="slds-grid slds-wrap slds-gutters_small nd-topbar">
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_5-of-12">
-                <lightning-input
-                    label="Preview against this record Id"
-                    value={previewRecordId}
-                    placeholder="500... paste a Case Id"
-                    onchange={handlePreviewIdChange}>
-                </lightning-input>
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12">
+                <!-- Recently viewed, so a preview target can be picked rather than typed -->
+                <template if:true={hasRecentRecords}>
+                    <lightning-combobox
+                        label="Preview against"
+                        value={previewRecordId}
+                        options={recentRecordOptions}
+                        onchange={handleRecentRecordChange}>
+                    </lightning-combobox>
+                </template>
+                <template if:false={hasRecentRecords}>
+                    <lightning-input
+                        label="Preview against this record Id"
+                        value={previewRecordId}
+                        placeholder="500…"
+                        onchange={handlePreviewIdChange}>
+                    </lightning-input>
+                </template>
             </div>
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_7-of-12 nd-topbar-actions">
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_3-of-12">
+                <!-- A case number is what someone reading a ticket actually has to hand -->
+                <lightning-input
+                    label="…or find by number / Id"
+                    value={recordSearch}
+                    placeholder="12024"
+                    onchange={handleRecordSearch}>
+                </lightning-input>
+                <template if:true={recordSearchError}>
+                    <p class="nd-import-error">{recordSearchError}</p>
+                </template>
+            </div>
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_5-of-12 nd-topbar-actions">
                 <lightning-button
                     label="Refresh preview"
                     icon-name="utility:refresh"
@@ -209,12 +232,6 @@
                                                     placeholder={ctrl.placeholder} data-key={ctrl.key}
                                                     onchange={handleSectionChange}></lightning-input>
                                             </div>
-                                            <div class="nd-icon-search">
-                                                <lightning-input label="Filter icons"
-                                                    variant="label-hidden" placeholder="Filter icons…"
-                                                    onchange={handleIconFilter}></lightning-input>
-                                                <span class="nd-count">{iconChoiceCount}</span>
-                                            </div>
                                             <div class="nd-icon-grid">
                                                 <template for:each={iconChoices} for:item="choice">
                                                     <button key={choice.key} type="button"
@@ -292,12 +309,20 @@
                                                 options={ctrl.options} data-key={ctrl.key}
                                                 onchange={handleControlChange}></lightning-combobox>
                                         </template>
+                                        <!-- Same colour control as the section panel: a
+                                             native picker to choose with, a text box so a
+                                             brand hex or CSS colour name still works. -->
                                         <template if:true={ctrl.isColor}>
-                                            <div class="nd-swatch-row">
-                                                <span class="nd-swatch" style={ctrl.swatchStyle}></span>
-                                                <lightning-input label={ctrl.label} value={ctrl.value}
-                                                    placeholder={ctrl.placeholder} data-key={ctrl.key}
-                                                    onchange={handleControlChange}></lightning-input>
+                                            <label class="nd-color-label">{ctrl.label}</label>
+                                            <div class="nd-color-row">
+                                                <input type="color" class="nd-color-input"
+                                                    value={ctrl.colorValue} data-key={ctrl.key}
+                                                    title={ctrl.label}
+                                                    onchange={handleControlChange} />
+                                                <input type="text" class="nd-color-text"
+                                                    value={ctrl.value} placeholder={ctrl.placeholder}
+                                                    data-key={ctrl.key}
+                                                    onchange={handleControlChange} />
                                             </div>
                                         </template>
                                         <p class="nd-help">

@@ -229,12 +229,6 @@
     border-radius: 0 0.25rem 0.25rem 0;
 }
 
-.nd-swatch-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 0.5rem;
-}
-
 .nd-swatch {
     flex: 0 0 auto;
     width: 1.5rem;

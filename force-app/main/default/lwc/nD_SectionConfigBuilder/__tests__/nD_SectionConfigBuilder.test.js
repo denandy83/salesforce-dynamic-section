@@ -1,6 +1,25 @@
 import { createElement } from 'lwc';
 import ND_SectionConfigBuilder from 'c/nD_SectionConfigBuilder';
 import { getObjectInfo } from 'lightning/uiObjectInfoApi';
+import getRecentRecords from '@salesforce/apex/ND_SectionPreviewPicker.getRecentRecords';
+import resolveRecordId from '@salesforce/apex/ND_SectionPreviewPicker.resolveRecordId';
+
+// Both Apex imports need explicit mocks: getRecentRecords is consumed through @wire and
+// needs a test wire adapter to push data in; resolveRecordId is imperative and needs a
+// jest.fn whose resolved value each test can set.
+jest.mock(
+    '@salesforce/apex/ND_SectionPreviewPicker.getRecentRecords',
+    () => {
+        const { createApexTestWireAdapter } = require('@salesforce/wire-service-jest-util');
+        return { default: createApexTestWireAdapter(jest.fn()) };
+    },
+    { virtual: true }
+);
+jest.mock(
+    '@salesforce/apex/ND_SectionPreviewPicker.resolveRecordId',
+    () => ({ default: jest.fn(() => Promise.resolve(null)) }),
+    { virtual: true }
+);
 import {
     IsConsoleNavigation,
     setTabLabel,
@@ -318,7 +337,115 @@ describe('live preview', () => {
     it('explains why there is no preview yet', async () => {
         const element = mount();
         await Promise.resolve();
-        expect(element.shadowRoot.textContent).toContain('Add a field row to see a preview.');
+        expect(element.shadowRoot.textContent)
+            .toContain('Enter a record Id or case number above');
+    });
+
+    // The header — title, icon, colours — is the first thing configured, so it must be
+    // previewable before any field rows exist.
+    it('previews the header with no field rows at all', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+
+        const idInput = element.shadowRoot.querySelector('lightning-input');
+        idInput.value = '500KB00000000000AAA';
+        idInput.dispatchEvent(new CustomEvent('change'));
+        await flushMicrotasks();
+
+        const preview = element.shadowRoot.querySelector('c-n-d_-dynamic-section');
+        expect(preview).not.toBeNull();
+        expect(preview.ND_jsonConfigString).toBe('{"section":{},"fields":[]}');
+    });
+});
+
+describe('picking a record to preview against', () => {
+    const RECENT = [
+        { id: '500KB00000000001AAA', label: '00012024', sublabel: 'Login failure' },
+        { id: '500KB00000000002AAA', label: '00012023', sublabel: 'Sync stuck' }
+    ];
+
+    it('offers recently viewed records, newest first', async () => {
+        const element = mount();
+        getRecentRecords.emit(RECENT);
+        await Promise.resolve();
+
+        const combo = Array.from(element.shadowRoot.querySelectorAll('lightning-combobox'))
+            .find(c => c.label === 'Preview against');
+        expect(combo).not.toBeNull();
+        expect(combo.options[0].label).toBe('00012024 — Login failure');
+        expect(combo.options[0].value).toBe('500KB00000000001AAA');
+    });
+
+    it('starts on the most recent record so a preview appears immediately', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        getRecentRecords.emit(RECENT);
+        await flushMicrotasks();
+
+        const preview = element.shadowRoot.querySelector('c-n-d_-dynamic-section');
+        expect(preview).not.toBeNull();
+        expect(preview.recordId).toBe('500KB00000000001AAA');
+    });
+
+    it('falls back to a plain Id box when there are no recent records', async () => {
+        const element = mount();
+        getRecentRecords.emit([]);
+        await Promise.resolve();
+
+        const combo = Array.from(element.shadowRoot.querySelectorAll('lightning-combobox'))
+            .find(c => c.label === 'Preview against');
+        expect(combo).toBeUndefined();
+
+        const idInput = Array.from(element.shadowRoot.querySelectorAll('lightning-input'))
+            .find(i => i.label === 'Preview against this record Id');
+        expect(idInput).not.toBeUndefined();
+    });
+
+    it('resolves a typed case number into a record Id', async () => {
+        resolveRecordId.mockResolvedValue('500KB00000000009AAA');
+
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        getRecentRecords.emit(RECENT);
+        await Promise.resolve();
+
+        const search = Array.from(element.shadowRoot.querySelectorAll('lightning-input'))
+            .find(i => i.label === '…or find by number / Id');
+        search.value = '12024';
+        search.dispatchEvent(new CustomEvent('change'));
+        await flushMicrotasks();
+
+        expect(resolveRecordId).toHaveBeenCalledWith({ objectApiName: 'Case', term: '12024' });
+        const preview = element.shadowRoot.querySelector('c-n-d_-dynamic-section');
+        expect(preview.recordId).toBe('500KB00000000009AAA');
+    });
+
+    it('says so when nothing matches, rather than previewing the wrong record', async () => {
+        resolveRecordId.mockResolvedValue(null);
+
+        const element = mount();
+        getRecentRecords.emit([]);
+        await Promise.resolve();
+
+        const search = Array.from(element.shadowRoot.querySelectorAll('lightning-input'))
+            .find(i => i.label === '…or find by number / Id');
+        search.value = '99999999';
+        search.dispatchEvent(new CustomEvent('change'));
+        await flushMicrotasks();
+
+        expect(text(element, '.nd-import-error')).toContain('No Case matches "99999999"');
+    });
+});
+
+describe('the icon picker', () => {
+    it('has no filter box, and lists every icon', async () => {
+        const element = mount();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.textContent).not.toContain('Filter icons');
+        const choices = element.shadowRoot.querySelectorAll('.nd-icon-choice');
+        expect(choices.length).toBeGreaterThan(50);
     });
 });
 
