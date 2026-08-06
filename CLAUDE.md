@@ -35,8 +35,14 @@ fields-only shape. **Section settings live in the JSON** (`title`, `icon`, `colu
   deploy. Originals are in commit `dcee5a9` and `~/Desktop/nd-flexipage-backup-*`.
 - The **8 hosting pages** are committed under `force-app/main/default/flexipages/`, so the
   configs are now in version control rather than only in the org.
-- An empty config renders a **setup prompt** linking to `/lightning/n/ND_Section_Config_Builder`
-  rather than a blank card.
+- **Design-time link.** App Builder property panels cannot render a clickable link, so the
+  component renders one **in the canvas** instead: `isDesignTime` is `!this.recordId`,
+  which is true in App Builder because the record-page canvas has no record to supply one
+  from. A slim bar with a real link shows there and never to agents. An empty config
+  renders a fuller **setup prompt** with the same link rather than a blank card.
+- **A property `default` does NOT reach instances already on a page** — only ones added
+  afterwards. `ND_configBuilderUrl` had to be written into all 22 existing instances
+  explicitly (`scratchpad/set_builder_url.py`).
 
 Each `fields` entry is a field row.
 Supported per-field keys:

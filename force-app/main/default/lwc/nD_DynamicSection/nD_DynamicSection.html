@@ -44,6 +44,19 @@
                         </div>
                     </template>
 
+                    <!-- App Builder canvas only: a property panel cannot render a link,
+                         so the clickable one goes here, where the admin already is. -->
+                    <template if:true={showBuilderBar}>
+                        <div class="nd-builder-bar">
+                            <lightning-icon icon-name="utility:settings" size="xx-small"
+                                alternative-text="Configure"></lightning-icon>
+                            <span>Configured by the Section Config Builder.</span>
+                            <a href={builderUrl} target="_blank" class="nd-builder-bar-link">
+                                Open it to change this section
+                            </a>
+                        </div>
+                    </template>
+
                     <!-- Nothing configured. A blank card gives whoever just dropped the
                          component no idea what to do next, so point at the tool. -->
                     <template if:true={isUnconfigured}>

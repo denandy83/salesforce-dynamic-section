@@ -180,6 +180,28 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         return !this.configObject.length;
     }
 
+    /**
+     * True while the component is being edited in App Builder rather than viewed on a real
+     * record.
+     *
+     * App Builder's record-page canvas does not supply a recordId — there is no record to
+     * supply one from — so its absence is the signal. That is worth having because a
+     * property panel cannot render a clickable link, but the canvas can: this is what puts
+     * a real link in front of whoever is configuring the section.
+     *
+     * If the component is ever placed somewhere that genuinely has no recordId, the link
+     * shows to users. That placement is broken anyway, and a link to the configuration tool
+     * is a more useful thing to see than an empty card.
+     */
+    get isDesignTime() {
+        return !this.recordId;
+    }
+
+    // The slim bar is redundant when the full setup prompt is already showing its own link
+    get showBuilderBar() {
+        return this.isDesignTime && !this.isUnconfigured;
+    }
+
     get builderUrl() {
         return this.ND_configBuilderUrl || DEFAULT_BUILDER_URL;
     }
