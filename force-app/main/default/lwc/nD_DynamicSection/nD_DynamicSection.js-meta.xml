@@ -24,9 +24,20 @@
                  every value cleared: "You can't remove the property tag named '…'. The
                  component is in use on one or more Lightning pages." Anyone adding a
                  property here should know it is equally hard to take back out. -->
+            <!-- Deliberately FIRST so it reads as the instruction for the field below it.
+                 App Builder property panels cannot render a clickable link, so the next
+                 best thing is a box already containing the path, ready to copy into a new
+                 tab. It is not decoration: the component uses it for the link in its own
+                 "not configured yet" prompt, so pointing it somewhere else moves that link
+                 too. -->
+            <property name="ND_configBuilderUrl" type="String"
+                      label="① Set up here → Section Config Builder"
+                      default="/lightning/n/ND_Section_Config_Builder"
+                      description="Copy this path into a new browser tab (or find &quot;Config Builder&quot; in the App Launcher) to build the configuration below visually — field rows, section title, icon picker, colour pickers, layout, header alert, a live preview of this component, and validation that catches misspelled keys. Then click Copy JSON there and paste it into Field JSON Configuration. Leave this value alone unless the builder tab has been renamed; it is also the link shown inside the section when it has no configuration yet."/>
+
             <property name="ND_jsonConfigString" type="String"
-                      label="Field JSON Configuration"
-                      description="BUILD THIS AT /lightning/n/ND_Section_Config_Builder — the Section Config Builder composes this whole value visually: field rows, section title, icon picker, colour pickers, layout, header alert, plus a live preview of this component and validation that catches misspelled keys. Build it there, click Copy JSON, paste it here. Hand-editing works but is unvalidated: a mistyped key does nothing and reports nothing on the page, only to the browser console."/>
+                      label="② Field JSON Configuration"
+                      description="PASTE FROM THE SECTION CONFIG BUILDER (path in the box above). It carries everything: field rows and the section title, icon, colours, layout and header alert. Hand-editing works but is unvalidated — a mistyped key does nothing and reports nothing on the page, only to the browser console."/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

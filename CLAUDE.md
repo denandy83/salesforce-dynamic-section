@@ -20,8 +20,11 @@ Reads ONE JSON document from the `ND_jsonConfigString` App Builder property:
 fields-only shape. **Section settings live in the JSON** (`title`, `icon`, `columns`,
 `startCollapsed`, `headerColor`, `headerTextColor`, `alertField`, `alertValue`,
 `alertColor`, `alertTextColor`) — see `SECTION_KEYS` in the schema module.
-- **`ND_jsonConfigString` is the ONLY App Builder property.** The old section properties
-  were deleted on 2026-08-06 along with `ND_showConfigDiagnostics`. Config problems go to
+- **Two App Builder properties, in this order:** `ND_configBuilderUrl` (① a copyable box
+  holding `/lightning/n/ND_Section_Config_Builder` — App Builder cannot render a clickable
+  link, and the component reuses this value for the link in its unconfigured prompt) and
+  `ND_jsonConfigString` (② the whole configuration). The ten old section properties were
+  deleted on 2026-08-06 along with `ND_showConfigDiagnostics`. Config problems go to
   `console.warn` only; validation happens in the builder.
 - **⚠️ Adding a property here is hard to undo.** The platform refuses to remove a property
   tag while the component is on any Lightning page — *"You can't remove the property tag
