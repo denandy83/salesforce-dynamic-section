@@ -224,9 +224,13 @@
                                         <template if:true={ctrl.isColor}>
                                             <label class="nd-color-label">{ctrl.label}</label>
                                             <div class="nd-color-row">
+                                                <!-- See the note in the field pane: input
+                                                     fires during the drag, change only at
+                                                     the end. -->
                                                 <input type="color" class="nd-color-input"
                                                     value={ctrl.colorValue} data-key={ctrl.key}
                                                     title={ctrl.label}
+                                                    oninput={handleSectionChange}
                                                     onchange={handleSectionChange} />
                                                 <input type="text" class="nd-color-text"
                                                     value={ctrl.value} placeholder={ctrl.placeholder}
@@ -346,9 +350,15 @@
                                         <template if:true={ctrl.isColor}>
                                             <label class="nd-color-label">{ctrl.label}</label>
                                             <div class="nd-color-row">
+                                                <!-- oninput as well as onchange: a colour
+                                                     input fires input continuously while
+                                                     the picker is open but change only
+                                                     once it closes, so without this the
+                                                     preview lags behind the drag. -->
                                                 <input type="color" class="nd-color-input"
                                                     value={ctrl.colorValue} data-key={ctrl.key}
                                                     title={ctrl.label}
+                                                    oninput={handleControlChange}
                                                     onchange={handleControlChange} />
                                                 <input type="text" class="nd-color-text"
                                                     value={ctrl.value} placeholder={ctrl.placeholder}

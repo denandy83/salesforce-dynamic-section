@@ -628,3 +628,72 @@ describe('a field the org will not let anyone edit', () => {
         expect(checkbox.checked).toBe(true);
     });
 });
+
+describe('colour pickers update during the drag', () => {
+    function colourInputs(element) {
+        return Array.from(element.shadowRoot.querySelectorAll('input.nd-color-input'));
+    }
+
+    // A colour input fires `input` continuously while the picker is open and `change` only
+    // once it closes. Listening to change alone made the preview lag behind the drag.
+    it('applies a section colour on input, not only on change', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+
+        const headerBg = colourInputs(element)[0];
+        expect(headerBg).not.toBeUndefined();
+
+        headerBg.value = '#123456';
+        headerBg.dispatchEvent(new CustomEvent('input'));
+        await Promise.resolve();
+
+        expect(text(element, '.nd-json')).toContain('"headerColor":"#123456"');
+    });
+
+    it('writes the dragged colour into the config', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+
+        const headerBg = colourInputs(element)[0];
+        headerBg.value = '#abcdef';
+        headerBg.dispatchEvent(new CustomEvent('input'));
+        await Promise.resolve();
+
+        expect(text(element, '.nd-json')).toContain('#abcdef');
+    });
+
+    it('still applies on change, for a picker that only commits at the end', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+
+        const headerBg = colourInputs(element)[0];
+        headerBg.value = '#0f0f0f';
+        headerBg.dispatchEvent(new CustomEvent('change'));
+        await Promise.resolve();
+
+        expect(text(element, '.nd-json')).toContain('#0f0f0f');
+    });
+
+    it('does not remount the preview for a colour change, so it cannot flash', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        getRecentRecords.emit([{ id: '500KB00000000001AAA', label: '1', sublabel: 'x' }]);
+        await flushMicrotasks();
+
+        const before = element.shadowRoot.querySelector('c-n-d_-dynamic-section');
+        expect(before).not.toBeNull();
+
+        const headerBg = colourInputs(element)[0];
+        headerBg.value = '#654321';
+        headerBg.dispatchEvent(new CustomEvent('input'));
+        await Promise.resolve();
+
+        // Same element instance: it was updated in place rather than torn down
+        const after = element.shadowRoot.querySelector('c-n-d_-dynamic-section');
+        expect(after).toBe(before);
+        expect(after.ND_jsonConfigString).toContain('#654321');
+    });
+});
