@@ -20,14 +20,18 @@ Reads ONE JSON document from the `ND_jsonConfigString` App Builder property:
 fields-only shape. **Section settings live in the JSON** (`title`, `icon`, `columns`,
 `startCollapsed`, `headerColor`, `headerTextColor`, `alertField`, `alertValue`,
 `alertColor`, `alertTextColor`) — see `SECTION_KEYS` in the schema module.
-- **The old section properties still exist and still work as a fallback.** They are
-  labelled `z. … (legacy — use the Config Builder)` in App Builder and read only when the
-  JSON does not set the equivalent. **They cannot be deleted:** the platform refuses —
-  *"You can't remove the property tag named '…'. The component is in use on one or more
-  Lightning pages"* (verified UAT 2026-08-06, 8 pages). To remove them for good, first
-  clear them from every hosting page, then drop the tags.
-- `ND_showConfigDiagnostics` is **declared but ignored** for the same reason. Config
-  problems go to `console.warn` only; validation happens in the builder.
+- **`ND_jsonConfigString` is the ONLY App Builder property.** The old section properties
+  were deleted on 2026-08-06 along with `ND_showConfigDiagnostics`. Config problems go to
+  `console.warn` only; validation happens in the builder.
+- **⚠️ Adding a property here is hard to undo.** The platform refuses to remove a property
+  tag while the component is on any Lightning page — *"You can't remove the property tag
+  named '…'. The component is in use on one or more Lightning pages"* — and **clearing every
+  value is not enough**, the component has to come off the pages entirely. Removing the ten
+  legacy properties took: migrate all 22 instances' configs → deploy pages → strip the
+  component from all 8 pages → deploy → deploy the LWC → restore the pages from git →
+  deploy. Originals are in commit `dcee5a9` and `~/Desktop/nd-flexipage-backup-*`.
+- The **8 hosting pages** are committed under `force-app/main/default/flexipages/`, so the
+  configs are now in version control rather than only in the org.
 - An empty config renders a **setup prompt** linking to `/lightning/n/ND_Section_Config_Builder`
   rather than a blank card.
 

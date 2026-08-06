@@ -214,7 +214,7 @@ describe('selectionAfterRemoval', () => {
 
 describe('resolveSectionSettings', () => {
     it('falls back to defaults when nothing is set', () => {
-        const s = resolveSectionSettings({}, {});
+        const s = resolveSectionSettings({});
         expect(s.title).toBe('Details');
         expect(s.icon).toBe('utility:warning');
         expect(s.headerColor).toBe('#005FB2');
@@ -223,44 +223,37 @@ describe('resolveSectionSettings', () => {
         expect(s.startCollapsed).toBe(false);
     });
 
-    it('prefers the JSON over the legacy App Builder property', () => {
-        const s = resolveSectionSettings({ title: 'From JSON' }, { ND_sectionTitle: 'From App Builder' });
-        expect(s.title).toBe('From JSON');
-    });
-
-    it('uses the legacy property when the JSON says nothing', () => {
-        const s = resolveSectionSettings({}, {
-            ND_sectionTitle: 'Case Details',
-            ND_iconName: 'utility:cases',
-            ND_headerBackgroundColor: '#144761'
-        });
+    it('uses whatever the JSON sets', () => {
+        const s = resolveSectionSettings({ title: 'Case Details', icon: 'utility:cases', columns: 1 });
         expect(s.title).toBe('Case Details');
         expect(s.icon).toBe('utility:cases');
-        expect(s.headerColor).toBe('#144761');
+        expect(s.columns).toBe(1);
     });
 
-    it('translates the legacy layout string into a column count', () => {
-        expect(resolveSectionSettings({}, { ND_layoutType: '1 Column' }).columns).toBe(1);
-        expect(resolveSectionSettings({}, { ND_layoutType: '2 Columns' }).columns).toBe(2);
+    it('treats a blank value as unset, so the default applies', () => {
+        expect(resolveSectionSettings({ title: '' }).title).toBe('Details');
     });
 
-    it('lets the JSON override a legacy one-column layout', () => {
-        expect(resolveSectionSettings({ columns: 2 }, { ND_layoutType: '1 Column' }).columns).toBe(2);
-    });
-
-    it('carries the legacy header alert across', () => {
-        const s = resolveSectionSettings({}, {
-            ND_headerLogicField: 'Priority',
-            ND_headerLogicValue: 'High,Urgent',
-            ND_headerActiveColor: '#ba0517'
+    it('carries the header alert through', () => {
+        const s = resolveSectionSettings({
+            alertField: 'Priority', alertValue: 'High,Urgent', alertColor: '#ba0517'
         });
         expect(s.alertField).toBe('Priority');
         expect(s.alertValue).toBe('High,Urgent');
         expect(s.alertColor).toBe('#ba0517');
     });
 
-    it('treats a blank JSON value as unset rather than as an override', () => {
-        expect(resolveSectionSettings({ title: '' }, { ND_sectionTitle: 'Kept' }).title).toBe('Kept');
+    // The App Builder properties that used to act as a second source are gone, removed
+    // once every page had been migrated. Nothing outside the JSON feeds this any more.
+    it('ignores a second argument, since there is no longer a legacy source', () => {
+        const s = resolveSectionSettings({}, { ND_sectionTitle: 'From App Builder' });
+        expect(s.title).toBe('Details');
+    });
+
+    it('is unaffected by anything not in the registry', () => {
+        const s = resolveSectionSettings({ nonsense: 'x', title: 'Kept' });
+        expect(s.title).toBe('Kept');
+        expect(s.nonsense).toBeUndefined();
     });
 });
 

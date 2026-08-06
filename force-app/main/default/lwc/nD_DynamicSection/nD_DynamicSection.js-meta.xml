@@ -14,59 +14,19 @@
                 <supportedFormFactor type="Small" />
             </supportedFormFactors>
 
-            <!-- ONE property matters: everything is in the JSON.
+            <!-- One property, and only one. The section title, icon, colours, layout and
+                 header alert were separate properties here; they live inside this JSON so
+                 the whole section is a single artefact the Section Config Builder composes,
+                 validates and previews in one piece.
 
-                 The section title, icon, colours, layout and header alert used to be
-                 separate properties. They now live inside the JSON so the whole section
-                 is a single artefact the Section Config Builder composes, validates and
-                 previews in one piece.
-
-                 The old properties are still DECLARED below because the platform forbids
-                 removing a property tag while the component is on any Lightning page:
-                   "You can't remove the property tag named '…'. The component is in use
-                    on one or more Lightning pages."
-                 They are read only as a fallback, and only when the JSON does not set the
-                 equivalent value, so a page configured the old way keeps rendering
-                 identically. To delete them for good, first clear them from every page
-                 that hosts this component, then remove the tags. -->
+                 Removing those tags meant taking the component off all 8 hosting pages
+                 first. The platform refuses while it is present on any page, even with
+                 every value cleared: "You can't remove the property tag named '…'. The
+                 component is in use on one or more Lightning pages." Anyone adding a
+                 property here should know it is equally hard to take back out. -->
             <property name="ND_jsonConfigString" type="String"
                       label="Field JSON Configuration"
-                      description="BUILD THIS AT /lightning/n/ND_Section_Config_Builder — the Section Config Builder composes this whole value visually: field rows, section title, icon picker, colour pickers, layout, header alert, plus a live preview of this component and validation that catches misspelled keys. Build it there, click Copy JSON, paste it here. It supersedes every other property on this panel. Hand-editing works but is unvalidated: a mistyped key does nothing and reports nothing on the page, only to the browser console."/>
-
-            <property name="ND_sectionTitle" type="String"
-                      label="z. Title (legacy — use the Config Builder)"
-                      description="SUPERSEDED. Set the title in the Section Config Builder instead; it writes it into Field JSON Configuration. Still read only when the JSON does not set a title. Kept because the platform will not let a property be removed while the component is on a page."/>
-            <property name="ND_iconName" type="String"
-                      label="z. Icon Name (legacy — use the Config Builder)"
-                      description="SUPERSEDED. The Config Builder has an icon picker with a live preview. Still read only when the JSON does not set an icon."/>
-            <property name="ND_headerBackgroundColor" type="String"
-                      label="z. Header Background Color (legacy — use the Config Builder)"
-                      description="SUPERSEDED. The Config Builder has a colour picker. Still read only when the JSON does not set a header colour."/>
-            <property name="ND_headerTextColor" type="String"
-                      label="z. Header Text Color (legacy — use the Config Builder)"
-                      description="SUPERSEDED. The Config Builder has a colour picker. Still read only when the JSON does not set a header text colour."/>
-            <property name="ND_startCollapsed" type="Boolean"
-                      label="z. Collapse by Default (legacy — use the Config Builder)"
-                      description="SUPERSEDED. Set this in the Config Builder's Section panel. Still read only when the JSON does not set it."/>
-            <property name="ND_layoutType" type="String" datasource="1 Column,2 Columns"
-                      label="z. Layout (legacy — use the Config Builder)"
-                      description="SUPERSEDED. Set the column count in the Config Builder's Section panel. Still read only when the JSON does not set it."/>
-            <property name="ND_headerLogicField" type="String"
-                      label="z. Dynamic Header: Trigger Field (legacy — use the Config Builder)"
-                      description="SUPERSEDED. The Config Builder's Section panel configures the header alert with a field picker and colour pickers. Still read only when the JSON does not set it."/>
-            <property name="ND_headerLogicValue" type="String"
-                      label="z. Dynamic Header: Trigger Value (legacy — use the Config Builder)"
-                      description="SUPERSEDED. See the Config Builder's Section panel. Still read only when the JSON does not set it."/>
-            <property name="ND_headerActiveColor" type="String"
-                      label="z. Dynamic Header: Active BG Color (legacy — use the Config Builder)"
-                      description="SUPERSEDED. See the Config Builder's Section panel. Still read only when the JSON does not set it."/>
-            <property name="ND_headerActiveTextColor" type="String"
-                      label="z. Dynamic Header: Active Text Color (legacy — use the Config Builder)"
-                      description="SUPERSEDED. See the Config Builder's Section panel. Still read only when the JSON does not set it."/>
-
-            <property name="ND_showConfigDiagnostics" type="Boolean"
-                      label="z. Show Config Diagnostics (no longer used)"
-                      description="NO LONGER USED. The component ignores this. Validation now happens in the Section Config Builder before anything is pasted, and problems on a live page are written to the browser console. Declared only because the platform will not let a property be removed while the component is on a page."/>
+                      description="BUILD THIS AT /lightning/n/ND_Section_Config_Builder — the Section Config Builder composes this whole value visually: field rows, section title, icon picker, colour pickers, layout, header alert, plus a live preview of this component and validation that catches misspelled keys. Build it there, click Copy JSON, paste it here. Hand-editing works but is unvalidated: a mistyped key does nothing and reports nothing on the page, only to the browser console."/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

@@ -50,33 +50,6 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     // so the whole section is a single artefact the Config Builder composes.
     @api ND_jsonConfigString = '';
 
-    // --- LEGACY section properties -------------------------------------------------
-    // Superseded by the JSON above and labelled as such in App Builder, but still
-    // DECLARED because the platform refuses to remove a property tag while the component
-    // is on a Lightning page: "You can't remove the property tag named '…'. The component
-    // is in use on one or more Lightning pages." They are read only as a fallback, and
-    // only when the JSON does not set the equivalent value, so a page configured the old
-    // way keeps rendering identically. To delete them, first clear them from every page
-    // that hosts this component, then remove the tags and these lines.
-    @api ND_sectionTitle;
-    @api ND_iconName;
-    @api ND_headerBackgroundColor;
-    @api ND_headerTextColor;
-    @api ND_startCollapsed;
-
-    // Dynamic Header Props
-    @api ND_headerLogicField;
-    @api ND_headerLogicValue;
-    @api ND_headerActiveColor;
-    @api ND_headerActiveTextColor;
-
-    @api ND_layoutType;
-
-    // Accepted and ignored. Validation happens in the Section Config Builder now, and
-    // live-page problems go to the console. Declared because the platform refuses to let
-    // a property tag be removed while the component is on a Lightning page.
-    @api ND_showConfigDiagnostics;
-
     // --- 2. INTERNAL STATE ---
     @track ND_isOpen = true;
     @track ND_recordData;
@@ -176,25 +149,15 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     /**
-     * Section settings, JSON first and the legacy App Builder properties second.
+     * Section settings from the JSON, with the registry's defaults filling any gaps.
      *
-     * The legacy fallback is what lets a page configured the old way keep rendering
-     * exactly as it did after those properties were removed from the App Builder
-     * palette. Everything is now set in the Section Config Builder instead.
+     * There is no other source. The App Builder properties that used to supply these were
+     * removed once every page had been migrated, which required taking the component off
+     * all 8 hosting pages first — the platform will not drop a property tag while the
+     * component is present anywhere.
      */
     get sectionSettings() {
-        return resolveSectionSettings(this._parsedConfig.section, {
-            ND_sectionTitle: this.ND_sectionTitle,
-            ND_iconName: this.ND_iconName,
-            ND_headerBackgroundColor: this.ND_headerBackgroundColor,
-            ND_headerTextColor: this.ND_headerTextColor,
-            ND_startCollapsed: this.ND_startCollapsed,
-            ND_layoutType: this.ND_layoutType,
-            ND_headerLogicField: this.ND_headerLogicField,
-            ND_headerLogicValue: this.ND_headerLogicValue,
-            ND_headerActiveColor: this.ND_headerActiveColor,
-            ND_headerActiveTextColor: this.ND_headerActiveTextColor
-        });
+        return resolveSectionSettings(this._parsedConfig.section);
     }
 
     get resolvedIcon() {

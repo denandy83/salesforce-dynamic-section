@@ -73,7 +73,6 @@ const SECTION_KEYS = [
         label: 'Section title',
         control: 'text',
         fallback: 'Details',
-        legacy: 'ND_sectionTitle',
         help: 'Heading shown at the top of the card.'
     },
     {
@@ -82,7 +81,6 @@ const SECTION_KEYS = [
         label: 'Header icon',
         control: 'icon',
         fallback: 'utility:warning',
-        legacy: 'ND_iconName',
         help: 'Any SLDS icon name, e.g. utility:warning. Pick one below or type it.'
     },
     {
@@ -110,7 +108,6 @@ const SECTION_KEYS = [
         label: 'Header background',
         control: 'color',
         fallback: '#005FB2',
-        legacy: 'ND_headerBackgroundColor',
         help: 'Normal header background colour.'
     },
     {
@@ -119,7 +116,6 @@ const SECTION_KEYS = [
         label: 'Header text',
         control: 'color',
         fallback: '#FFFFFF',
-        legacy: 'ND_headerTextColor',
         help: 'Normal header text colour.'
     },
 
@@ -129,7 +125,6 @@ const SECTION_KEYS = [
         label: 'Recolour the header when this field…',
         control: 'fieldPicker',
         blank: true,
-        legacy: 'ND_headerLogicField',
         help: 'One field only. Leave empty for a header that never changes colour.'
     },
     {
@@ -139,7 +134,6 @@ const SECTION_KEYS = [
         control: 'values',
         requires: 'alertField',
         valuesFrom: 'alertField',
-        legacy: 'ND_headerLogicValue',
         placeholder: 'High,Urgent',
         help: 'Comma-separated membership. Empty means any non-blank value.'
     },
@@ -149,7 +143,6 @@ const SECTION_KEYS = [
         label: 'Alert background',
         control: 'color',
         requires: 'alertField',
-        legacy: 'ND_headerActiveColor',
         help: 'Header background while the condition holds. Required for the alert to do anything.'
     },
     {
@@ -158,7 +151,6 @@ const SECTION_KEYS = [
         label: 'Alert text',
         control: 'color',
         requires: 'alertField',
-        legacy: 'ND_headerActiveTextColor',
         help: 'Header text while the condition holds. Falls back to the normal header text colour.'
     }
 ];
@@ -635,37 +627,20 @@ function parseConfig(text) {
 }
 
 /**
- * Resolve the settings the section should actually use.
+ * The settings the section should use: whatever the JSON sets, with the registry's
+ * defaults filling the gaps.
  *
- * Precedence: the JSON wins, then the legacy App Builder property, then the built-in
- * default. The legacy step is what lets a page configured the old way keep rendering
- * exactly as before after the App Builder properties are removed from the palette.
+ * The App Builder properties that used to act as a second source were removed once every
+ * page had been migrated into the JSON, so this is now the only source.
  */
-function resolveSectionSettings(section, legacyProps) {
+function resolveSectionSettings(section) {
     const json = section || {};
-    const legacy = legacyProps || {};
     const out = {};
 
     SECTION_KEYS.forEach(def => {
-        if (json[def.key] !== undefined && json[def.key] !== '') {
-            out[def.key] = json[def.key];
-            return;
-        }
-        const legacyValue = def.legacy ? legacy[def.legacy] : undefined;
-        if (legacyValue !== undefined && legacyValue !== '' && legacyValue !== null) {
-            out[def.key] = legacyValue;
-            return;
-        }
-        if (def.fallback !== undefined) out[def.key] = def.fallback;
+        if (json[def.key] !== undefined && json[def.key] !== '') out[def.key] = json[def.key];
+        else if (def.fallback !== undefined) out[def.key] = def.fallback;
     });
-
-    // The legacy layout property was the string "1 Column" / "2 Columns"
-    if (json.columns === undefined && legacy.ND_layoutType) {
-        out.columns = legacy.ND_layoutType === '1 Column' ? 1 : 2;
-    }
-    if (json.startCollapsed === undefined && legacy.ND_startCollapsed !== undefined) {
-        out.startCollapsed = legacy.ND_startCollapsed === true;
-    }
 
     return out;
 }
