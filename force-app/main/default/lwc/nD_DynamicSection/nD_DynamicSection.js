@@ -9,6 +9,7 @@ import resolveEmails from '@salesforce/apex/ND_EmailResolver.resolveEmails';
 import {
     isBlank,
     matchesCsv,
+    isRowVisible,
     validateConfig,
     validateSection,
     parseConfig,
@@ -60,6 +61,9 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     @track ND_isOpen = true;
     @track ND_recordData;
     @track isDirty = false;
+    // On-screen values of fields that a showIfField condition watches, so conditional rows
+    // react to an edit before it is saved.
+    @track liveValues = {};
     @track isSaving = false;            // form save in flight
     _restoring = false;                 // true while Cancel puts values back (suppresses change handlers)
     _recomputeQueued = false;           // guards against stacking dirty recomputes on rapid wire refreshes
@@ -681,27 +685,15 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     }
 
     // --- 6. FIELD LIST RENDERING ---
-    // Whether a config row is on screen: the org has to have the field, and any
-    // showIfField condition has to pass. Shared with the take-it pre-flight, so a row
-    // the user cannot see is never a row they can be asked to fill in.
+    // Whether a config row is on screen. The decision itself lives in the schema module
+    // so it can be tested without mounting; this only gathers what it needs.
     _isRowVisible(item) {
-        // A field the org doesn't have can't be rendered — lightning-input-field
-        // would error on it. Skip the row (nd_wireFields logs which ones).
-        if (item.apiName && this._objectInfo && this._objectInfo.fields
-            && !this._objectInfo.fields[item.apiName]) {
-            return false;
-        }
-        if (item.showIfField) {
-            if (!this.ND_recordData || !this.ND_recordData.fields[item.showIfField]) return false;
-            const fieldVal = this.ND_recordData.fields[item.showIfField].value;
-            // Comma-separated membership, matching colorIfValue and requiredIfValue. This
-            // used to be exact equality, which made showIfValue the only condition in the
-            // config that could not hold a list — so a row could be scoped to one record
-            // type but never to two. A single value still behaves identically.
-            if (item.showIfValue !== undefined) return matchesCsv(fieldVal, item.showIfValue);
-            return !!fieldVal;
-        }
-        return true;
+        return isRowVisible(item, {
+            fields: this._objectInfo ? this._objectInfo.fields : null,
+            savedFields: this.ND_recordData ? this.ND_recordData.fields : null,
+            liveValues: this.liveValues,
+            selectedRecordTypeId: this.selectedRecordTypeId
+        });
     }
 
     get ND_finalFieldList() {
@@ -819,6 +811,11 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     ND_handleFieldChange(event) {
         if (this._restoring) return;
 
+        // Record the live value so a conditional row reacts to the edit immediately rather
+        // than waiting for a save. Only the fields something actually watches are kept, so
+        // this stays a handful of entries however many rows the section has.
+        this._noteLiveValue(event.target, event.detail);
+
         // On a cold load the form populates its own inputs and fires change for each
         // one. Until our wire lands there is nothing to compare against, and a user
         // cannot have edited a field that has only just been rendered, so treat these
@@ -839,6 +836,29 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         // Re-derive from the DOM either way: this event may have arrived before the
         // record data it should have been compared against.
         this._recomputeDirtyAfterRefresh();
+    }
+
+    /**
+     * Remember the on-screen value of a field that a showIfField condition watches.
+     *
+     * Visibility used to read only the saved record, so picking a different record type
+     * left rows scoped to the old one on screen until the save went through. Tracked state
+     * rather than a DOM read at render time, because a getter that queries the DOM is not
+     * reactive and would not re-run when the value changed.
+     */
+    _noteLiveValue(target, detail) {
+        const apiName = target && target.fieldName;
+        if (!apiName || !this._watchedFields.has(apiName)) return;
+
+        const value = (detail && detail.value !== undefined) ? detail.value : target.value;
+        this.liveValues = Object.assign({}, this.liveValues, { [apiName]: value });
+    }
+
+    // Every field referenced by a showIfField, so live tracking stays bounded.
+    get _watchedFields() {
+        return new Set(
+            this.configObject.map(item => item.showIfField).filter(Boolean)
+        );
     }
 
     // True when the control's value differs from the saved record value. Errs
@@ -1382,6 +1402,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         this.urlEditMode = {};      // saved URLs render as links again
         this.emailListDraft = {};   // discard anything typed into an add box
         this.emailListError = {};
+        this.liveValues = {};       // conditional rows go back to what is saved
         this.ownerEditMode = false;
         this._clearDirtyState();
         this.saveError = undefined;
@@ -1397,6 +1418,8 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     _clearDirtyState() {
         this.isDirty = false;
+        // What was live is now saved, so conditional rows can read the record again
+        this.liveValues = {};
         this.ownerDirty = false;
         this.openProblemDirty = false;
         this.urlDirty = false;

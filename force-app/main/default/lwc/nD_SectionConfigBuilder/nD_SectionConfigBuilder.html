@@ -3,7 +3,7 @@
 
         <!-- Header: what object we're building for, and what to preview against -->
         <div class="slds-grid slds-wrap slds-gutters_small nd-topbar">
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12">
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_7-of-12">
                 <!-- Recently viewed, so a preview target can be picked rather than typed -->
                 <template if:true={hasRecentRecords}>
                     <lightning-combobox
@@ -22,7 +22,7 @@
                     </lightning-input>
                 </template>
             </div>
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_3-of-12">
+            <div class="slds-col slds-size_1-of-1 slds-medium-size_5-of-12">
                 <!-- A case number is what someone reading a ticket actually has to hand -->
                 <lightning-input
                     label="…or find by number / Id"
@@ -34,20 +34,7 @@
                     <p class="nd-import-error">{recordSearchError}</p>
                 </template>
             </div>
-            <div class="slds-col slds-size_1-of-1 slds-medium-size_5-of-12 nd-topbar-actions">
-                <lightning-button
-                    label="Refresh preview"
-                    icon-name="utility:refresh"
-                    onclick={handleRefreshPreview}>
-                </lightning-button>
-                <lightning-button
-                    label={copyLabel}
-                    variant="brand"
-                    icon-name="utility:copy_to_clipboard"
-                    onclick={handleCopy}
-                    onmouseleave={handleCopyLabelReset}>
-                </lightning-button>
-            </div>
+
         </div>
 
         <div class="slds-grid slds-wrap slds-gutters_small">
@@ -107,21 +94,19 @@
                                         </template>
                                     </span>
                                 </button>
+                                <!-- Duplicate was dropped: a copied row has the same field,
+                                     so it is invalid until the field is changed anyway. -->
                                 <div class="nd-row-tools">
-                                    <lightning-button-icon icon-name="utility:up" variant="bare"
-                                        size="x-small" alternative-text="Move up" title="Move up"
+                                    <lightning-button-icon icon-name="utility:up" variant="border-filled"
+                                        size="small" alternative-text="Move up" title="Move up"
                                         disabled={row.isFirst} data-index={row.index} data-step="-1"
                                         onclick={handleMoveRow}></lightning-button-icon>
-                                    <lightning-button-icon icon-name="utility:down" variant="bare"
-                                        size="x-small" alternative-text="Move down" title="Move down"
+                                    <lightning-button-icon icon-name="utility:down" variant="border-filled"
+                                        size="small" alternative-text="Move down" title="Move down"
                                         disabled={row.isLast} data-index={row.index} data-step="1"
                                         onclick={handleMoveRow}></lightning-button-icon>
-                                    <lightning-button-icon icon-name="utility:copy" variant="bare"
-                                        size="x-small" alternative-text="Duplicate" title="Duplicate"
-                                        data-index={row.index}
-                                        onclick={handleDuplicateRow}></lightning-button-icon>
-                                    <lightning-button-icon icon-name="utility:delete" variant="bare"
-                                        size="x-small" alternative-text="Remove" title="Remove"
+                                    <lightning-button-icon icon-name="utility:delete" variant="border-filled"
+                                        size="small" alternative-text="Remove" title="Remove"
                                         data-index={row.index}
                                         onclick={handleRemoveRow}></lightning-button-icon>
                                 </div>
@@ -510,6 +495,16 @@
                     <div class="nd-pane-head">
                         <h2>Paste into ND_jsonConfigString</h2>
                         <span class="nd-count">{jsonLength}</span>
+                    </div>
+                    <!-- The button belongs with the thing it copies, not in the top bar -->
+                    <div class="nd-json-actions">
+                        <lightning-button
+                            label={copyLabel}
+                            variant="brand"
+                            icon-name="utility:copy_to_clipboard"
+                            onclick={handleCopy}
+                            onmouseleave={handleCopyLabelReset}>
+                        </lightning-button>
                     </div>
                     <pre class="nd-json">{jsonPretty}</pre>
                 </article>

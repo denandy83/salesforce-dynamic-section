@@ -378,6 +378,41 @@ function joinOr(parts) {
     return `${parts.slice(0, -1).join(', ')} or ${parts[parts.length - 1]}`;
 }
 
+/**
+ * Whether a config row is on screen.
+ *
+ * Pure so it can be tested: the component only supplies what it knows.
+ *   fields               - describe map, to skip a field the org does not have
+ *   savedFields          - getRecord's fields map
+ *   liveValues           - on-screen values of watched fields, not yet saved
+ *   selectedRecordTypeId - the record type currently picked in the form
+ *
+ * The live value wins over the saved one. Without that, switching record type left rows
+ * scoped to the old one on screen until the save went through, so the section showed
+ * fields that were about to disappear.
+ */
+function isRowVisible(item, context) {
+    const ctx = context || {};
+    const saved = ctx.savedFields || {};
+    const live = ctx.liveValues || {};
+
+    if (item.apiName && ctx.fields && !ctx.fields[item.apiName]) return false;
+    if (!item.showIfField) return true;
+    if (!saved[item.showIfField]) return false;
+
+    let value;
+    if (item.showIfField === 'RecordTypeId' && ctx.selectedRecordTypeId) {
+        value = ctx.selectedRecordTypeId;
+    } else if (Object.prototype.hasOwnProperty.call(live, item.showIfField)) {
+        value = live[item.showIfField];
+    } else {
+        value = saved[item.showIfField].value;
+    }
+
+    if (item.showIfValue !== undefined) return matchesCsv(value, item.showIfValue);
+    return !!value;
+}
+
 /** Comma-separated membership, the config's only multi-value idiom. */
 function matchesCsv(value, csv) {
     return String(csv)
@@ -796,6 +831,7 @@ export {
     widgetOf,
     isBlank,
     matchesCsv,
+    isRowVisible,
     splitCsv,
     joinOr,
     validateConfig,

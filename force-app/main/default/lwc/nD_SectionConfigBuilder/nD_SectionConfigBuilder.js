@@ -29,7 +29,6 @@ import {
     parseConfig,
     withRowAdded,
     withRowMoved,
-    withRowDuplicated,
     withRowRemoved,
     withKeySet,
     withWidgetSet,
@@ -545,14 +544,6 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         this.refreshPreview();
     }
 
-    handleDuplicateRow(event) {
-        const index = Number(event.currentTarget.dataset.index);
-        this.rows = withRowDuplicated(this.rows, index);
-        this.selectedIndex = index + 1;
-        this.editingSection = false;
-        this.refreshPreview();
-    }
-
     handleRemoveRow(event) {
         const index = Number(event.currentTarget.dataset.index);
         const next = withRowRemoved(this.rows, index);
@@ -882,10 +873,6 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     refreshPreview() {
         this.previewVisible = false;
         Promise.resolve().then(() => { this.previewVisible = true; });
-    }
-
-    handleRefreshPreview() {
-        this.refreshPreview();
     }
 
     /**

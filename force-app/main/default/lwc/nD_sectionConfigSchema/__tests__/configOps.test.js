@@ -16,7 +16,8 @@ import {
     validateConfig,
     describeRequirement,
     joinOr,
-    splitCsv
+    splitCsv,
+    isRowVisible
 } from 'c/nD_sectionConfigSchema';
 
 describe('orderRow / serialize', () => {
@@ -484,5 +485,94 @@ describe('splitCsv', () => {
 
     it('is empty for blank-ish input', () => {
         [undefined, null, ''].forEach(v => expect(splitCsv(v)).toEqual([]));
+    });
+});
+
+describe('isRowVisible', () => {
+    const AVIOBOOK = '012KB000000kcw4YAA';
+    const AVIODATA = '012KB000000kcw5YAA';
+
+    const scoped = {
+        apiName: 'AVB_Environment__c',
+        showIfField: 'RecordTypeId',
+        showIfValue: AVIOBOOK
+    };
+    const base = {
+        fields: { AVB_Environment__c: {}, RecordTypeId: {}, Priority: {} },
+        savedFields: {
+            AVB_Environment__c: { value: 'PROD' },
+            RecordTypeId: { value: AVIOBOOK },
+            Priority: { value: 'High' }
+        }
+    };
+    const ctx = extra => Object.assign({}, base, extra);
+
+    it('shows an unconditional row', () => {
+        expect(isRowVisible({ apiName: 'Priority' }, ctx())).toBe(true);
+    });
+
+    it('hides a row whose field the org does not have', () => {
+        expect(isRowVisible({ apiName: 'Nope__c' }, ctx())).toBe(false);
+    });
+
+    it('shows a row when the saved record type matches', () => {
+        expect(isRowVisible(scoped, ctx())).toBe(true);
+    });
+
+    it('hides it when the saved record type does not match', () => {
+        expect(isRowVisible(scoped, ctx({
+            savedFields: Object.assign({}, base.savedFields, {
+                RecordTypeId: { value: AVIODATA }
+            })
+        }))).toBe(false);
+    });
+
+    // The behaviour this was built for: switching record type in the form should hide a
+    // row scoped to the old one straight away, not after the save.
+    it('hides the row as soon as another record type is picked', () => {
+        expect(isRowVisible(scoped, ctx({ selectedRecordTypeId: AVIODATA }))).toBe(false);
+    });
+
+    it('shows it again when the matching record type is picked back', () => {
+        expect(isRowVisible(scoped, ctx({
+            savedFields: Object.assign({}, base.savedFields, {
+                RecordTypeId: { value: AVIODATA }
+            }),
+            selectedRecordTypeId: AVIOBOOK
+        }))).toBe(true);
+    });
+
+    it('accepts several record types', () => {
+        const both = Object.assign({}, scoped, { showIfValue: `${AVIOBOOK},${AVIODATA}` });
+        expect(isRowVisible(both, ctx({ selectedRecordTypeId: AVIODATA }))).toBe(true);
+    });
+
+    it('follows a live value for an ordinary field', () => {
+        const row = { apiName: 'AVB_Environment__c', showIfField: 'Priority', showIfValue: 'High' };
+        expect(isRowVisible(row, ctx())).toBe(true);
+        expect(isRowVisible(row, ctx({ liveValues: { Priority: 'Low' } }))).toBe(false);
+    });
+
+    it('treats a live value of empty as empty, not as unset', () => {
+        const row = { apiName: 'AVB_Environment__c', showIfField: 'Priority' };
+        expect(isRowVisible(row, ctx())).toBe(true);
+        expect(isRowVisible(row, ctx({ liveValues: { Priority: '' } }))).toBe(false);
+    });
+
+    it('falls back to the saved value when nothing is live', () => {
+        const row = { apiName: 'AVB_Environment__c', showIfField: 'Priority', showIfValue: 'High' };
+        expect(isRowVisible(row, ctx({ liveValues: {} }))).toBe(true);
+    });
+
+    it('omit the value to mean "only when populated"', () => {
+        const row = { apiName: 'AVB_Environment__c', showIfField: 'Priority' };
+        expect(isRowVisible(row, ctx())).toBe(true);
+        expect(isRowVisible(row, ctx({
+            savedFields: Object.assign({}, base.savedFields, { Priority: { value: null } })
+        }))).toBe(false);
+    });
+
+    it('hides the row until the record has loaded', () => {
+        expect(isRowVisible(scoped, { fields: base.fields })).toBe(false);
     });
 });

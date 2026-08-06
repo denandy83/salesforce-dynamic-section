@@ -62,6 +62,11 @@ Supported per-field keys:
 - **Visibility:** `showIfField` + `showIfValue` (comma-separated **membership**; omit value = truthy
   check). Was exact equality until 2026-08-06 — the only condition that could not hold a list, so a
   row could be scoped to one record type but never two. A single value behaves identically.
+  **Reacts to the LIVE form value, not just the saved one:** picking a different Record Type hides
+  rows scoped to the old one immediately. The decision is `isRowVisible()` in the schema module
+  (pure, so it is tested); the component supplies `liveValues` (tracked, filled by
+  `ND_handleFieldChange` for watched fields only) and `selectedRecordTypeId`. Both are cleared on
+  save and on Cancel.
 - **Field alert:** `color` + `colorIfField`/`colorIfValue` (comma-separated equality/membership) → bottom underline on the field value/control
 - `isRecordLink` — value is a record Id; opens via `NavigationMixin` (corner open-window icon)
 - `isUrl` — single link: empty = paste input, saved = clickable link + `×` to clear
