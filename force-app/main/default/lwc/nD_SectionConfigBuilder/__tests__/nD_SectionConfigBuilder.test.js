@@ -1,6 +1,12 @@
 import { createElement } from 'lwc';
 import ND_SectionConfigBuilder from 'c/nD_SectionConfigBuilder';
 import { getObjectInfo } from 'lightning/uiObjectInfoApi';
+import {
+    IsConsoleNavigation,
+    setTabLabel,
+    setTabIcon,
+    FOCUSED_TAB_ID
+} from 'lightning/platformWorkspaceApi';
 
 // LWC does not expose non-@api internals on the host element, so these are DOM-level
 // checks. The row/JSON logic itself is pure and covered in nD_sectionConfigSchema's
@@ -29,6 +35,13 @@ function mount() {
 // The rail holds a Section entry as well as the field rows, so tests that count rows
 // have to exclude it.
 const FIELD_ROW = 'li.nd-row:not(.nd-row_section)';
+
+// getFocusedTabInfo().then(...).then(Promise.all(...)) is several microtasks deep, so a
+// single flush is not enough to observe the tab having been named.
+function flushMicrotasks(times = 5) {
+    return Array.from({ length: times })
+        .reduce(chain => chain.then(() => undefined), Promise.resolve());
+}
 
 function text(element, selector) {
     const node = element.shadowRoot.querySelector(selector);
@@ -306,5 +319,38 @@ describe('live preview', () => {
         const element = mount();
         await Promise.resolve();
         expect(element.shadowRoot.textContent).toContain('Add a field row to see a preview.');
+    });
+});
+
+describe('console tab label', () => {
+    it('names the tab, because a console tab otherwise reads "Loading..." forever', async () => {
+        const element = mount();
+        IsConsoleNavigation.emit(true);
+        await flushMicrotasks();
+
+        expect(setTabLabel).toHaveBeenCalledWith(FOCUSED_TAB_ID, 'Config Builder');
+        expect(setTabIcon).toHaveBeenCalledWith(FOCUSED_TAB_ID, 'utility:builder');
+        expect(element).not.toBeNull();
+    });
+
+    it('leaves standard navigation alone', async () => {
+        mount();
+        IsConsoleNavigation.emit(false);
+        await flushMicrotasks();
+
+        expect(setTabLabel).not.toHaveBeenCalled();
+        expect(setTabIcon).not.toHaveBeenCalled();
+    });
+
+    it('names the tab once, not on every render', async () => {
+        const element = mount();
+        IsConsoleNavigation.emit(true);
+        await flushMicrotasks();
+
+        // Force more renders
+        element.shadowRoot.querySelector('lightning-input').dispatchEvent(new CustomEvent('change'));
+        await flushMicrotasks();
+
+        expect(setTabLabel).toHaveBeenCalledTimes(1);
     });
 });

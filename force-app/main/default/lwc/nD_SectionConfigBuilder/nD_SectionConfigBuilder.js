@@ -1,6 +1,12 @@
 import { LightningElement, api, track, wire } from 'lwc';
 import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import {
+    IsConsoleNavigation,
+    getFocusedTabInfo,
+    setTabLabel,
+    setTabIcon
+} from 'lightning/platformWorkspaceApi';
+import {
     WIDGETS,
     SECTION_GROUPS,
     FIELD_GROUPS,
@@ -39,6 +45,10 @@ import {
  * text, its dependencies and its validation.
  */
 
+// What the console workspace tab is called. Without this it reads "Loading..." forever.
+const TAB_LABEL = 'Config Builder';
+const TAB_ICON = 'utility:builder';
+
 // Only the handful a config is likely to contain by hand. Anything else falls back to
 // the key's default so the picker still opens somewhere sensible.
 const NAMED_COLOURS = {
@@ -69,6 +79,23 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     fieldToAdd = '';
 
     _objectInfo;
+    _tabNamed = false;
+
+    /**
+     * True only inside a console app, where tabs need naming by hand.
+     *
+     * Wired to a FUNCTION rather than a field on purpose: nothing in the template reads
+     * this value, so a wired field would not trigger a re-render when it resolved, and a
+     * renderedCallback-based approach would simply never run again — leaving the tab
+     * reading "Loading..." exactly as before.
+     */
+    isConsoleNavigation = false;
+
+    @wire(IsConsoleNavigation)
+    wiredIsConsoleNavigation(isConsole) {
+        this.isConsoleNavigation = isConsole === true;
+        if (this.isConsoleNavigation) this._nameConsoleTab();
+    }
 
     @wire(getObjectInfo, { objectApiName: '$objectApiName' })
     wiredObjectInfo({ data, error }) {
@@ -614,6 +641,34 @@ export default class ND_SectionConfigBuilder extends LightningElement {
      * Guarded by a signature so re-rendering does not reassign on every pass.
      */
     renderedCallback() {
+        this._pushConfigToPreview();
+    }
+
+    /**
+     * Name the console workspace tab.
+     *
+     * A console tab hosting an LWC shows "Loading..." indefinitely: the tab label is not
+     * taken from the CustomTab label, and nothing resolves it unless the component sets it
+     * itself. Standard (non-console) navigation is unaffected, which is why
+     * IsConsoleNavigation gates this.
+     */
+    _nameConsoleTab() {
+        if (!this.isConsoleNavigation || this._tabNamed) return;
+        this._tabNamed = true;
+
+        getFocusedTabInfo()
+            .then(tab => Promise.all([
+                setTabLabel(tab.tabId, TAB_LABEL),
+                setTabIcon(tab.tabId, TAB_ICON)
+            ]))
+            .catch(error => {
+                // Let a later render try again rather than leaving "Loading..." forever
+                this._tabNamed = false;
+                console.warn('nD_SectionConfigBuilder: could not set the console tab label', error);
+            });
+    }
+
+    _pushConfigToPreview() {
         const preview = this.template.querySelector('c-n-d_-dynamic-section');
         if (!preview) {
             this._previewSignature = null;
