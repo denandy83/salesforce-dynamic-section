@@ -513,9 +513,12 @@
                     <div class="nd-pane-head">
                         <h2>Load an existing config</h2>
                     </div>
+                    <!-- Deliberately NOT value-bound. lightning-textarea fires change on
+                         blur, so a controlled value combined with any re-render before you
+                         click away resets what you pasted. Read on Load instead. -->
                     <lightning-textarea
+                        class="nd-import-box"
                         label="Paste the current ND_jsonConfigString"
-                        value={importText}
                         placeholder={importPlaceholder}
                         onchange={handleImportChange}>
                     </lightning-textarea>

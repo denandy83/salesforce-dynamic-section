@@ -88,6 +88,8 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     previewVisible = true;
     @track recentRecords = [];
     @track picklistValues = {};
+    _valueSourceFields = [];
+    _valueSourceSignature = '';
     recordSearch = '';
     recordSearchError = '';
     importText = '';
@@ -198,15 +200,30 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             else if (def.valuesFromSelf && row.apiName) wanted.add(row.apiName);
         });
 
-        return Array.from(wanted).sort();
+        // Return the SAME array instance while the contents are unchanged. A wire keyed on
+        // a getter that builds a new array every time refires on every render, which
+        // re-renders, which builds another array — a loop that also wiped anything typed
+        // into a controlled input before it had been committed.
+        const next = Array.from(wanted).sort();
+        const signature = next.join(',');
+        if (this._valueSourceSignature !== signature) {
+            this._valueSourceSignature = signature;
+            this._valueSourceFields = next;
+        }
+        return this._valueSourceFields;
     }
 
     @wire(getPicklistValues, { objectApiName: '$objectApiName', fieldNames: '$valueSourceFields' })
     wiredPicklistValues({ data, error }) {
-        this.picklistValues = data || {};
         if (error) {
             this.picklistValues = {};
             console.warn('nD_SectionConfigBuilder: could not load picklist values', error);
+            return;
+        }
+        // Only reassign on a real change: a fresh {} every time is a fresh render every time
+        const next = data || {};
+        if (JSON.stringify(next) !== JSON.stringify(this.picklistValues)) {
+            this.picklistValues = next;
         }
     }
 
@@ -801,12 +818,21 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         return '[{"apiName":"Status","editable":true}]';
     }
 
-    handleImportChange(event) {
-        this.importText = event.target.value;
+    // Only clears the message; the value itself is read from the DOM on Load. Binding
+    // value= made the box controlled, and lightning-textarea fires change on blur, so any
+    // re-render before you clicked away reset what you had pasted.
+    handleImportChange() {
+        this.importError = '';
+        this.importNotice = '';
+    }
+
+    get importBoxValue() {
+        const box = this.template.querySelector('.nd-import-box');
+        return box ? box.value : '';
     }
 
     handleImport() {
-        const { rows, section, error, legacyShape } = parseConfig(this.importText);
+        const { rows, section, error, legacyShape } = parseConfig(this.importBoxValue);
         this.importError = error;
         if (!rows) return;
 
