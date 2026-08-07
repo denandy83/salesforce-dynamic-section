@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>ND Dynamic Section Config Builder</label>
+    <description>Superset of ND_Dynamic_Section_User plus the Section Config Builder tab. The live preview embeds the real nD_DynamicSection, so it needs those classes too. Assign alone. Pasting into App Builder also needs Customize Application, not granted here.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <classAccesses>
+        <apexClass>ND_EmailResolver</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ND_ProblemPicker</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ND_SectionPreviewPicker</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <tabSettings>
+        <tab>ND_Section_Config_Builder</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+</PermissionSet>

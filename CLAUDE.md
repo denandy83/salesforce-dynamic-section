@@ -222,24 +222,47 @@ whitelisted against the global describe before reaching the dynamic SOQL. 11 tes
 - **Two Apex gotchas this cost:** `like` is a reserved word, and `WITH SECURITY_ENFORCED` must sit
   **between** `WHERE` and `ORDER BY` or the parser throws `unexpected token: 'WITH'` at runtime only.
 
-## Permission sets — NOT YET CREATED, create these
-Nothing has been granted yet; access currently depends on whatever the profiles happen to allow.
-Two sets, the second **additive** on the first. Keep both to Apex access + tab visibility only —
-**no object or field CRUD** — because agents already have Case/Contact/User from their profile, and
-bundling data access into a component set turns it into a privilege-escalation vector.
+## Permission sets — created and assigned (2026-08-07)
+Both live in **UAT and PROD**, committed under `force-app/main/default/permissionsets/`. Apex access
++ tab visibility only — **no object or field CRUD** — because agents already have Case/Contact/User
+from their profile, and bundling data access into a component set turns it into a
+privilege-escalation vector.
 
 | Set | Apex Class Access | Tab `Section Config Builder` | Assign to |
 |---|---|---|---|
 | `ND_Dynamic_Section_User` | `ND_EmailResolver`, `ND_ProblemPicker` | Hidden | Everyone working Cases |
-| `ND_Dynamic_Section_Config_Builder` | `ND_SectionPreviewPicker` | Default On | The few who edit record pages — **assign alongside the User set** |
+| `ND_Dynamic_Section_Config_Builder` | those two **+** `ND_SectionPreviewPicker` | Visible | The few who edit record pages — **assign alone** |
 
-- **Why additive:** the builder's live preview embeds the real `nD_DynamicSection`, so it calls
-  `ND_EmailResolver` and `ND_ProblemPicker` too. `ND_SectionPreviewPicker` alone gives a preview whose
-  people widgets show bare addresses and whose Problem picker finds nothing — looks like a bug.
-  Prefer a permission set **group** (`ND_Dynamic_Section_Admin` = both) so this cannot be forgotten.
-- **Prerequisite neither set grants:** pasting the config into App Builder needs **Customize
-  Application**. Deliberately not bundled — too broad. Without it the builder still works and Copy
-  JSON still works; there is just nowhere to paste it.
+- **The Config Builder set is a SUPERSET, not an add-on, and there is deliberately no group.** The
+  builder's live preview embeds the real `nD_DynamicSection`, so it calls `ND_EmailResolver` and
+  `ND_ProblemPicker` too. Granting only `ND_SectionPreviewPicker` gives a preview whose people
+  widgets show bare addresses and whose Problem picker finds nothing — looks like a bug, is a
+  permissions gap. An earlier plan had two minimal sets plus a `ND_Dynamic_Section_Admin` group to
+  bind them; that was dropped as dead weight, since permission sets union anyway and "either you can
+  see them, or you can see them AND administer them" is the real shape. Cost: the two view classes
+  are listed in both files, so a future class must be added to both.
+- **Assignments as deployed:** PROD 27 view (12 `AVB_Service` · 13 `AVB_Sales` · 2 `AVB_Management`)
+  + 4 builder (`AVB_System_Administrator`). UAT 11 view + 8 builder — UAT's admin list has drifted,
+  see below. No user has both, by design.
+- **`PermissionSetAssignment` is data, not metadata.** It does not travel in a deploy; each org needs
+  its own `sf org assign permset` run. Nothing in git records who is assigned.
+- **New joiners get nothing automatically.** A profile cannot have a permission set attached —
+  `PermissionSetAssignment.AssigneeId` is a lookup to **User**, with no `ProfileId` field, so profiles
+  and permission sets are parallel grant layers with no inheritance. Making it durable needs a
+  record-triggered Flow on User (assign when Profile = one of the three) or the permissions moved onto
+  the profiles themselves. **Neither is in place** — the current assignment is a one-time snapshot.
+- **`description` on a PermissionSet maxes at 255 chars.** Over that, the deploy fails with
+  `data value too large` and names no line number. The rationale belongs here, not in the metadata.
+- **UAT admin drift:** UAT has 8 active `AVB_System_Administrator` users to PROD's 4, including
+  `606059@` (inactive in PROD) and Jonas Lejeune / Justin Chng (Sales / Service in PROD). A stale
+  `639537@aviobook.aero.old` duplicate was skipped. UAT is a smoke test of the mechanism, not a
+  rehearsal of the rollout.
+- **PROD's numeric usernames are people, not service accounts.** `157196 Roijens`, `25031 Franssens`,
+  `639537 Schuurmans` are the live accounts; the matching `chris.roijens@` / `wouter.schuurmans@` /
+  `tibo.vandenberg@` were deactivated in late 2025 under a username-convention change. Only Vandenberg
+  has no active account.
+- **Untested:** whether Salesforce rejects assigning a set to an *inactive* user. Both runs targeted
+  active users only, so the platform was never asked.
 - Skip: a read-only variant (no meaningful "view but not use" state), anything for
   `nD_sectionConfigSchema` (service module, no Apex, no UI), and View All / Modify All (every class is
   `with sharing` + `WITH SECURITY_ENFORCED` and runs as the user).
@@ -247,8 +270,8 @@ bundling data access into a component set turns it into a privilege-escalation v
   `console.warn`. And a **grey avatar can be a permissions symptom**: grey normally means "not in
   Salesforce" (correct for shared mailboxes), but a user lacking Contact/User read sees colleagues as
   grey too.
-- Not yet written as metadata. Offer to generate the two `PermissionSet` files plus the group so they
-  live in version control rather than only in the org.
+- **Prerequisite neither set grants:** pasting the config into App Builder needs **Customize
+  Application** — deliberately not bundled, too broad.
 
 ## Case org facts (UAT and PROD share the same Ids)
 - Record types: `AVB_Problem_Case` = `012KB000000kcw6YAA` · `AVB_AvioBook_Case` = `012KB000000kcw4YAA` · `AVB_AvioData_Case` = `012KB000000kcw5YAA`
@@ -267,22 +290,19 @@ bundling data access into a component set turns it into a privilege-escalation v
 Branch `feat/section-config-editor`, **not yet merged to `main`**. Deployed to **UAT and PROD**.
 
 PROD deploys: Apex + tests `0AfTX000001jUB30AM` · schema/builder/tab `0AfTX000001jUEH0A2` ·
-`nD_DynamicSection` `0AfTX000001jUSn0AM`. 27 Apex tests, 160 Jest tests, all green.
+`nD_DynamicSection` `0AfTX000001jUSn0AM` · permission sets `0AfTX000001jajV0AQ`. UAT permission sets
+`0AfUB00000MrMdd0AF`. 27 Apex tests, 160 Jest tests, all green.
+
+**Done since:** permission sets created and assigned in both orgs · PROD record pages repopulated ·
+Confluence screenshots added and the Permissions page merged in.
 
 **Open items:**
-1. **Create the two permission sets above** — nothing is granted yet.
-2. **PROD record pages are empty of this component.** All 9 instances across the 4 Case pages were
-   deleted so the legacy property tags could be removed. Their configs, already migrated to the
-   `{section, fields}` shape, are in `~/Desktop/nd-PROD-configs-before-delete/` with an `INDEX.txt`
-   mapping each to its page, position and title. Two Mobile sections share the title "Details" — the
-   index numbers them by position.
-3. UAT's 8 pages are committed under `force-app/main/default/flexipages/` and are fully migrated.
+1. UAT's 8 pages are committed under `force-app/main/default/flexipages/` and are fully migrated.
    PROD's are **not** in version control.
-4. Confluence: **ND Dynamic Section** (published, `11869257729`) still has 4 `SCREENSHOT 0n`
-   placeholders and a stale "Page status: draft" panel at the bottom. **ND Dynamic Section —
-   Permissions** (`11872862209`) is a separate page to be merged into it and then deleted.
-   Screenshots are in `~/Desktop/nd-dynamic-section-screenshots/`.
-5. `npm install` is required before `npm test` or eslint — **there is no lockfile**. Installing it
+2. Permission set assignment is a **one-time snapshot** — no Flow, no profile-level grant, so anyone
+   added to `AVB_Service` / `AVB_Sales` / `AVB_Management` from now on gets nothing. See the
+   permission sets section.
+3. `npm install` is required before `npm test` or eslint — **there is no lockfile**. Installing it
    also activates husky's pre-commit hook, which fails on 8 pre-existing lint errors (the `ND_*`
    `@api` naming rule and four `setTimeout` calls), so commits here use `--no-verify`.
 
