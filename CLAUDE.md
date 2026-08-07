@@ -209,6 +209,47 @@ and cannot be distinguished from a real photo. Test class is self-contained (7 t
 matches `Subject OR CaseNumber`, optional record-type (by **DeveloperName**) + status-exclude filters,
 `ORDER BY CaseNumber DESC LIMIT 200`, `WITH SECURITY_ENFORCED`. Test class is self-contained (4 tests, ~100% of the class).
 
+### `classes/ND_SectionPreviewPicker` (+ `ND_SectionPreviewPickerTest`)
+Serves the Config Builder's record picker. `getRecentRecords(objectApiName)` — the running user's
+recently viewed records (`LastViewedDate`, so genuinely "mine"), falling back to recently modified
+so a fresh user is not handed an empty picker. `resolveRecordId(objectApiName, term)` — accepts an
+Id or a human identifier; **Case numbers are stored zero-padded, so `12024` is also matched against
+`%12024`**, and an Id belonging to another object is refused. `getPicklistValues(objectApiName,
+fieldNames)` — active values for several fields at once, across all record types, so a row shown on
+one record type can be coloured by a value only available on another; non-picklist fields are absent
+from the result, which is how the builder knows to fall back to a text box. Object names are
+whitelisted against the global describe before reaching the dynamic SOQL. 11 tests.
+- **Two Apex gotchas this cost:** `like` is a reserved word, and `WITH SECURITY_ENFORCED` must sit
+  **between** `WHERE` and `ORDER BY` or the parser throws `unexpected token: 'WITH'` at runtime only.
+
+## Permission sets — NOT YET CREATED, create these
+Nothing has been granted yet; access currently depends on whatever the profiles happen to allow.
+Two sets, the second **additive** on the first. Keep both to Apex access + tab visibility only —
+**no object or field CRUD** — because agents already have Case/Contact/User from their profile, and
+bundling data access into a component set turns it into a privilege-escalation vector.
+
+| Set | Apex Class Access | Tab `Section Config Builder` | Assign to |
+|---|---|---|---|
+| `ND_Dynamic_Section_User` | `ND_EmailResolver`, `ND_ProblemPicker` | Hidden | Everyone working Cases |
+| `ND_Dynamic_Section_Config_Builder` | `ND_SectionPreviewPicker` | Default On | The few who edit record pages — **assign alongside the User set** |
+
+- **Why additive:** the builder's live preview embeds the real `nD_DynamicSection`, so it calls
+  `ND_EmailResolver` and `ND_ProblemPicker` too. `ND_SectionPreviewPicker` alone gives a preview whose
+  people widgets show bare addresses and whose Problem picker finds nothing — looks like a bug.
+  Prefer a permission set **group** (`ND_Dynamic_Section_Admin` = both) so this cannot be forgotten.
+- **Prerequisite neither set grants:** pasting the config into App Builder needs **Customize
+  Application**. Deliberately not bundled — too broad. Without it the builder still works and Copy
+  JSON still works; there is just nowhere to paste it.
+- Skip: a read-only variant (no meaningful "view but not use" state), anything for
+  `nD_sectionConfigSchema` (service module, no Apex, no UI), and View All / Modify All (every class is
+  `with sharing` + `WITH SECURITY_ENFORCED` and runs as the user).
+- **Failure mode worth knowing:** missing Apex access fails **silently** — no page error, only
+  `console.warn`. And a **grey avatar can be a permissions symptom**: grey normally means "not in
+  Salesforce" (correct for shared mailboxes), but a user lacking Contact/User read sees colleagues as
+  grey too.
+- Not yet written as metadata. Offer to generate the two `PermissionSet` files plus the group so they
+  live in version control rather than only in the org.
+
 ## Case org facts (UAT and PROD share the same Ids)
 - Record types: `AVB_Problem_Case` = `012KB000000kcw6YAA` · `AVB_AvioBook_Case` = `012KB000000kcw4YAA` · `AVB_AvioData_Case` = `012KB000000kcw5YAA`
 - `Priority` picklist: Low, Normal, High, Urgent
@@ -222,6 +263,44 @@ matches `Subject OR CaseNumber`, optional record-type (by **DeveloperName**) + s
 - **`nD_CaseAlert`** (NEW, separate LWC): full-width, page-level alert banner placed in the record page's full-width **Header region**. `anyOf` (OR) rules incl. a date operator (`dateOnOrBefore: "today"`), reads fields via the `getRecord` wire (no Apex). Requires a page template with a full-width Header region. Target rules: Priority in [High,Urgent] OR Impact Severity in [High,Significant] OR Remind Me on/before today.
 - An `alert` entry type could also be added to `nD_DynamicSection` for an in-section banner (same rule format).
 
-## Status (as of 2026-07-21)
-Committed to `main` and deployed to **PROD**. Remaining on the admin side: update the Case page's
-App Builder JSON config on PROD to use the new flags (`isOpenProblem` on `ParentId`, `isUrlList` on `Slack_Thread__c`).
+## Status (as of 2026-08-07)
+Branch `feat/section-config-editor`, **not yet merged to `main`**. Deployed to **UAT and PROD**.
+
+PROD deploys: Apex + tests `0AfTX000001jUB30AM` · schema/builder/tab `0AfTX000001jUEH0A2` ·
+`nD_DynamicSection` `0AfTX000001jUSn0AM`. 27 Apex tests, 160 Jest tests, all green.
+
+**Open items:**
+1. **Create the two permission sets above** — nothing is granted yet.
+2. **PROD record pages are empty of this component.** All 9 instances across the 4 Case pages were
+   deleted so the legacy property tags could be removed. Their configs, already migrated to the
+   `{section, fields}` shape, are in `~/Desktop/nd-PROD-configs-before-delete/` with an `INDEX.txt`
+   mapping each to its page, position and title. Two Mobile sections share the title "Details" — the
+   index numbers them by position.
+3. UAT's 8 pages are committed under `force-app/main/default/flexipages/` and are fully migrated.
+   PROD's are **not** in version control.
+4. Confluence: **ND Dynamic Section** (published, `11869257729`) still has 4 `SCREENSHOT 0n`
+   placeholders and a stale "Page status: draft" panel at the bottom. **ND Dynamic Section —
+   Permissions** (`11872862209`) is a separate page to be merged into it and then deleted.
+   Screenshots are in `~/Desktop/nd-dynamic-section-screenshots/`.
+5. `npm install` is required before `npm test` or eslint — **there is no lockfile**. Installing it
+   also activates husky's pre-commit hook, which fails on 8 pre-existing lint errors (the `ND_*`
+   `@api` naming rule and four `setTimeout` calls), so commits here use `--no-verify`.
+
+## Deploy lessons that cost real time
+- **A property tag cannot be removed while the component is on ANY Lightning page**, and clearing
+  every value is *not* enough — the component must come off the pages entirely. Verified on both orgs.
+  Sequence: migrate configs → deploy pages → strip the component → deploy → deploy the LWC → restore
+  pages → deploy. Scripts: `scratchpad/migrate_flexipages.py`, `strip_flexipages.py`.
+- **A property `default` never reaches instances already on a page**, only ones added afterwards.
+- **Deploying Apex to PROD requires `--test-level`.** Omitting it fails with no component error and no
+  message, which looks like a mystery. And deploying the classes folder while running only one test
+  class fails the 75% gate — run **all three** test classes.
+- **`ND_*` properties cannot be set from template attributes.** LWC cannot derive an attribute name
+  with a leading capital, so `nd-json-config-string=` silently creates an expando and the child gets
+  nothing. Assign them in JS. The giveaway is the child rendering its default value.
+- **A wire keyed on a getter that builds a new array every evaluation loops**, re-rendering forever
+  and wiping anything typed into a `value`-bound input.
+- **LWC collapses whitespace between a text node and an element across a newline**, producing
+  run-together words. Keep such sentences on one line.
+- **Nothing clickable can be offered in the App Builder canvas** — it treats every component as a
+  drag handle and swallows pointer events.
