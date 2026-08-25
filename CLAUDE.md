@@ -631,22 +631,37 @@ in. Deployed to **UAT and PROD**.
 PROD deploys: Apex + tests `0AfTX000001jUB30AM` · schema/builder/tab `0AfTX000001jUEH0A2` ·
 `nD_DynamicSection` `0AfTX000001jUSn0AM` (08-06) → **`0AfTX000001kCdV0AU` (08-15, owner filter)** ·
 permission sets `0AfTX000001jajV0AQ`. UAT permission sets `0AfUB00000MrMdd0AF`. 27 Apex tests,
-377 Jest tests, all green.
+381 Jest tests, all green.
 
 **Done since:** permission sets created and assigned in both orgs · PROD record pages repopulated ·
 Confluence screenshots added and the Permissions page merged in · owner picker filtered to internal
 users (both orgs).
 
-**Done 2026-08-25:** inline-help ⓘ moved beside the label · row separators forced to align
-(`align-items: stretch`) · **multi-condition logic (AND / OR / custom expression + per-condition
-negate) on all four "when…" settings**, with `nD_conditionsEditor` in the builder · every field
-picker collapsed into one search control (`nD_fieldCombobox`). Deployed to **UAT only** — PROD is
-still on the 08-15 bundle.
+**Done 2026-08-25** (branch `feat/conditions-dividers-and-canvas-fix`, 9 commits, merged to
+`main`; **UAT only — PROD is still on the 08-15 bundle**):
+- **Multi-condition logic** (AND / OR / custom expression + per-condition negate) on all four
+  "when…" settings, plus **date comparison** on Date/DateTime fields — closing the
+  `dateOnOrBefore` gap that had been open since the first CLAUDE.md.
+- **`divider` entries** (`———— SLA ————`).
+- **The App Builder drag crash** — the canvas renders read-only so no form-associated combobox
+  is created.
+- Two new service components: **`nD_conditionsEditor`**, **`nD_fieldCombobox`** (one search
+  control replacing every combobox-plus-filter-box pair).
+- **Eight bugs found reviewing the same day's work**, each with a regression test.
+- Visual pass: inline-help ⓘ beside the label · record-link ↗ beside the label and no longer
+  `scale(2)` · read-only values aligned with editable ones (checkboxes excluded) · SLDS's
+  read-only underline off · row separators removed · row spacing halved · "take it!" on the
+  Case Owner label line.
+- **LWC only — no Apex was touched**, so a PROD deploy needs no test level.
 
 **Open items:**
-0. **The owner-filter change is UNCOMMITTED** — `nD_DynamicSection.{js,html}` are modified in the
-   working tree on `main` and already live in both orgs. Commit with `--no-verify` (see item 3).
-   `package-lock.json` is untracked and should probably stay that way or be committed deliberately.
+0. **Three known bugs, found in review and deliberately not yet fixed** (all UAT-only, none
+   blocking): the record-link ↗ is clipped out of sight on a label that has inline help text AND
+   a long caption (the floated label's `overflow: hidden`); the underline site's field picker
+   offers "this row's own field" twice — it now carries the real apiName, so it collides with
+   that field's own entry and LWC logs a duplicate-key error; and a read-only checkbox jumps
+   ~11px on load, because `isCheckbox` needs the describe and is briefly false. Also parked: the
+   ~2px residual between a read-only and an editable checkbox, and `hasRecordLink` is now dead.
 1. UAT's 8 pages are committed under `force-app/main/default/flexipages/` and are fully migrated.
    PROD's are **not** in version control, though all 9 PROD instances were verified on 2026-08-07 to
    hold valid `{section, fields}` JSON, across `AVB_AvioBook_Case_Record_Page` (3),
@@ -655,7 +670,8 @@ still on the 08-15 bundle.
 2. Permission set assignment is a **one-time snapshot** — no Flow, no profile-level grant, so anyone
    added to `AVB_Service` / `AVB_Sales` / `AVB_Management` from now on gets nothing. See the
    permission sets section.
-3. `npm install` is required before `npm test` or eslint — **there is no lockfile**. Installing it
+3. `npm install` is required before `npm test` or eslint. **`package-lock.json` is now committed**
+   (2026-08-25), so versions are pinned. Installing it
    also activates husky's pre-commit hook, which fails on 8 pre-existing lint errors (the `ND_*`
    `@api` naming rule and four `setTimeout` calls), so commits here use `--no-verify`.
 
