@@ -754,11 +754,43 @@ errors**. None of them is this repo's code:
 - 3 × a username validation rule (*"Please adjust the username to end with @aviobook.support."*).
 
 **Consequence: no Apex can be deployed to PROD until that Flow is fixed**, because an Apex
-deployment must run tests. LWC-only deployments are unaffected — they require no tests, which is
-how the 08-25 release shipped (`deploy start`, 0 tests run). **Do not read a failed `validate` as
-a problem with the change**: check `numberComponentErrors` first, and only then the test list.
-Note `validate` against production ALWAYS runs the local tests, so it is the wrong tool for an
-LWC-only change — it will fail on this Flow every time.
+deployment must run tests — and both of this repo's Case-inserting test classes
+(`ND_ProblemPickerTest`, `ND_SectionPreviewPickerTest`) are among the casualties, so even the
+documented `--test-level RunSpecifiedTests` gate fails. LWC-only deployments are unaffected: they
+require no tests, which is how the 08-25 release shipped (`deploy start`, 0 tests run).
+**Do not read a failed `validate` as a problem with the change** — check `numberComponentErrors`
+first (it was 0), and only then the test list. And **pass `--test-level` explicitly**: with none,
+`validate` defaults to running every local test, which is not what the gate in this file
+prescribes.
+
+### Why `ND_Notify_New_Case` fails — it is a FLOW, not Apex
+A record-triggered autolaunched Flow on **Case**, `RecordAfterSave` / **Create**, with **no entry
+filters** — so it runs on every Case insert. It calls three **Send Custom Notification** actions,
+each passing `recipientIds = v_Recipient`. That input is **required**, and an empty collection
+trips *"Missing required input parameter: recipientIds"*.
+
+`v_Recipient` is a String collection built by looping over `Custom_Configuration__c` records and
+adding each `CreatedById`. **In an Apex test there is no org data** (no `SeeAllData`), so the 30
+`Custom_Configuration__c` rows are invisible, the Collection Filter yields nothing, the loop never
+runs, and `recipientIds` arrives empty → `CANNOT_EXECUTE_FLOW_TRIGGER` → the Case insert fails →
+every test that inserts a Case fails. **Real traffic is fine** precisely because those 30 rows
+exist.
+
+**Why PROD and not UAT** — one routing change, PROD **v5** (activated 2026-08-20) vs UAT **v2**:
+
+| `Who_created` outcome | UAT v2 | PROD v5 |
+|---|---|---|
+| `No_Contact` | **ends the flow** | → `Get_New_Other` |
+| default | → `Get_New_Other` | **ends the flow** |
+
+Tests insert Cases with **no ContactId**, so they match `No_Contact`. In UAT that path ends the
+flow and the insert succeeds; in PROD v5 it now runs the notification with no recipients.
+
+**Latent production risk, not just a test problem:** if that Collection Filter ever returns
+nothing for a path — a config record deleted, or an ICAO with no matching configuration — Case
+creation fails outright for the user. The robust fix is a decision guarding each Send Custom
+Notification on `v_Recipient` not being empty; reverting the `No_Contact` / default swap only
+hides it.
 
 ## Deploy lessons that cost real time
 - **A property tag cannot be removed while the component is on ANY Lightning page**, and clearing
