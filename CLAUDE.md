@@ -629,16 +629,17 @@ Working on `main`; `feat/section-config-editor` now points at the same commit, s
 in. Deployed to **UAT and PROD**.
 
 PROD deploys: Apex + tests `0AfTX000001jUB30AM` · schema/builder/tab `0AfTX000001jUEH0A2` ·
-`nD_DynamicSection` `0AfTX000001jUSn0AM` (08-06) → **`0AfTX000001kCdV0AU` (08-15, owner filter)** ·
-permission sets `0AfTX000001jajV0AQ`. UAT permission sets `0AfUB00000MrMdd0AF`. 27 Apex tests,
+`nD_DynamicSection` `0AfTX000001jUSn0AM` (08-06) → `0AfTX000001kCdV0AU` (08-15, owner filter) →
+**`0AfTX000001lArN0AU` (08-25, all five LWC bundles)** · permission sets `0AfTX000001jajV0AQ`. UAT permission sets `0AfUB00000MrMdd0AF`. 27 Apex tests,
 381 Jest tests, all green.
 
 **Done since:** permission sets created and assigned in both orgs · PROD record pages repopulated ·
 Confluence screenshots added and the Permissions page merged in · owner picker filtered to internal
 users (both orgs).
 
-**Done 2026-08-25** (branch `feat/conditions-dividers-and-canvas-fix`, 9 commits, merged to
-`main`; **UAT only — PROD is still on the 08-15 bundle**):
+**Done 2026-08-25** (branch `feat/conditions-dividers-and-canvas-fix`, merged to `main` and
+pushed; deployed to **UAT and PROD** — PROD `0AfTX000001lArN0AU`, LWC only, 5 of 5 bundles,
+0 component errors, 0 tests run):
 - **Multi-condition logic** (AND / OR / custom expression + per-condition negate) on all four
   "when…" settings, plus **date comparison** on Date/DateTime fields — closing the
   `dateOnOrBefore` gap that had been open since the first CLAUDE.md.
@@ -742,6 +743,22 @@ result when combined with another rule that is also correct on its own.**
   not something worse.
 - Verified after the fix: **0** form-associated elements in the entire canvas, down from 10, with
   22 output fields still showing real data.
+
+## ⚠️ PROD's Apex test suite is currently BROKEN (found 2026-08-25)
+`sf project deploy validate --target-org PROD` fails with **68 test errors and 0 component
+errors**. None of them is this repo's code:
+- **65 × `CANNOT_EXECUTE_FLOW_TRIGGER`** — the **`ND_Notify_New_Case`** Flow fails with *"Missing
+  required input parameter: recipientIds"*, so **every test that inserts a Case fails**. That
+  includes this repo's own `ND_ProblemPickerTest` and `ND_SectionPreviewPickerTest`, which are
+  fine in UAT.
+- 3 × a username validation rule (*"Please adjust the username to end with @aviobook.support."*).
+
+**Consequence: no Apex can be deployed to PROD until that Flow is fixed**, because an Apex
+deployment must run tests. LWC-only deployments are unaffected — they require no tests, which is
+how the 08-25 release shipped (`deploy start`, 0 tests run). **Do not read a failed `validate` as
+a problem with the change**: check `numberComponentErrors` first, and only then the test list.
+Note `validate` against production ALWAYS runs the local tests, so it is the wrong tool for an
+LWC-only change — it will fail on this Flow every time.
 
 ## Deploy lessons that cost real time
 - **A property tag cannot be removed while the component is on ANY Lightning page**, and clearing
