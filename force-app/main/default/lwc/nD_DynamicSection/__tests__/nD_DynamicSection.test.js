@@ -734,3 +734,57 @@ describe('read-only values line up with editable ones', () => {
         expect(box.className).not.toContain('nd-field-content_alert-readonly');
     });
 });
+
+// "take it!" used to be a block under the owner picker. That made the owner cell taller than
+// its partner, and align-items: stretch pushed the height onto the whole row — so an
+// unrelated field beside it grew ~16px of empty space, but only while someone else owned the
+// case. It now sits on the label line, where it costs no height.
+describe('the "take it!" link', () => {
+    const FIELDS = { OwnerId: { apiName: 'OwnerId' }, Status: { apiName: 'Status' } };
+
+    async function mountRows(fields) {
+        const element = mount({
+            recordId: '500KB00000000001AAA',
+            objectApiName: 'Case',
+            ND_jsonConfigString: JSON.stringify({ section: {}, fields })
+        });
+        getObjectInfo.emit({ apiName: 'Case', fields: FIELDS, recordTypeInfos: {} });
+        getRecord.emit({
+            id: '500KB00000000001AAA', apiName: 'Case',
+            fields: { OwnerId: { value: '005000000000999AAA' }, Status: { value: 'New' } }
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+        return element;
+    }
+
+    it('sits inside the label, not under the picker', async () => {
+        const element = await mountRows([{ apiName: 'OwnerId', label: 'Case Owner', editable: true }]);
+
+        const label = element.shadowRoot.querySelector('.nd-custom-label');
+        expect(label.querySelector('.nd-take-link')).not.toBeNull();
+        // Nothing left below the control to stretch the row.
+        const content = element.shadowRoot.querySelector('.nd-field-content');
+        const belowLabel = Array.from(content.querySelectorAll('.nd-take-link'))
+            .filter(a => !a.closest('.nd-custom-label'));
+        expect(belowLabel).toHaveLength(0);
+    });
+
+    it('still reads "take it!" and still triggers the takeover', async () => {
+        const element = await mountRows([{ apiName: 'OwnerId', label: 'Case Owner', editable: true }]);
+        const link = element.shadowRoot.querySelector('.nd-custom-label .nd-take-link');
+        expect(link.textContent.trim()).toMatch(/take it/i);
+        expect(link.className).toBe('nd-take-link');
+    });
+
+    it('is offered on no other row', async () => {
+        const element = await mountRows([{ apiName: 'Status', label: 'Status', editable: true }]);
+        expect(element.shadowRoot.querySelector('.nd-take-link')).toBeNull();
+    });
+
+    // A read-only owner row has no picker to take with, so no link either.
+    it('is not offered on a read-only owner row', async () => {
+        const element = await mountRows([{ apiName: 'OwnerId', label: 'Case Owner' }]);
+        expect(element.shadowRoot.querySelector('.nd-take-link')).toBeNull();
+    });
+});

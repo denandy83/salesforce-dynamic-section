@@ -104,13 +104,19 @@
     margin-top: -0.25rem;
 }
 
+/* On the label line, so it costs no height. It is still the loudest thing on that line —
+   blue against the grey label, and the only underlined-on-hover text — because it starts an
+   SLA clock and should not read as decoration. */
 .nd-take-link {
-    display: block;
-    text-align: right;
-    font-size: 0.7rem;
+    display: inline;
+    margin-left: 0.5rem;
     color: #005FB2;
     cursor: pointer;
-    margin-top: 2px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+    vertical-align: baseline;
 }
 
 .nd-take-link:hover {

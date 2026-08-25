@@ -190,6 +190,16 @@ Supported per-field keys:
   All three exempt profile `AVB_System_Administrator` and permission
   `AVB_Validation_Rule_Exclusion`; the LWC cannot see either, so it still pre-flights for admins.
   `AVB_Require_SRT_When_Status_open` needs Status ≥ Waiting for Customer, so take-it never trips it.
+- **"take it!" sits on the LABEL line**, not under the picker. As a block below the control it
+  made the owner cell taller than its partner, and `align-items: stretch` pushed that height
+  onto the whole flex line — so an unrelated field beside it grew ~16px of empty space (29px
+  between rows against 13px elsewhere, measured), and only while someone else owned the case,
+  which made it look like a rendering glitch. On the label line it costs no height: the owner
+  row now measures the same 58px as every other row. Kept blue and bold there, because it
+  starts an SLA clock and must not read as decoration.
+  - `ownerNotice` (the ✓ after taking) is still a block below the control, so the row still
+    grows for a moment after a successful takeover. Left alone: it is transient feedback, and
+    that is the one time a bit of movement is informative rather than annoying.
 - **"take it!" saves through the form**, not a bare `updateRecord`, so pending edits are committed
   in the SAME DML. Otherwise a just-picked Environment is not yet on the record when the flow flips
   Status to Open, and the save fails.

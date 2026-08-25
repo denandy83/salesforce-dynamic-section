@@ -875,6 +875,11 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 // its own label inside its shadow DOM, so a row without a config label has
                 // nowhere to put it and keeps the corner icon.
                 hasLabelLink: !!recordLinkId && !!customLabel,
+                // "take it!" sits on the label line rather than under the picker. As a block
+                // below it, it made the owner cell taller than its partner, and align-items:
+                // stretch pushed that height onto the whole row — so an unrelated field beside
+                // it grew 16px of empty space, but only while someone else owned the case.
+                isOwnerEditable: isOwner && rowEditable,
                 hasCornerLink: !!recordLinkId && !customLabel,
                 labelCssClass: hasInlineHelp
                     ? 'nd-custom-label nd-custom-label_inline-help'

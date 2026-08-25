@@ -94,7 +94,7 @@
                                         </template>
 
                                         <template if:true={fieldConfig.customLabel}>
-                                            <div class={fieldConfig.labelCssClass} title={fieldConfig.customLabel}>{fieldConfig.customLabel}<template if:true={fieldConfig.hasLabelLink}><lightning-button-icon class="nd-label-link" icon-name="utility:new_window" variant="bare" size="xx-small" title="Open record" alternative-text="Open record" data-id={fieldConfig.recordLinkId} onclick={ND_handleOpenRecord}></lightning-button-icon></template></div>
+                                            <div class={fieldConfig.labelCssClass} title={fieldConfig.customLabel}>{fieldConfig.customLabel}<template if:true={fieldConfig.hasLabelLink}><lightning-button-icon class="nd-label-link" icon-name="utility:new_window" variant="bare" size="xx-small" title="Open record" alternative-text="Open record" data-id={fieldConfig.recordLinkId} onclick={ND_handleOpenRecord}></lightning-button-icon></template><template if:true={fieldConfig.isOwnerEditable}><template if:false={isOwnedByCurrentUser}><a class={takeLinkClass} onclick={ND_handleTakeOwnership}>{takeLinkLabel}</a></template></template></div>
                                             <template if:true={fieldConfig.isUrl}>
                                                 <template if:true={fieldConfig.showUrlLink}>
                                                     <div class="nd-url-value">
@@ -272,9 +272,6 @@
                                                             </template>
                                                         </div>
                                                     </div>
-                                                    <template if:false={isOwnedByCurrentUser}>
-                                                        <a class={takeLinkClass} onclick={ND_handleTakeOwnership}>{takeLinkLabel}</a>
-                                                    </template>
                                                     <template if:true={ownerNotice}>
                                                         <div class={ownerNoticeClass}>{ownerNotice}</div>
                                                     </template>
