@@ -262,6 +262,21 @@ Supported per-field keys:
   static value's line-height is. Applies to plain read-only rows only — `isUrl`, `isUrlList` and
   `isEmailList` draw their own boxes, already at `min-height: 2rem`. **Costs ~13px of height per
   read-only row**, which is what alignment buys.
+- **SLDS's own 1px rule under a read-only value is turned OFF**
+  (`.nd-body lightning-output-field { border-bottom: none }`). SLDS draws it as the read-only
+  counterpart of an input's border, so a value still reads as a field — reasonable in general,
+  but here it earned nothing and cost something: every row already has its own separator, so a
+  read-only value carried two rules ~11px apart, and **this section uses a bottom underline as a
+  MEANINGFUL signal** (the `colorIf` alert). A permanent grey underline on half the rows teaches
+  the eye that underlines are chrome, which is the opposite of what the alert needs.
+  - The rule is on the **host element**, which the base component stamps
+    `slds-form-element_readonly` onto. The host is in THIS component's tree, so unlike the value
+    inside it, this one is ours to turn off.
+  - Targeted by ELEMENT, not by `.nd-readonly-value`, so checkboxes and label-less rows lose it
+    too — half the rows keeping it would look like a bug. The descendant selector
+    (`.nd-body` …) is for specificity: a lone element selector loses to SLDS's class.
+  - **Consequence to expect:** the section no longer matches the standard field sections beside
+    it on the same record page, which still show SLDS's underline.
 - **⚠️ Booleans are excluded, because a checkbox is not a 2rem control.** An editable checkbox
   measures **16.6px** and sits near the top (centre 24.3), so there is no shared band to centre a
   read-only one in: centring it in 2rem put it at 32, i.e. **7.7px BELOW** its editable

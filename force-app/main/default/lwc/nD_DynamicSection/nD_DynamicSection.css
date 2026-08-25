@@ -792,3 +792,19 @@
     align-items: center;
     min-height: 2rem;
 }
+
+/* SLDS draws a 1px rule under every read-only field, as the read-only counterpart of an
+   input's border, so a value still reads as a field. It is on the HOST element — the base
+   component stamps `slds-form-element_readonly` onto its own host — which is in this
+   component's tree, so unlike the value inside it, this one we can turn off.
+   Off, because here it earns nothing and costs something: every row already has its own
+   separator, so a read-only value ends up with two rules 11px apart; and this section uses a
+   bottom underline as a MEANINGFUL signal (the colorIf alert). A permanent grey underline on
+   half the rows teaches the eye that underlines are chrome, which is the opposite of what
+   the alert needs.
+   Targeted by element rather than by `.nd-readonly-value`, so checkboxes and the rows with
+   no config label lose it too — half the rows keeping it would look like a bug. The
+   descendant selector is for specificity: a lone element selector loses to SLDS's class. */
+.nd-body lightning-output-field {
+    border-bottom: none;
+}
