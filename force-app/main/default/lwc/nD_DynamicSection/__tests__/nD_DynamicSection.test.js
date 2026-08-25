@@ -470,9 +470,11 @@ describe('the App Builder canvas', () => {
         expect(element.shadowRoot.querySelector('lightning-record-edit-form')).not.toBeNull();
     });
 
-    // The underline sits lower under a read-only value. In the canvas an "editable" row
-    // renders read-only, so the offset has to follow how the row RENDERS, not the config.
-    it('uses the read-only underline offset there, since the row renders read-only', async () => {
+    // In the canvas an "editable" row renders read-only, so it takes the aligned read-only
+    // box — and therefore NOT the legacy offset, which only existed for a value that had no
+    // control box to sit under. Either way the point is the same: this follows how the row
+    // RENDERS, not what the config asked for.
+    it('gives a canvas row the aligned read-only box, not the legacy offset', async () => {
         inCanvas(true);
         const element = mount({
             recordId: '500KB00000000001AAA',
@@ -487,8 +489,10 @@ describe('the App Builder canvas', () => {
         await Promise.resolve();
         await Promise.resolve();
 
-        expect(element.shadowRoot.querySelector('.nd-field-content').className)
-            .toContain('nd-field-content_alert-readonly');
+        const box = element.shadowRoot.querySelector('.nd-field-content');
+        expect(box.className).not.toContain('nd-field-content_alert-readonly');
+        expect(element.shadowRoot.querySelector('lightning-output-field').className)
+            .toContain('nd-readonly-value');
     });
 
     it('still draws dividers there', async () => {
@@ -623,5 +627,61 @@ describe('the record-link icon', () => {
         const label = element.shadowRoot.querySelector('.nd-custom-label');
         expect(label.className).toContain('nd-custom-label_inline-help');
         expect(label.querySelector('.nd-label-link')).not.toBeNull();
+    });
+});
+
+// A read-only value is bare text in a ~19px box, while an editable control is 2rem, so its
+// text sat ~6px above the text in the input beside it and a row with one of each looked out
+// of line. It now takes the control's height and is centred in it.
+describe('read-only values line up with editable ones', () => {
+    const FIELDS = { Status: { apiName: 'Status' }, CaseNumber: { apiName: 'CaseNumber' } };
+
+    async function mountRows(fields) {
+        const element = mount({
+            recordId: '500KB00000000001AAA',
+            objectApiName: 'Case',
+            ND_jsonConfigString: JSON.stringify({ section: {}, fields })
+        });
+        getObjectInfo.emit({ apiName: 'Case', fields: FIELDS, recordTypeInfos: {} });
+        getRecord.emit({
+            id: '500KB00000000001AAA', apiName: 'Case',
+            fields: { Status: { value: 'New' }, CaseNumber: { value: '00013006' } }
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+        return element;
+    }
+
+    it('gives a plain read-only value the control height', async () => {
+        const element = await mountRows([{ apiName: 'CaseNumber', label: 'Case Number' }]);
+        expect(element.shadowRoot.querySelector('lightning-output-field').className)
+            .toContain('nd-readonly-value');
+    });
+
+    it('leaves an editable control alone — it already has that height', async () => {
+        const element = await mountRows([{ apiName: 'Status', label: 'Status', editable: true }]);
+        expect(element.shadowRoot.querySelector('lightning-input-field').className)
+            .not.toContain('nd-readonly-value');
+    });
+
+    // Those widgets draw their own boxes, already at min-height 2rem.
+    it.each([['isUrl'], ['isUrlList'], ['isEmailList']])(
+        'leaves a read-only %s widget alone, it sizes its own box', async widget => {
+            const element = await mountRows([{ apiName: 'CaseNumber', label: 'X', [widget]: true }]);
+            const host = element.shadowRoot.querySelector('lightning-output-field');
+            if (host) expect(host.className).not.toContain('nd-readonly-value');
+        }
+    );
+
+    // The extra 4px drop existed only because a read-only value had no control box to sit
+    // under. Now that it has one, keeping it would put the rule 4px below where the editable
+    // row's sits — measured at 51 against 47 in UAT before this.
+    it('drops the legacy underline offset now the box is full height', async () => {
+        const element = await mountRows([
+            { apiName: 'CaseNumber', label: 'Case Number', color: '#ba0517' }
+        ]);
+        const box = element.shadowRoot.querySelector('.nd-field-content');
+        expect(box.className).toContain('nd-field-content_alert');
+        expect(box.className).not.toContain('nd-field-content_alert-readonly');
     });
 });

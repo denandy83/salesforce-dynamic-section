@@ -803,10 +803,19 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             // row actually RENDERS, not what the config asked for — in the App Builder canvas
             // an "editable" row renders read-only, and used to get the editable offset.
             const rowEditable = (item.editable || false) && !this.isDesignPreview;
+            // A plain read-only value gets the control's height so its text lines up with the
+            // text in an editable field beside it — which also means it no longer needs the
+            // extra drop the underline used to get for having no control box to sit under.
+            // Read from `item`, not from the widget consts below: those are declared later in
+            // this function, and depending on that order is how the last two of these ended
+            // up throwing "cannot access before initialization".
+            const alignedReadonly = !rowEditable
+                && item.isUrl !== true && item.isUrlList !== true && item.isEmailList !== true;
             const contentCssClass = [
                 'nd-field-content',
                 isAlertActive ? 'nd-field-content_alert' : '',
-                isAlertActive && !rowEditable ? 'nd-field-content_alert-readonly' : '',
+                isAlertActive && !rowEditable && !alignedReadonly
+                    ? 'nd-field-content_alert-readonly' : '',
                 hasIcon ? 'nd-field-content_has-corner-icon' : ''
             ].filter(Boolean).join(' ');
             const customStyle = isAlertActive ? `--nd-alert-color: ${alertColor};` : '';
@@ -864,7 +873,13 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 labelCssClass: hasInlineHelp
                     ? 'nd-custom-label nd-custom-label_inline-help'
                     : 'nd-custom-label',
-                fieldCssClass: hasInlineHelp ? 'nd-help-field' : '',
+                fieldCssClass: [
+                    hasInlineHelp ? 'nd-help-field' : '',
+                    // A read-only value's box is only ~19px tall against a control's 32px, so
+                    // its text sat ~6px above the text in the input beside it. Give it the
+                    // control's height and centre it, and the two line up.
+                    alignedReadonly ? 'nd-readonly-value' : ''
+                ].filter(Boolean).join(' '),
                 isVisible: isVisible,
                 style: customStyle,
                 cssClass: cssClass,

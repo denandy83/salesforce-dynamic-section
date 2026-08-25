@@ -252,9 +252,23 @@ Supported per-field keys:
   understanding it — see the cached-bundle lesson below. Only a genuinely multi-condition row needs
   the new shape, and only that row degrades on a stale bundle. `AND` is omitted from the JSON since
   it is the default.
-- **The underline sits 4px lower on a read-only row** than an editable one
-  (`.nd-field-content_alert-readonly { bottom: -4px }` vs `bottom: 0`), because a read-only
-  value has no control box to sit under. That is the ONLY real per-row difference: measured in a
+- **A read-only value is given the control's height so its text lines up with an editable
+  field's** (`.nd-readonly-value`). Bare text sits in a **~19px** box against a control's
+  **32px**, so it rendered ~6px higher and a row pairing one of each looked out of line —
+  "SWA" against "Andy Cassiers". `display: flex; align-items: center; min-height: 2rem` on the
+  host centres it; that works because the shadow tree's top-level box is laid out as a child of
+  the host box, which is the only way to move content this component cannot select. Derived from
+  the control height rather than nudged by the measured 6px, so it survives SLDS changing what a
+  static value's line-height is. Applies to plain read-only rows only — `isUrl`, `isUrlList` and
+  `isEmailList` draw their own boxes, already at `min-height: 2rem`. **Costs ~13px of height per
+  read-only row**, which is what alignment buys.
+- **That retired the read-only underline offset for those rows.** The extra 4px drop existed
+  only because a read-only value had no control box to sit under; with one, keeping it put the
+  rule at 51 against the editable row's 47. `.nd-field-content_alert-readonly` now applies only
+  where the box is still short.
+- **The underline offset difference is now only for rows whose box is still short** (the
+  three widget read-only forms): `.nd-field-content_alert-readonly { bottom: -4px }` vs
+  `bottom: 0`. Otherwise: measured in a
   rendered card, every editable row is identical — `bottom: 0`, `height: 3px`, and the same 4px
   from the field component's own box, whether the control is a date input, a picklist or a text
   input. Apparent differences between editable rows are **subpixel rounding at non-100% zoom**:
@@ -572,7 +586,7 @@ in. Deployed to **UAT and PROD**.
 PROD deploys: Apex + tests `0AfTX000001jUB30AM` · schema/builder/tab `0AfTX000001jUEH0A2` ·
 `nD_DynamicSection` `0AfTX000001jUSn0AM` (08-06) → **`0AfTX000001kCdV0AU` (08-15, owner filter)** ·
 permission sets `0AfTX000001jajV0AQ`. UAT permission sets `0AfUB00000MrMdd0AF`. 27 Apex tests,
-369 Jest tests, all green.
+375 Jest tests, all green.
 
 **Done since:** permission sets created and assigned in both orgs · PROD record pages repopulated ·
 Confluence screenshots added and the Permissions page merged in · owner picker filtered to internal

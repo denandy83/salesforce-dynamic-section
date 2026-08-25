@@ -774,3 +774,21 @@
     text-transform: uppercase;
     white-space: nowrap;
 }
+
+/* --- 9. READ-ONLY VALUE ALIGNMENT ------------------------------------------------
+   A read-only value is bare text: its box is ~19px tall, while an editable control is
+   2rem, so the text sat ~6px higher than the text in the input beside it and a row with
+   one of each looked out of line.
+
+   Giving it the control's height and centring it inside puts the two on the same line.
+   Derived from the control height rather than nudged by a measured offset, so it stays
+   right if SLDS changes what a static value's line-height is.
+
+   `display: flex` on the host works because the shadow tree's top-level box is laid out
+   as a child of the host box — the only way to centre content this component cannot
+   select, the value being inside the base component's shadow DOM. */
+.nd-readonly-value {
+    display: flex;
+    align-items: center;
+    min-height: 2rem;
+}
