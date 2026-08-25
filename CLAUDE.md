@@ -262,6 +262,12 @@ Supported per-field keys:
   static value's line-height is. Applies to plain read-only rows only — `isUrl`, `isUrlList` and
   `isEmailList` draw their own boxes, already at `min-height: 2rem`. **Costs ~13px of height per
   read-only row**, which is what alignment buys.
+- **Row spacing is `.nd-field-row { padding: 0.25rem 0 }`** — halved from `0.5rem` once the
+  separators went, since the padding then became the only thing dividing rows and 16px of
+  nothing between a value and the next label is a lot over a dozen rows. `.nd-field-content`'s
+  1px `margin-bottom` went with it. Its `border: 1px solid transparent` stays: it is invisible
+  and always was, but the alert `::after` is positioned against the padding box, so removing it
+  would shift every underline by 1px.
 - **No row separators either** — `.nd-field-row` carries padding only. Rows are divided by
   whitespace alone, the way standard field sections do it. Useful side effect: the `divider`
   entries are now the section's ONLY horizontal rules, so a `———— SLA ————` reads as the

@@ -58,7 +58,10 @@
    horizontal rules, so a `———— SLA ————` now reads as the deliberate grouping device it
    is rather than as one more line among many. */
 .nd-field-row {
-    padding: 0.5rem 0;
+    /* Halved from 0.5rem. With no separator between rows the padding is the ONLY thing
+       dividing them, and 8px above + 8px below meant 16px of nothing between a value and
+       the next label — a lot in a section that runs to a dozen rows. */
+    padding: 0.25rem 0;
 }
 
 /* --- 4. CUSTOM LABELS --- */
@@ -183,8 +186,11 @@
 .nd-field-content {
     position: relative;
     min-height: 100%;
-    margin-bottom: 1px;
     padding: 0 5px;
+    /* Transparent, and always has been: the alert variant draws its rule with ::after, not
+       with this. It stays only because the ::after underline is positioned against the
+       padding box, so removing it would shift every underline by 1px. The 1px
+       margin-bottom that used to sit here went with the row spacing. */
     border: 1px solid transparent;
     border-radius: 0.375rem;
 }
