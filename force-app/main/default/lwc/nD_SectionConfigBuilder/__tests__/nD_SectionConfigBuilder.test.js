@@ -267,22 +267,27 @@ describe('the property pane is generated from the registry', () => {
         );
     });
 
-    it('offers record type names rather than Ids for showIfValue, as a multi-select', async () => {
+    // The "…is one of" controls now live inside the condition editor's own shadow root, so
+    // these check the CONTRACT the builder hands it — which choices exist for which field —
+    // rather than reaching through into the child's markup. The editor's own rendering is
+    // covered in nD_conditionsEditor's tests.
+    function editor(element) {
+        return element.shadowRoot.querySelector('c-n-d_conditions-editor');
+    }
+
+    it('offers record type names rather than Ids, as choices for RecordTypeId', async () => {
         const element = mount();
         getObjectInfo.emit(OBJECT_INFO);
         await Promise.resolve();
         await loadOneRow(element, '[{"apiName":"AVB_Environment__c","showIfField":"RecordTypeId"}]');
 
-        const group = Array.from(element.shadowRoot.querySelectorAll('lightning-checkbox-group'))
-            .find(g => g.label === '…is one of');
-        expect(group).not.toBeUndefined();
-        expect(group.options.map(o => o.label)).toEqual(['AvioBook Case', 'AvioData Case']);
+        const choices = editor(element).valueChoices.RecordTypeId;
+        expect(choices.map(o => o.label)).toEqual(['AvioBook Case', 'AvioData Case']);
         // Names are shown; the Ids are what gets written
-        expect(group.options.map(o => o.value))
-            .toEqual(['012KB000000kcw4YAA', '012KB000000kcw5YAA']);
+        expect(choices.map(o => o.value)).toEqual(['012KB000000kcw4YAA', '012KB000000kcw5YAA']);
     });
 
-    it('preselects the values already in the config and writes several back', async () => {
+    it('hands the editor the condition already in the config', async () => {
         const element = mount();
         getObjectInfo.emit(OBJECT_INFO);
         await Promise.resolve();
@@ -292,20 +297,99 @@ describe('the property pane is generated from the registry', () => {
             + '"showIfValue":"012KB000000kcw4YAA"}]'
         );
 
-        const group = Array.from(element.shadowRoot.querySelectorAll('lightning-checkbox-group'))
-            .find(g => g.label === '…is one of');
-        expect(group.value).toEqual(['012KB000000kcw4YAA']);
+        expect(editor(element).group.conditions).toEqual([
+            { field: 'RecordTypeId', value: '012KB000000kcw4YAA', negate: false }
+        ]);
+    });
 
-        group.dispatchEvent(new CustomEvent('change', {
-            detail: { value: ['012KB000000kcw4YAA', '012KB000000kcw5YAA'] }
+    // One condition still writes the flat pair, which is what keeps every existing config
+    // in the org — and any browser still running the previous bundle — working unchanged.
+    it('writes one condition back as the flat showIfField/showIfValue pair', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+        await loadOneRow(element, '[{"apiName":"AVB_Environment__c","showIfField":"RecordTypeId"}]');
+
+        editor(element).dispatchEvent(new CustomEvent('change', {
+            detail: {
+                site: 'showIf',
+                group: {
+                    logic: 'AND',
+                    conditions: [{ field: 'RecordTypeId', value: '012KB000000kcw4YAA,012KB000000kcw5YAA' }]
+                }
+            }
         }));
         await Promise.resolve();
 
-        expect(text(element, '.nd-json'))
-            .toContain('"showIfValue":"012KB000000kcw4YAA,012KB000000kcw5YAA"');
+        const json = text(element, '.nd-json');
+        expect(json).toContain('"showIfValue":"012KB000000kcw4YAA,012KB000000kcw5YAA"');
+        expect(json).not.toContain('"showIf"');
     });
 
-    it('offers picklist values for a picklist field', async () => {
+    it('writes two conditions back as the structured showIf, keeping the logic', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+        await loadOneRow(element, '[{"apiName":"AVB_Environment__c","showIfField":"RecordTypeId"}]');
+
+        editor(element).dispatchEvent(new CustomEvent('change', {
+            detail: {
+                site: 'showIf',
+                group: {
+                    logic: 'OR',
+                    conditions: [
+                        { field: 'RecordTypeId', value: '012KB000000kcw4YAA' },
+                        { field: 'Type', value: 'Bug or Incident', negate: true }
+                    ]
+                }
+            }
+        }));
+        await Promise.resolve();
+
+        const json = text(element, '.nd-json');
+        expect(json).toContain('"logic":"OR"');
+        expect(json).toContain('"field":"Type","value":"Bug or Incident","negate":true');
+        expect(json).not.toContain('"showIfField"');
+    });
+
+    // The test that was missing: every unit around this passed while the round trip was
+    // broken. The editor fired the right event, the writer applied its rule correctly, and
+    // "Add condition" still did nothing, because the rule dropped the very thing the event
+    // carried. Only a test that goes editor -> config -> back to the editor catches that.
+    it('keeps a newly added condition, so the card stays on screen', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+        await loadOneRow(element, '[{"apiName":"AVB_Environment__c","label":"Environment"}]');
+
+        // Exactly what the editor's "Add condition" button emits: no field chosen yet.
+        editor(element).dispatchEvent(new CustomEvent('change', {
+            detail: { site: 'showIf', group: { logic: 'AND', conditions: [{ field: '', negate: false }] } }
+        }));
+        await Promise.resolve();
+
+        expect(editor(element).group.conditions).toEqual([{ field: '', negate: false }]);
+        expect(text(element, '.nd-json')).toContain('"showIf":{"conditions":[{"field":""}]}');
+    });
+
+    it('keeps a second condition added beside a finished one', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+        await loadOneRow(element, '[{"apiName":"AVB_Environment__c","showIfField":"RecordTypeId"}]');
+
+        editor(element).dispatchEvent(new CustomEvent('change', {
+            detail: {
+                site: 'showIf',
+                group: { logic: 'AND', conditions: [{ field: 'RecordTypeId' }, { field: '', negate: false }] }
+            }
+        }));
+        await Promise.resolve();
+
+        expect(editor(element).group.conditions).toHaveLength(2);
+    });
+
+    it('offers picklist values for a picklist field a condition watches', async () => {
         const element = mount();
         getObjectInfo.emit(OBJECT_INFO);
         await Promise.resolve();
@@ -314,12 +398,11 @@ describe('the property pane is generated from the registry', () => {
         getPicklistValues.emit({ Type: ['Bug or Incident', 'Service Request'] });
         await Promise.resolve();
 
-        const group = Array.from(element.shadowRoot.querySelectorAll('lightning-checkbox-group'))
-            .find(g => g.label === '…is one of');
-        expect(group.options.map(o => o.value)).toEqual(['Bug or Incident', 'Service Request']);
+        expect(editor(element).valueChoices.Type.map(o => o.value))
+            .toEqual(['Bug or Incident', 'Service Request']);
     });
 
-    it('falls back to a text box when the watched field has no fixed values', async () => {
+    it('offers no choices for a field with no fixed values, so the editor falls back to text', async () => {
         const element = mount();
         getObjectInfo.emit(OBJECT_INFO);
         await Promise.resolve();
@@ -328,13 +411,7 @@ describe('the property pane is generated from the registry', () => {
         getPicklistValues.emit({});
         await Promise.resolve();
 
-        const group = Array.from(element.shadowRoot.querySelectorAll('lightning-checkbox-group'))
-            .find(g => g.label === '…is one of');
-        expect(group).toBeUndefined();
-
-        const input = Array.from(element.shadowRoot.querySelectorAll('lightning-input'))
-            .find(i => i.label === '…is one of');
-        expect(input).not.toBeUndefined();
+        expect(editor(element).valueChoices.Subject).toBeUndefined();
     });
 });
 
@@ -727,9 +804,9 @@ describe('the record type multi-select', () => {
         await Promise.resolve();
         await loadRow(element, '[{"apiName":"AVB_Environment__c","showIfField":"RecordTypeId"}]');
 
-        const group = Array.from(element.shadowRoot.querySelectorAll('lightning-checkbox-group'))
-            .find(g => g.label === '…is one of');
-        expect(group.options.map(o => o.label)).toEqual(['AvioBook Case', 'AvioData Case']);
+        const choices = element.shadowRoot
+            .querySelector('c-n-d_conditions-editor').valueChoices.RecordTypeId;
+        expect(choices.map(o => o.label)).toEqual(['AvioBook Case', 'AvioData Case']);
     });
 
     it('reports no problem once two record types are chosen', async () => {

@@ -507,13 +507,6 @@
     min-width: 0;
 }
 
-/* Sits under its combobox: the list is the thing being chosen from, the filter is
-   the tool for narrowing it. */
-.nd-picker-filter {
-    display: block;
-    margin-top: 0.125rem;
-}
-
 /* --- field search results ------------------------------------------------------
    A clickable list rather than a dropdown: lightning-combobox has no type-ahead and
    cannot show which fields are already rows. */
@@ -598,4 +591,11 @@
     display: flex;
     justify-content: flex-end;
     margin-bottom: 0.375rem;
+}
+
+/* A divider is not a field, so it gets its own action rather than a place in the
+   field search list. */
+.nd-add-divider {
+    display: block;
+    margin-top: 0.5rem;
 }

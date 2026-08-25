@@ -59,6 +59,16 @@ const WIDGETS = [
 
 const WIDGET_KEYS = WIDGETS.map(w => w.key).filter(Boolean);
 
+/**
+ * The underline colour a row gets when it asks for one without naming a colour.
+ *
+ * Setting a condition is the decision; the colour is a detail, and having to pick one before
+ * anything appeared meant a row could be configured to underline and then quietly not. The
+ * same value is the fallback in `var(--nd-alert-color, …)` in nD_DynamicSection.css, so the
+ * two agree even if the property never reaches the element.
+ */
+const DEFAULT_ALERT_COLOR = '#ba0517';
+
 /* ---------------------------------------------------------------------------------
  * Section-level settings.
  *
@@ -120,12 +130,21 @@ const SECTION_KEYS = [
     },
 
     {
+        key: 'alertIf',
+        group: 'sectionAlert',
+        label: 'Conditions',
+        control: 'conditions',
+        site: 'alertIf',
+        help: 'Any number of fields, combined with AND, OR, or your own expression.'
+    },
+    {
         key: 'alertField',
         group: 'sectionAlert',
         label: 'Recolour the header when this field…',
         control: 'fieldPicker',
         blank: true,
-        help: 'One field only. Leave empty for a header that never changes colour.'
+        legacy: true,
+        help: 'The single-condition form. Still read, and still written for one condition.'
     },
     {
         key: 'alertValue',
@@ -135,6 +154,7 @@ const SECTION_KEYS = [
         requires: 'alertField',
         valuesFrom: 'alertField',
         placeholder: 'High,Urgent',
+        legacy: true,
         help: 'Comma-separated membership. Empty means any non-blank value.'
     },
     {
@@ -143,6 +163,7 @@ const SECTION_KEYS = [
         label: 'Alert background',
         control: 'color',
         requires: 'alertField',
+        requiresSite: 'alertIf',
         help: 'Header background while the condition holds. Required for the alert to do anything.'
     },
     {
@@ -151,6 +172,7 @@ const SECTION_KEYS = [
         label: 'Alert text',
         control: 'color',
         requires: 'alertField',
+        requiresSite: 'alertIf',
         help: 'Header text while the condition holds. Falls back to the normal header text colour.'
     }
 ];
@@ -183,6 +205,7 @@ const GROUPS = [
     { id: 'sectionHeader', legend: 'Header colours', scope: 'section' },
     { id: 'sectionAlert', legend: 'Recolour the header when…', scope: 'section' },
     { id: 'field', legend: 'Field', scope: 'field' },
+    { id: 'divider', legend: 'Divider', scope: 'field' },
     { id: 'visibility', legend: 'Show this row only when…', scope: 'field' },
     { id: 'widget', legend: 'Render as', scope: 'field' },
     { id: 'alert', legend: 'Underline the value when…', scope: 'field' },
@@ -206,6 +229,16 @@ const FIELD_GROUPS = GROUPS.filter(g => g.scope === 'field');
  * rules if the config ever moves to Custom Metadata.
  */
 const CONFIG_KEYS = [
+    {
+        key: 'divider',
+        group: 'divider',
+        label: 'Divider caption',
+        control: 'text',
+        badge: 'divider',
+        badgeClass: 'cond',
+        placeholder: 'SLA',
+        help: 'Leave it empty for a plain rule with no caption. The row is always full width.'
+    },
     {
         key: 'apiName',
         group: 'field',
@@ -247,6 +280,16 @@ const CONFIG_KEYS = [
     },
 
     {
+        key: 'showIf',
+        group: 'visibility',
+        label: 'Conditions',
+        control: 'conditions',
+        site: 'showIf',
+        badge: 'conditional',
+        badgeClass: 'cond',
+        help: 'Any number of fields, combined with AND, OR, or your own expression.'
+    },
+    {
         key: 'showIfField',
         group: 'visibility',
         label: 'Watch this field',
@@ -254,7 +297,8 @@ const CONFIG_KEYS = [
         blank: true,
         badge: 'conditional',
         badgeClass: 'cond',
-        help: 'Point it at this same field to mean "only when populated".'
+        legacy: true,
+        help: 'The single-condition form. Still read, and still written for one condition.'
     },
     {
         key: 'showIfValue',
@@ -263,7 +307,8 @@ const CONFIG_KEYS = [
         control: 'values',
         requires: 'showIfField',
         valuesFrom: 'showIfField',
-        help: 'Comma-separated membership. Empty means "any non-blank value".'
+        legacy: true,
+        help: 'Comma-separated membership — KLM,SWA matches either. Empty means any non-blank value.'
     },
 
     {
@@ -288,11 +333,20 @@ const CONFIG_KEYS = [
     },
 
     {
+        key: 'colorIf',
+        group: 'alert',
+        label: 'Conditions',
+        control: 'conditions',
+        site: 'colorIf',
+        help: "Any number of fields. A condition with no field watches this row's own field."
+    },
+    {
         key: 'colorIfField',
         group: 'alert',
         label: 'Watch this field',
         control: 'fieldPicker',
         blank: true,
+        legacy: true,
         help: "Empty watches this row's own field."
     },
     {
@@ -300,6 +354,7 @@ const CONFIG_KEYS = [
         group: 'alert',
         label: '…is one of',
         control: 'values',
+        legacy: true,
         valuesFrom: 'colorIfField',
         // colorIfField empty means "watch this row's own field", so the choices come from
         // the row's own apiName in that case.
@@ -312,9 +367,10 @@ const CONFIG_KEYS = [
         group: 'alert',
         label: 'Underline colour',
         control: 'color',
-        placeholder: '#ba0517',
+        placeholder: DEFAULT_ALERT_COLOR,
+        fallback: DEFAULT_ALERT_COLOR,
         badge: 'alert',
-        help: 'Hex colour for the underline under the value.'
+        help: `Leave it empty for ${DEFAULT_ALERT_COLOR}. Set it only to underline in something else.`
     },
 
     {
@@ -331,14 +387,25 @@ const CONFIG_KEYS = [
             'flow error that names no field.'
     },
     {
+        key: 'requiredIf',
+        group: 'takeover',
+        label: 'Conditions',
+        control: 'conditions',
+        site: 'requiredIf',
+        nested: true,
+        appliesWhen: row => row.requiredBeforeTakeover === true,
+        help: 'Leave empty to always require it. Any number of fields, with AND/OR/custom logic.'
+    },
+    {
         key: 'requiredIfField',
         group: 'takeover',
         label: 'Only require it when',
         control: 'fieldPicker',
         blank: true,
         nested: true,
+        legacy: true,
         appliesWhen: row => row.requiredBeforeTakeover === true,
-        help: 'Leave empty to always require it.'
+        help: 'The single-condition form. Still read, and still written for one condition.'
     },
     {
         key: 'requiredIfValue',
@@ -346,6 +413,7 @@ const CONFIG_KEYS = [
         label: '…is one of',
         control: 'values',
         nested: true,
+        legacy: true,
         requires: 'requiredIfField',
         valuesFrom: 'requiredIfField',
         placeholder: 'Bug or Incident',
@@ -355,6 +423,17 @@ const CONFIG_KEYS = [
 ];
 
 const KNOWN_KEYS = CONFIG_KEYS.map(d => d.key).concat(WIDGET_KEYS);
+
+/**
+ * A divider is a rule across the section — `———— SLA ————` — rather than a field.
+ *
+ * PRESENCE of the key is the discriminator, not its truthiness, so `{"divider": ""}` is a
+ * deliberate unlabelled rule and not an unfinished one. Same reasoning as a condition's
+ * value key: an empty string is a real state and has to be distinguishable from absent.
+ */
+function isDivider(row) {
+    return !!row && Object.prototype.hasOwnProperty.call(row, 'divider');
+}
 
 /** Which widget a row has chosen, or null for a plain field. */
 function widgetOf(row) {
@@ -393,25 +472,109 @@ function joinOr(parts) {
  */
 function isRowVisible(item, context) {
     const ctx = context || {};
-    const saved = ctx.savedFields || {};
-    const live = ctx.liveValues || {};
-
     if (item.apiName && ctx.fields && !ctx.fields[item.apiName]) return false;
-    if (!item.showIfField) return true;
-    if (!saved[item.showIfField]) return false;
+    return holds(item, SITE_SHOW, ctx);
+}
 
-    let value;
-    if (item.showIfField === 'RecordTypeId' && ctx.selectedRecordTypeId) {
-        value = ctx.selectedRecordTypeId;
-    } else if (Object.prototype.hasOwnProperty.call(live, item.showIfField)) {
-        value = live[item.showIfField];
-    } else {
-        value = saved[item.showIfField].value;
+/* ---------------------------------------------------------------------------------
+ * DATE COMPARISON
+ *
+ * The one thing conditions could never express: "Remind Me is on or before today". Every
+ * other test here is equality, membership or truthiness, which cannot say "overdue".
+ *
+ * Two rules make the date handling correct rather than merely working:
+ *
+ * 1. A date-only value is NEVER put through `new Date(string)`. That parses "2026-09-01"
+ *    as UTC midnight, so anyone west of UTC reads it as 31 August — the classic off-by-one.
+ *    Date-only values are split on their digits and compared as calendar days.
+ * 2. "Today" is the VIEWER's today, taken from their local calendar, not UTC. An overdue
+ *    highlight that flips at midnight UTC is wrong for most of the world; for a Belgian
+ *    user it would turn over at 01:00 or 02:00 local.
+ *
+ * A DateTime field is converted to the viewer's local calendar day first, so a case created
+ * at 23:30 local counts as that day and not the next one.
+ * ------------------------------------------------------------------------------- */
+
+const DATE_OPS = [
+    { value: 'before', label: 'is before', test: (a, b) => a < b },
+    { value: 'onOrBefore', label: 'is on or before', test: (a, b) => a <= b },
+    { value: 'on', label: 'is on', test: (a, b) => a === b },
+    { value: 'onOrAfter', label: 'is on or after', test: (a, b) => a >= b },
+    { value: 'after', label: 'is after', test: (a, b) => a > b }
+];
+
+const DATE_OP_KEYS = DATE_OPS.map(o => o.value);
+
+/** Whole days since the epoch. Built through Date.UTC so DST cannot shift the count. */
+function dayNumber(year, month, day) {
+    return Math.round(Date.UTC(year, month - 1, day) / 86400000);
+}
+
+/** The viewer's own calendar day, which is what "today" has to mean. */
+function localToday(now) {
+    const at = now || new Date();
+    return dayNumber(at.getFullYear(), at.getMonth() + 1, at.getDate());
+}
+
+/**
+ * A field value as a calendar day, or null when there is nothing to compare.
+ *
+ * Date-only strings are read literally. Anything carrying a time is a DateTime, which is a
+ * real instant, so it is converted to the viewer's local day.
+ */
+function fieldDay(raw) {
+    if (raw === null || raw === undefined || raw === '') return null;
+    const text = String(raw).trim();
+
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+    if (dateOnly) {
+        return dayNumber(Number(dateOnly[1]), Number(dateOnly[2]), Number(dateOnly[3]));
     }
 
-    if (item.showIfValue !== undefined) return matchesCsv(value, item.showIfValue);
-    return !!value;
+    const at = new Date(text);
+    if (isNaN(at.getTime())) return null;
+    return dayNumber(at.getFullYear(), at.getMonth() + 1, at.getDate());
 }
+
+/**
+ * What a condition is comparing against: `today`, `today+7`, `today-30`, or a literal
+ * `YYYY-MM-DD`. Returns null when it cannot be read, which validation reports and the
+ * runtime treats as "does not hold" rather than guessing.
+ */
+function operandDay(value, today) {
+    if (value === null || value === undefined) return null;
+    const text = String(value).trim();
+    if (!text) return null;
+
+    const relative = /^today\s*(?:([+-])\s*(\d+))?$/i.exec(text);
+    if (relative) {
+        const base = today === undefined ? localToday() : today;
+        if (!relative[1]) return base;
+        return relative[1] === '+' ? base + Number(relative[2]) : base - Number(relative[2]);
+    }
+
+    const literal = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+    if (literal) {
+        const month = Number(literal[2]);
+        const day = Number(literal[3]);
+        if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+        const number = dayNumber(Number(literal[1]), month, day);
+        // Rejects 2026-02-30 and friends: Date.UTC rolls them over, so a round trip that
+        // does not come back the same day means the date never existed.
+        const back = new Date(number * 86400000);
+        if (back.getUTCMonth() + 1 !== month || back.getUTCDate() !== day) return null;
+        return number;
+    }
+
+    return null;
+}
+
+function dateOpFor(key) {
+    return DATE_OPS.find(o => o.value === key) || null;
+}
+
+/** How a date operand should be written, for help text and validation messages. */
+const DATE_OPERAND_HINT = 'today, today+7, today-30, or a date like 2026-09-01';
 
 /** Comma-separated membership, the config's only multi-value idiom. */
 function matchesCsv(value, csv) {
@@ -419,6 +582,527 @@ function matchesCsv(value, csv) {
         .split(',')
         .map(v => v.trim())
         .includes(String(value));
+}
+
+/* ---------------------------------------------------------------------------------
+ * CONDITION GROUPS
+ *
+ * Four places in the config watch a field and act on what it holds. Each started as a
+ * single field + value pair, which meant a row could be scoped to one record type but
+ * never to "this record type AND this customer" — the commonest thing anyone actually
+ * wanted. They now all take a LIST of conditions plus a logic mode, and they all go
+ * through the one engine below, so the four cannot drift apart in behaviour.
+ *
+ * Both shapes are read, forever:
+ *
+ *   "showIfField": "RecordTypeId", "showIfValue": "012…"        one condition, flat
+ *   "showIf": { "logic": "AND", "conditions": [ {…}, {…} ] }    any number
+ *
+ * The flat pair is not deprecated-and-tolerated, it is the canonical way to write a
+ * single condition, and the serialiser still emits it for one. Two reasons: every live
+ * config in the org is written that way and rewriting 22 of them buys nothing, and a
+ * browser still running the PREVIOUS bundle (Lightning caches component modules for the
+ * life of a session) goes on understanding it. Only a genuinely multi-condition row
+ * needs the new shape, and only that row degrades on a stale bundle.
+ * ------------------------------------------------------------------------------- */
+
+const LOGIC_AND = 'AND';
+const LOGIC_OR = 'OR';
+
+/**
+ * scope        - 'row' or 'section', i.e. which half of the document holds it
+ * legacyField  - the single-field key this site grew out of
+ * legacyValue  - its companion value key
+ * selfField    - a blank field means "watch the row's own field" (colorIf only)
+ * whenEmpty    - what NO conditions means. Three sites default to "yes" (an
+ *                unconditional row is visible, an unconditional underline is always on,
+ *                an unconditional requirement always applies); the header alert defaults
+ *                to "no", because an alert with no condition is an alert that never fires.
+ */
+const CONDITION_SITES = [
+    {
+        key: 'showIf',
+        scope: 'row',
+        legacyField: 'showIfField',
+        legacyValue: 'showIfValue',
+        whenEmpty: true,
+        legend: 'Show this row only when…'
+    },
+    {
+        key: 'colorIf',
+        scope: 'row',
+        legacyField: 'colorIfField',
+        legacyValue: 'colorIfValue',
+        selfField: true,
+        whenEmpty: true,
+        legend: 'Underline the value when…'
+    },
+    {
+        key: 'requiredIf',
+        scope: 'row',
+        legacyField: 'requiredIfField',
+        legacyValue: 'requiredIfValue',
+        whenEmpty: true,
+        legend: 'Only require it when…'
+    },
+    {
+        key: 'alertIf',
+        scope: 'section',
+        legacyField: 'alertField',
+        legacyValue: 'alertValue',
+        whenEmpty: false,
+        legend: 'Recolour the header when…'
+    }
+];
+
+const SITE_SHOW = CONDITION_SITES[0];
+const SITE_COLOR = CONDITION_SITES[1];
+const SITE_REQUIRED = CONDITION_SITES[2];
+const SITE_ALERT = CONDITION_SITES[3];
+
+const CONDITION_SITE_KEYS = CONDITION_SITES.map(s => s.key);
+
+function siteByKey(key) {
+    return CONDITION_SITES.find(s => s.key === key) || null;
+}
+
+/** The site a legacy single-field key belongs to, or null. Used by `requires` checks. */
+function siteByLegacyField(key) {
+    return CONDITION_SITES.find(s => s.legacyField === key) || null;
+}
+
+/**
+ * The conditions a holder (row or section settings) declares for one site, in one
+ * normalised shape: { logic, conditions: [{ field, value, negate }] }.
+ *
+ * `value` stays undefined for a truthy check, exactly as the flat `…Value` key did —
+ * undefined and empty-string are NOT the same thing and never have been.
+ */
+function conditionsOf(holder, site, ownApiName) {
+    const source = holder ? holder[site.key] : undefined;
+    let logic = LOGIC_AND;
+    let list = [];
+
+    if (Array.isArray(source)) {
+        list = source;
+    } else if (source && typeof source === 'object') {
+        list = Array.isArray(source.conditions) ? source.conditions : [];
+        if (!isBlank(source.logic)) logic = String(source.logic).trim();
+    } else if (holder && !isBlank(holder[site.legacyField])) {
+        list = [{ field: holder[site.legacyField], value: holder[site.legacyValue] }];
+    } else if (holder && site.selfField && holder[site.legacyValue] !== undefined) {
+        // colorIfValue with no colorIfField has always meant "watch this row's own field"
+        list = [{ field: ownApiName, value: holder[site.legacyValue] }];
+    }
+
+    const conditions = list
+        .filter(c => c && typeof c === 'object')
+        .map(c => {
+            const field = isBlank(c.field) && site.selfField ? ownApiName : c.field;
+            const out = { field: field, negate: c.negate === true };
+            if (c.value !== undefined) out.value = c.value;
+            if (!isBlank(c.op)) out.op = String(c.op);
+            return out;
+        });
+
+    return { logic: logic, conditions: conditions };
+}
+
+/** Every field any site watches, so the caller knows what to load and what to track. */
+function watchedFieldsOf(rows, section) {
+    const out = [];
+    const add = f => { if (!isBlank(f) && !out.includes(f)) out.push(f); };
+
+    (rows || []).forEach(row => {
+        CONDITION_SITES
+            .filter(site => site.scope === 'row')
+            .forEach(site => conditionsOf(row, site, row.apiName).conditions.forEach(c => add(c.field)));
+    });
+
+    conditionsOf(section || {}, SITE_ALERT).conditions.forEach(c => add(c.field));
+    return out;
+}
+
+/**
+ * Reads a watched field the way the form does: the value on screen beats the saved one,
+ * so picking a different Record Type hides rows scoped to the old one straight away
+ * rather than after the save. `known` is false only when the field was never loaded —
+ * a loaded-but-empty field is known, with a null value, which is what lets "is not KLM"
+ * be true for a blank ICAO.
+ */
+function valueResolver(context) {
+    const ctx = context || {};
+    const saved = ctx.savedFields || {};
+    const live = ctx.liveValues || {};
+
+    return field => {
+        if (isBlank(field)) return { known: false };
+        if (field === 'RecordTypeId' && ctx.selectedRecordTypeId) {
+            return { known: true, value: ctx.selectedRecordTypeId };
+        }
+        if (Object.prototype.hasOwnProperty.call(live, field)) {
+            return { known: true, value: live[field] };
+        }
+        if (saved[field]) return { known: true, value: saved[field].value };
+        return { known: false };
+    };
+}
+
+/**
+ * One condition. A field nobody loaded is false BEFORE `negate` is applied: "is not
+ * KLM" should not become true just because we never asked for the field.
+ */
+function matchesCondition(condition, resolve, today) {
+    const found = resolve(condition.field);
+    if (!found.known) return false;
+
+    const dateOp = dateOpFor(condition.op);
+    if (dateOp) {
+        const left = fieldDay(found.value);
+        const right = operandDay(condition.value, today);
+        // An empty date, or an operand nobody can read, is not a comparison anyone can make.
+        // False rather than a guess, and validateConfig says so out loud.
+        const hit = left !== null && right !== null && dateOp.test(left, right);
+        return condition.negate ? !hit : hit;
+    }
+
+    // A BLANK value means "any non-blank value", which is what the registry has always said
+    // the `…Value` keys mean — but the code used to read it as membership of the empty
+    // string, i.e. a condition that could essentially never hold. Absent and blank now agree,
+    // so clearing the box in an editor means the same thing as never filling it in.
+    const hit = isBlank(condition.value)
+        ? !!found.value
+        : matchesCsv(found.value, condition.value);
+
+    return condition.negate ? !hit : hit;
+}
+
+/**
+ * Does a normalised group hold? `logic` is AND, OR, or an expression in the org's own
+ * filter-logic syntax — condition numbers, AND, OR, NOT and parentheses, e.g.
+ * "(1 AND 2) OR 3".
+ *
+ * Unparseable logic falls back to AND rather than to "true": a typo in an expression
+ * should not silently reveal every row it guards. validateConfig is what reports it.
+ */
+function evaluateConditions(group, resolve, whenEmpty, today) {
+    // A condition that names no field is UNFINISHED, not false. It has to be storable — an
+    // editor adds one the moment you click "add", before you have chosen anything — and an
+    // empty `showIfField` has always meant "no condition" rather than "never matches", so
+    // the two shapes have to agree or the same config means different things depending on
+    // which one it happens to be written in. validateConfig is what reports it.
+    const written = (group && group.conditions) || [];
+    const usable = written.filter(c => c && !isBlank(c.field));
+    if (!usable.length) return whenEmpty !== false;
+
+    const logic = String((group && group.logic) || LOGIC_AND).trim();
+    const upper = logic.toUpperCase();
+
+    if (!logic || upper === LOGIC_AND) return usable.every(c => matchesCondition(c, resolve, today));
+    if (upper === LOGIC_OR) return usable.some(c => matchesCondition(c, resolve, today));
+
+    // Custom logic numbers the conditions AS WRITTEN, so the results array has to stay
+    // aligned with that list — dropping the unfinished ones from it would silently
+    // renumber the expression, and "1 AND 3" would come to mean other conditions than the
+    // author picked. An unfinished one counts as true instead, which is neutral under AND.
+    const results = written.map(
+        c => (c && !isBlank(c.field) ? matchesCondition(c, resolve, today) : true)
+    );
+    const parsed = parseLogic(logic, results.length);
+    if (parsed.error) return usable.every(c => matchesCondition(c, resolve, today));
+    return evaluateLogic(parsed.ast, results);
+}
+
+/** Site + holder + context in one call, which is all any caller actually wants. */
+function holds(holder, site, context, ownApiName) {
+    const group = conditionsOf(holder, site, ownApiName !== undefined ? ownApiName : (holder || {}).apiName);
+    // context.today lets a caller pin the day — a test, mostly. Left out, it is the viewer's
+    // own calendar day, which is the only reading of "today" that is not surprising.
+    const today = context && context.today !== undefined ? context.today : localToday();
+    return evaluateConditions(group, valueResolver(context), site.whenEmpty, today);
+}
+
+/* --- Custom filter logic -------------------------------------------------------
+ * A tiny recursive-descent parser, NOT `eval` or `new Function`: this string comes out
+ * of a config an admin typed, so it must never be executed. It also has to be able to
+ * say WHY it is wrong, which a thrown SyntaxError cannot.
+ *
+ *   or   := and (OR and)*
+ *   and  := not (AND not)*
+ *   not  := NOT not | atom
+ *   atom := NUMBER | '(' or ')'
+ */
+function tokenizeLogic(expr) {
+    const tokens = [];
+    const text = String(expr);
+    let i = 0;
+
+    while (i < text.length) {
+        const ch = text[i];
+        if (/\s/.test(ch)) { i++; continue; }
+        if (ch === '(' || ch === ')') { tokens.push({ t: ch }); i++; continue; }
+
+        const rest = text.slice(i);
+        const num = /^\d+/.exec(rest);
+        if (num) { tokens.push({ t: 'num', n: parseInt(num[0], 10) }); i += num[0].length; continue; }
+
+        const word = /^(AND|OR|NOT)\b/i.exec(rest);
+        if (word) { tokens.push({ t: word[1].toUpperCase() }); i += word[1].length; continue; }
+
+        // && and || are what people reach for out of habit; accept them rather than
+        // failing on a difference that carries no meaning.
+        if (rest.startsWith('&&')) { tokens.push({ t: 'AND' }); i += 2; continue; }
+        if (rest.startsWith('||')) { tokens.push({ t: 'OR' }); i += 2; continue; }
+
+        return { error: `Cannot read "${ch}" in the logic.` };
+    }
+
+    return { tokens: tokens };
+}
+
+function parseLogic(expr, count) {
+    if (isBlank(expr)) return { error: 'The logic is empty.' };
+
+    const lexed = tokenizeLogic(expr);
+    if (lexed.error) return lexed;
+
+    const tokens = lexed.tokens;
+    if (!tokens.length) return { error: 'The logic is empty.' };
+
+    let pos = 0;
+    let failure = null;
+    const fail = message => { if (!failure) failure = message; return { t: 'num', n: 1 }; };
+    const peek = () => tokens[pos];
+
+    function parseOr() {
+        let node = parseAnd();
+        while (peek() && peek().t === LOGIC_OR) { pos++; node = { t: 'or', a: node, b: parseAnd() }; }
+        return node;
+    }
+
+    function parseAnd() {
+        let node = parseNot();
+        while (peek() && peek().t === LOGIC_AND) { pos++; node = { t: 'and', a: node, b: parseNot() }; }
+        return node;
+    }
+
+    function parseNot() {
+        if (peek() && peek().t === 'NOT') { pos++; return { t: 'not', a: parseNot() }; }
+        return parseAtom();
+    }
+
+    function parseAtom() {
+        const token = peek();
+        if (!token) return fail('The logic ends too early — something is missing after the last operator.');
+
+        if (token.t === 'num') {
+            pos++;
+            if (token.n < 1 || token.n > count) {
+                return fail(
+                    `The logic mentions condition ${token.n}, but there ${count === 1 ? 'is' : 'are'} `
+                    + `only ${count}.`
+                );
+            }
+            return { t: 'num', n: token.n };
+        }
+
+        if (token.t === '(') {
+            pos++;
+            const inner = parseOr();
+            if (!peek() || peek().t !== ')') return fail('A "(" is never closed.');
+            pos++;
+            return inner;
+        }
+
+        if (token.t === LOGIC_AND || token.t === LOGIC_OR) {
+            return fail(`The logic starts an expression with "${token.t}".`);
+        }
+        return fail('Unexpected ")" in the logic.');
+    }
+
+    const ast = parseOr();
+    if (failure) return { error: failure };
+    if (pos !== tokens.length) return { error: 'There is leftover text after the end of the logic.' };
+    return { ast: ast };
+}
+
+function evaluateLogic(node, results) {
+    switch (node.t) {
+        case 'num': return !!results[node.n - 1];
+        case 'not': return !evaluateLogic(node.a, results);
+        case 'and': return evaluateLogic(node.a, results) && evaluateLogic(node.b, results);
+        case 'or': return evaluateLogic(node.a, results) || evaluateLogic(node.b, results);
+        default: return false;
+    }
+}
+
+/** Which condition numbers an expression actually uses, so unused ones can be flagged. */
+function logicReferences(ast, into) {
+    const seen = into || new Set();
+    if (!ast) return seen;
+    if (ast.t === 'num') seen.add(ast.n);
+    if (ast.a) logicReferences(ast.a, seen);
+    if (ast.b) logicReferences(ast.b, seen);
+    return seen;
+}
+
+/** One condition as a sentence, for diagnostics and the take-it explanation. */
+function describeCondition(condition, labelOf) {
+    const label = labelOf ? labelOf(condition.field) : condition.field;
+
+    const dateOp = dateOpFor(condition.op);
+    if (dateOp) {
+        const phrase = `${label} ${dateOp.label} ${String(condition.value || '').trim()}`;
+        return condition.negate ? `NOT (${phrase})` : phrase;
+    }
+
+    if (condition.value === undefined) {
+        return condition.negate ? `${label} is empty` : `${label} is set`;
+    }
+    const values = splitCsv(condition.value);
+    return `${label} is ${condition.negate ? 'not ' : ''}${joinOr(values)}`;
+}
+
+/** A whole group as a sentence. Custom logic is quoted rather than prosified. */
+function describeConditions(group, labelOf) {
+    const conditions = (group && group.conditions) || [];
+    if (!conditions.length) return '';
+
+    const parts = conditions.map(c => describeCondition(c, labelOf));
+    const logic = String((group && group.logic) || LOGIC_AND).trim().toUpperCase();
+
+    if (conditions.length === 1) return parts[0];
+    if (logic === LOGIC_AND) return parts.join(' and ');
+    if (logic === LOGIC_OR) return parts.join(' or ');
+    return `${group.logic} of [${parts.join('; ')}]`;
+}
+
+/** True when a `requires` on a flat key is instead satisfied by its condition site. */
+function satisfiedBySite(holder, def) {
+    const site = def.requiresSite ? siteByKey(def.requiresSite) : siteByLegacyField(def.requires);
+    if (!site) return false;
+    return conditionsOf(holder, site, (holder || {}).apiName).conditions.length > 0;
+}
+
+/**
+ * Everything that can be wrong with one site's conditions. Shared by rows and the
+ * section so the four sites report identically — the whole point of routing them all
+ * through one engine is that a message written once covers all of them.
+ */
+function conditionFindings(holder, site, context, ownApiName) {
+    const ctx = context || {};
+    const out = [];
+    const add = (level, message) => out.push({ level: level, message: message, key: site.key });
+
+    const declared = holder ? holder[site.key] : undefined;
+    if (declared !== undefined && !Array.isArray(declared) && (declared === null || typeof declared !== 'object')) {
+        add('error', `"${site.key}" must be a list of conditions or an object with a "conditions" list.`);
+        return out;
+    }
+
+    // Both shapes at once is not an error the engine cannot survive — the structured one
+    // wins — but it is certainly not what anyone meant.
+    if (declared !== undefined && holder && !isBlank(holder[site.legacyField])) {
+        add(
+            'warning',
+            `Both "${site.key}" and the older "${site.legacyField}" are set. `
+            + `"${site.key}" wins and "${site.legacyField}" is ignored.`
+        );
+    }
+
+    const group = conditionsOf(holder, site, ownApiName);
+    if (!group.conditions.length) return out;
+
+    group.conditions.forEach((condition, i) => {
+        // Numbering only earns its keep once there is more than one to tell apart, and
+        // the flat single-condition form is still much the commonest shape.
+        const at = group.conditions.length > 1
+            ? `Condition ${i + 1} of "${site.legend}"`
+            : `"${site.legend}"`;
+
+        if (isBlank(condition.field)) {
+            add('error', `${at} watches no field.`);
+            return;
+        }
+        if (ctx.fields && !ctx.fields[condition.field]) {
+            add('error', `${at} watches ${condition.field}, which does not exist on this object.`);
+            return;
+        }
+        // Date comparison is the one test that can be MALFORMED rather than merely wrong:
+        // an operator nobody defined, or an operand nobody can parse, silently never holds.
+        if (!isBlank(condition.op)) {
+            if (!DATE_OP_KEYS.includes(condition.op)) {
+                add('error', `${at} uses an unknown operator "${condition.op}".`);
+                return;
+            }
+            if (operandDay(condition.value) === null) {
+                add(
+                    'error',
+                    `${at} compares against "${String(condition.value || '').trim()}", which is `
+                    + `not a date. Write ${DATE_OPERAND_HINT}.`
+                );
+                return;
+            }
+            const described = ctx.fields ? ctx.fields[condition.field] : null;
+            const type = described && described.dataType ? String(described.dataType).toLowerCase() : null;
+            if (type && type !== 'date' && type !== 'datetime') {
+                add(
+                    'warning',
+                    `${at} compares ${condition.field} as a date, but it is a ${described.dataType} `
+                    + `field, so the comparison will never hold.`
+                );
+            }
+            return;
+        }
+
+        // "is one of" with nothing listed reads as a real restriction in an editor while
+        // matching any populated value at runtime — worth saying out loud rather than
+        // leaving as a rule that quietly does nothing.
+        if (condition.value !== undefined && isBlank(condition.value)) {
+            add(
+                'warning',
+                `${at} lists no values, so any value counts. `
+                + `List some, or set it to "has any value" to say so plainly.`
+            );
+        }
+
+        // Membership against record type Ids is the one value list whose contents can be
+        // checked, and a stale Id is invisible otherwise: the row simply never shows.
+        if (condition.field === 'RecordTypeId' && condition.value !== undefined && ctx.recordTypes) {
+            const unknown = splitCsv(condition.value).filter(id => !ctx.recordTypes[id]);
+            if (unknown.length) {
+                add(
+                    'warning',
+                    `${at} names record type ${unknown.length > 1 ? 'Ids' : 'Id'} ${unknown.join(', ')}, `
+                    + `which ${unknown.length > 1 ? 'are' : 'is'} not in this org.`
+                );
+            }
+        }
+    });
+
+    const logic = String(group.logic || LOGIC_AND).trim();
+    const upper = logic.toUpperCase();
+    if (upper === LOGIC_AND || upper === LOGIC_OR) return out;
+
+    const parsed = parseLogic(logic, group.conditions.length);
+    if (parsed.error) {
+        // Worth being loud: the runtime falls back to AND, so a broken expression looks
+        // like it works until the day the two disagree.
+        add('error', `The logic "${logic}" cannot be read — ${parsed.error} Until it is fixed, all conditions must hold (AND).`);
+        return out;
+    }
+
+    const used = logicReferences(parsed.ast);
+    const unused = group.conditions.map((c, i) => i + 1).filter(n => !used.has(n));
+    if (unused.length) {
+        add(
+            'warning',
+            `The logic "${logic}" never mentions condition ${unused.join(', ')}, so `
+            + `${unused.length > 1 ? 'they have' : 'it has'} no effect.`
+        );
+    }
+
+    return out;
 }
 
 /**
@@ -440,7 +1124,14 @@ function validateConfig(config, context) {
         const name = row.label || row.apiName || `row ${index + 1}`;
         const push = (level, message, key) => findings.push({ row: index, name, level, message, key });
 
-        if (isBlank(row.apiName)) {
+        if (isDivider(row)) {
+            // A divider draws a rule; anything about a field is meaningless on it. Visibility
+            // is the exception and is checked below like any other row's.
+            Object.keys(row).forEach(key => {
+                if (['divider', 'showIf', 'showIfField', 'showIfValue'].includes(key)) return;
+                push('warning', `"${key}" has no effect on a divider.`, key);
+            });
+        } else if (isBlank(row.apiName)) {
             push('error', 'No apiName — the row has no field to render.', 'apiName');
         } else if (ctx.fields && !ctx.fields[row.apiName]) {
             push('error', `Field ${row.apiName} does not exist on this object, so the row is skipped.`, 'apiName');
@@ -448,6 +1139,7 @@ function validateConfig(config, context) {
 
         Object.keys(row).forEach(key => {
             if (KNOWN_KEYS.includes(key)) return;
+            if (isDivider(row)) return;   // already reported as having no effect
             const suggestion = suggestKey(key);
             push(
                 'error',
@@ -456,7 +1148,7 @@ function validateConfig(config, context) {
             );
         });
 
-        const widgetsOn = WIDGET_KEYS.filter(k => row[k] === true);
+        const widgetsOn = isDivider(row) ? [] : WIDGET_KEYS.filter(k => row[k] === true);
         if (widgetsOn.length > 1) {
             push('error', `Two widgets enabled at once: ${widgetsOn.join(' + ')}.`, widgetsOn[1]);
         }
@@ -464,7 +1156,8 @@ function validateConfig(config, context) {
         CONFIG_KEYS.forEach(def => {
             const present = row[def.key] !== undefined;
             if (!present) return;
-            if (def.requires && isBlank(row[def.requires])) {
+            if (isDivider(row) && def.key !== 'divider') return;
+            if (def.requires && isBlank(row[def.requires]) && !satisfiedBySite(row, def)) {
                 push('error', `"${def.key}" is set but "${def.requires}" is not.`, def.key);
             }
             if (def.appliesWhen && !def.appliesWhen(row)) {
@@ -472,24 +1165,11 @@ function validateConfig(config, context) {
             }
         });
 
-        // showIfValue is comma-separated membership, so each Id has to be checked on its
-        // own and only the genuinely missing ones reported.
-        if (row.showIfField === 'RecordTypeId' && !isBlank(row.showIfValue) && ctx.recordTypes) {
-            const unknown = String(row.showIfValue)
-                .split(',')
-                .map(v => v.trim())
-                .filter(Boolean)
-                .filter(id => !ctx.recordTypes[id]);
-
-            if (unknown.length) {
-                push(
-                    'warning',
-                    `Record type ${unknown.length > 1 ? 'Ids' : 'Id'} ${unknown.join(', ')} `
-                    + `${unknown.length > 1 ? 'are' : 'is'} not in this org.`,
-                    'showIfValue'
-                );
-            }
-        }
+        CONDITION_SITES
+            .filter(site => site.scope === 'row')
+            .forEach(site => {
+                conditionFindings(row, site, ctx, row.apiName).forEach(f => push(f.level, f.message, f.key));
+            });
 
         // A formula or system field cannot be edited whatever the config says, so
         // "editable" on one is a promise the page cannot keep.
@@ -563,22 +1243,41 @@ function describeRequirement(row, context) {
 
     let text = `${name} must have a value before someone can take this case`;
 
-    if (row.showIfField === 'RecordTypeId' && !isBlank(row.showIfValue)) {
-        // Membership, so there may be several Ids. Each is named on its own; an Id with no
-        // match is shown as-is rather than silently dropped.
-        text += `, but only on ${joinOr(splitCsv(row.showIfValue).map(
-            id => (ctx.recordTypes && ctx.recordTypes[id]) || id
-        ))}`;
-    } else if (!isBlank(row.showIfField)) {
-        text += `, but only while ${labelOf(row.showIfField)} is set`;
+    // Record type Ids are unreadable on their own, so name them where we can.
+    const readable = api => labelOf(api);
+    const nameValues = condition => {
+        if (condition.field !== 'RecordTypeId' || condition.value === undefined) return null;
+        return joinOr(splitCsv(condition.value).map(id => (ctx.recordTypes && ctx.recordTypes[id]) || id));
+    };
+    const speak = group => describeConditions(
+        {
+            logic: group.logic,
+            conditions: group.conditions.map(c => {
+                const named = nameValues(c);
+                return named === null ? c : { field: c.field, value: named, negate: c.negate };
+            })
+        },
+        readable
+    );
+
+    const show = conditionsOf(row, SITE_SHOW, row.apiName);
+    if (show.conditions.length) {
+        // "only on AvioBook Case" reads better than "only while RecordTypeId is AvioBook
+        // Case", and record-type scoping is by far the commonest thing here. Worth the
+        // special case for the single-condition form; anything richer gets the general
+        // sentence, which stays accurate if less pretty.
+        const only = show.conditions.length === 1 ? show.conditions[0] : null;
+        if (only && only.field === 'RecordTypeId' && only.value !== undefined && !only.negate) {
+            text += `, but only on ${joinOr(splitCsv(only.value).map(
+                id => (ctx.recordTypes && ctx.recordTypes[id]) || id
+            ))}`;
+        } else {
+            text += `, but only while ${speak(show)}`;
+        }
     }
 
-    if (!isBlank(row.requiredIfField)) {
-        text += `, and only when ${labelOf(row.requiredIfField)} is `;
-        text += isBlank(row.requiredIfValue)
-            ? 'set'
-            : joinOr(splitCsv(row.requiredIfValue));
-    }
+    const required = conditionsOf(row, SITE_REQUIRED, row.apiName);
+    if (required.conditions.length) text += `, and only when ${speak(required)}`;
 
     return `${text}.`;
 }
@@ -593,11 +1292,13 @@ function describeRequirement(row, context) {
 
 // Emitted key order. Derived from the registry rather than hand-listed, so a new key
 // lands in a predictable place and App Builder diffs stay readable.
-const OUTPUT_ORDER = ['apiName', 'label', 'colSpan', 'editable', 'showIfField', 'showIfValue']
+const OUTPUT_HEAD = ['divider', 'apiName', 'label', 'colSpan', 'editable', 'showIf', 'showIfField', 'showIfValue'];
+
+const OUTPUT_ORDER = OUTPUT_HEAD
     .concat(WIDGET_KEYS)
     .concat(CONFIG_KEYS
         .map(d => d.key)
-        .filter(k => !['apiName', 'label', 'colSpan', 'editable', 'showIfField', 'showIfValue'].includes(k)));
+        .filter(k => !OUTPUT_HEAD.includes(k)));
 
 /** One row with its keys in canonical order; unknown keys are kept, at the end. */
 function orderRow(row) {
@@ -712,7 +1413,7 @@ function validateSection(section, context) {
         const value = settings[def.key];
         if (value === undefined || value === '') return;
 
-        if (def.requires && isBlank(settings[def.requires])) {
+        if (def.requires && isBlank(settings[def.requires]) && !satisfiedBySite(settings, def)) {
             push('error', `"${def.key}" is set but "${def.requires}" is not.`, def.key);
         }
         if (def.control === 'fieldPicker' && ctx.fields && !ctx.fields[value]) {
@@ -723,12 +1424,73 @@ function validateSection(section, context) {
         }
     });
 
+    conditionFindings(settings, SITE_ALERT, ctx).forEach(f => push(f.level, f.message, f.key));
+
     // An alert condition with no colour to switch to does nothing at all
-    if (!isBlank(settings.alertField) && isBlank(settings.alertColor)) {
+    if (conditionsOf(settings, SITE_ALERT).conditions.length && isBlank(settings.alertColor)) {
         push('warning', 'The header alert has a condition but no alert background colour, so it will never change.', 'alertColor');
     }
 
     return findings;
+}
+
+/**
+ * Store a condition group on a row or on the section settings.
+ *
+ * This is the ONLY place that chooses between the two shapes, and it prefers the flat
+ * one: a single plain condition is written as `showIfField` + `showIfValue`, exactly as
+ * it always was. Anything the flat pair cannot say — two or more conditions, a negated
+ * one, or custom logic — is written as the structured `showIf`.
+ *
+ * Preferring flat is not nostalgia. A browser still running the previous bundle keeps
+ * understanding every row it can, so a deploy does not break the rows that never needed
+ * the new shape; and untouched configs stay byte-identical, which keeps App Builder
+ * diffs honest about what actually changed.
+ */
+function withConditionsSet(holder, siteOrKey, group) {
+    const site = typeof siteOrKey === 'string' ? siteByKey(siteOrKey) : siteOrKey;
+    const next = Object.assign({}, holder);
+    delete next[site.key];
+    delete next[site.legacyField];
+    delete next[site.legacyValue];
+
+    const conditions = ((group && group.conditions) || []).filter(c => c && typeof c === 'object');
+    if (!conditions.length) return next;
+
+    const logic = String((group && group.logic) || LOGIC_AND).trim();
+    const upper = logic.toUpperCase();
+    // The flat pair cannot say "no field yet": writing neither key would drop the condition
+    // on the floor, which is what made "add condition" appear to do nothing. colorIf is the
+    // exception — there a blank field with a value is exactly what colorIfValue on its own
+    // has always meant. One condition also cannot tell AND from OR, so either flattens.
+    // The flat pair has room for a field and a value and nothing else, so a condition
+    // carrying an operator can only be written structurally.
+    const sayable = (!isBlank(conditions[0].field)
+        || (site.selfField && conditions[0].value !== undefined))
+        && isBlank(conditions[0].op);
+    const flattenable = conditions.length === 1
+        && !conditions[0].negate
+        && sayable
+        && (!logic || upper === LOGIC_AND || upper === LOGIC_OR);
+
+    if (flattenable) {
+        const only = conditions[0];
+        if (!isBlank(only.field)) next[site.legacyField] = only.field;
+        if (only.value !== undefined) next[site.legacyValue] = only.value;
+        return next;
+    }
+
+    const stored = { conditions: conditions.map(c => {
+        const out = { field: c.field === undefined ? '' : c.field };
+        if (!isBlank(c.op)) out.op = String(c.op);
+        if (c.value !== undefined) out.value = c.value;
+        if (c.negate) out.negate = true;
+        return out;
+    }) };
+    // AND is the default, so writing it only adds noise to the JSON.
+    if (logic && logic.toUpperCase() !== LOGIC_AND) stored.logic = logic;
+    next[site.key] = stored;
+    return next;
 }
 
 /**
@@ -739,6 +1501,11 @@ function withRowAdded(rows, apiName, label, editable = true) {
     const row = { apiName, label };
     if (editable) row.editable = true;
     return rows.concat(row);
+}
+
+/** A divider entry. Empty caption by default: a plain rule is the commonest one. */
+function withDividerAdded(rows, caption = '') {
+    return rows.concat({ divider: caption });
 }
 
 function withRowMoved(rows, index, step) {
@@ -831,7 +1598,33 @@ export {
     widgetOf,
     isBlank,
     matchesCsv,
+    isDivider,
+    withDividerAdded,
+    DEFAULT_ALERT_COLOR,
+    DATE_OPS,
+    DATE_OP_KEYS,
+    DATE_OPERAND_HINT,
+    dateOpFor,
+    operandDay,
+    fieldDay,
+    localToday,
     isRowVisible,
+    LOGIC_AND,
+    LOGIC_OR,
+    CONDITION_SITES,
+    CONDITION_SITE_KEYS,
+    siteByKey,
+    siteByLegacyField,
+    conditionsOf,
+    withConditionsSet,
+    watchedFieldsOf,
+    valueResolver,
+    matchesCondition,
+    evaluateConditions,
+    holds,
+    parseLogic,
+    describeCondition,
+    describeConditions,
     splitCsv,
     joinOr,
     validateConfig,

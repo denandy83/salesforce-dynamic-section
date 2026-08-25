@@ -8,8 +8,13 @@ import getOpenProblems from '@salesforce/apex/ND_ProblemPicker.getOpenProblems';
 import resolveEmails from '@salesforce/apex/ND_EmailResolver.resolveEmails';
 import {
     isBlank,
-    matchesCsv,
+    isDivider,
     isRowVisible,
+    holds,
+    siteByKey,
+    conditionsOf,
+    watchedFieldsOf,
+    DEFAULT_ALERT_COLOR,
     validateConfig,
     validateSection,
     parseConfig,
@@ -176,6 +181,32 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     // Nothing configured at all. Rather than render an empty card with no explanation,
     // point whoever just dropped the component at the tool that configures it.
+    /**
+     * True in the App Builder canvas.
+     *
+     * WHY it has to be detected at all: dragging the component there killed the page with
+     * "Cannot read properties of undefined (reading 'def')". The canvas builds its drag ghost
+     * with jQuery cloneNode, and `lightning-base-combobox` is form-associated, so cloning one
+     * fires formAssociatedCallback against a clone that has no LWC VM. On a Case page this
+     * component renders six of them — every editable picklist, the record-type picker and the
+     * owner picker — and on the pages checked it was the ONLY source of them, which is why it
+     * looks like our bug rather than the platform's. Rendering read-only in the canvas creates
+     * none, so there is nothing for the clone to choke on.
+     *
+     * HOW: not by the absence of a recordId — App Builder supplies a real one, so the canvas
+     * shows live data (verified in UAT: it passed 500UB00000WiFqXYAV). The canvas is an iframe
+     * served from /flexipageEditor/surface.app, and that path is the signal. It is a platform
+     * detail rather than an API, so if Salesforce moves it this quietly stops working and the
+     * crash returns — the failure mode is today's behaviour, not something worse.
+     */
+    get isDesignPreview() {
+        try {
+            return window.location.pathname.indexOf('/flexipageEditor/') === 0;
+        } catch (e) {
+            return false;
+        }
+    }
+
     get isUnconfigured() {
         return !this.configObject.length;
     }
@@ -236,22 +267,18 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     get isHeaderActive() {
         const settings = this.sectionSettings;
-        if (!settings.alertField || !this.ND_recordData || !settings.alertColor) return false;
+        if (!this.ND_recordData || !settings.alertColor) return false;
+        return holds(settings, siteByKey('alertIf'), this._conditionContext);
+    }
 
-        const field = this.ND_recordData.fields[settings.alertField];
-        if (!field || field.value === undefined) return false;
-
-        const rawVal = field.value;
-
-        // Multi-value check
-        if (settings.alertValue && String(settings.alertValue).trim().length > 0) {
-            return matchesCsv(rawVal, settings.alertValue);
-        }
-
-        // Strict Truthy check
-        if (rawVal === 0 || rawVal === '0' || rawVal === false || rawVal === null) return false;
-
-        return true;
+    /** What every condition site reads from. One place, so the four cannot disagree. */
+    get _conditionContext() {
+        return {
+            fields: this._objectInfo ? this._objectInfo.fields : null,
+            savedFields: this.ND_recordData ? this.ND_recordData.fields : null,
+            liveValues: this.liveValues,
+            selectedRecordTypeId: this.selectedRecordTypeId
+        };
     }
 
     // --- 4. DATA LOADING ---
@@ -278,22 +305,17 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             fieldsToLoad.add(`${this.objectApiName}.${path}`);
         };
 
-        add(this.sectionSettings.alertField);
-
         this.configObject.forEach(item => {
             add(item.apiName);
             if (item.isOpenProblem && item.apiName === 'ParentId' && this.objectApiName === 'Case') {
                 add('Parent.Subject');
             }
-            add(item.showIfField);
-            // The gate for a conditional take-it requirement may not be a row of its
-            // own, so its saved value has to be loaded explicitly.
-            add(item.requiredIfField);
-            if (item.color) {
-                if (item.colorIfField) add(item.colorIfField);
-                else if (item.colorIfValue !== undefined) add(item.apiName);
-            }
         });
+
+        // Every field any condition watches, whichever of the four sites it belongs to.
+        // A watched field is often not a row of its own — a take-it gate or an ICAO check
+        // usually is not — so it has to be requested explicitly or it is never known.
+        watchedFieldsOf(this.configObject, this.sectionSettings).forEach(add);
 
         if (skipped.size) {
             const signature = Array.from(skipped).sort().join(',');
@@ -595,6 +617,27 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         return { criteria: [{ fieldPath: 'Type', operator: 'eq', value: 'Queue' }] };
     }
 
+    /**
+     * Only internal, active users can be offered as an owner.
+     *
+     * Unfiltered, the picker searched every User the running user can see, and PROD has
+     * 400 active community (CspLitePortal) users to 40 internal ones — so typing a name
+     * that exists on both sides buried the colleague among portal contacts. UserType
+     * 'Standard' is exactly the internal licences (Salesforce, Salesforce Platform);
+     * every community licence has its own UserType, as do Guest and the automated
+     * accounts. Inactive users are dropped too — they cannot own a record, so offering
+     * them only produces a save error.
+     */
+    get ownerUserFilter() {
+        return {
+            criteria: [
+                { fieldPath: 'UserType', operator: 'eq', value: 'Standard' },
+                { fieldPath: 'IsActive', operator: 'eq', value: true }
+            ],
+            filterLogic: '1 AND 2'
+        };
+    }
+
     get problemHasResults() {
         return this.problemResults && this.problemResults.length > 0;
     }
@@ -688,39 +731,47 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     // Whether a config row is on screen. The decision itself lives in the schema module
     // so it can be tested without mounting; this only gathers what it needs.
     _isRowVisible(item) {
-        return isRowVisible(item, {
-            fields: this._objectInfo ? this._objectInfo.fields : null,
-            savedFields: this.ND_recordData ? this.ND_recordData.fields : null,
-            liveValues: this.liveValues,
-            selectedRecordTypeId: this.selectedRecordTypeId
-        });
+        return isRowVisible(item, this._conditionContext);
     }
 
     get ND_finalFieldList() {
         const config = this.configObject;
-        return config.map(item => {
+        return config.map((item, index) => {
             // A. Visibility Logic
             const isVisible = this._isRowVisible(item);
 
-            // B. Conditional alert logic
-            let isAlertActive = false;
-            if (item.color) {
-                const logicField = item.colorIfField || (item.colorIfValue !== undefined ? item.apiName : null);
-
-                if (!logicField) {
-                    isAlertActive = true;
-                } else if (this.ND_recordData && this.ND_recordData.fields[logicField]) {
-                    const val = this.ND_recordData.fields[logicField].value;
-
-                    if (item.colorIfValue !== undefined) {
-                        const valStr = String(val);
-                        const validValues = String(item.colorIfValue).split(',').map(v => v.trim());
-                        isAlertActive = validValues.includes(valStr);
-                    } else {
-                        isAlertActive = !!val;
-                    }
-                }
+            // A divider is a rule across the section, not a field, so none of the field view
+            // model below applies to it. Visibility still does — the point of a captioned rule
+            // is usually to head a group of rows that are themselves conditional.
+            if (isDivider(item)) {
+                const caption = String(item.divider === undefined ? '' : item.divider).trim();
+                return {
+                    // Dividers have no apiName to key on, and two unlabelled ones would
+                    // collide, so the index is the only stable key.
+                    key: `divider-${index}`,
+                    isDivider: true,
+                    isVisible: isVisible,
+                    caption: caption,
+                    hasCaption: !!caption,
+                    // Always full width: half a rule across one column of two reads as a
+                    // mistake rather than a divider.
+                    cssClass: 'slds-col slds-size_1-of-1 nd-divider-row',
+                    dividerClass: caption ? 'nd-divider nd-divider_captioned' : 'nd-divider'
+                };
             }
+
+            // B. Conditional alert logic
+            // A row opts into the underline by naming a colour OR by having a condition for
+            // one — either is a clear "underline this". It used to be the colour alone, which
+            // meant a row with conditions and no colour was configured to underline and then
+            // silently did not. Past the opt-in it is the same engine as everything else, so
+            // it reacts to the live form value too rather than only to what is saved.
+            const colorSite = siteByKey('colorIf');
+            const wantsUnderline = !!item.color
+                || conditionsOf(item, colorSite, item.apiName).conditions.length > 0;
+            const isAlertActive = wantsUnderline
+                && holds(item, colorSite, this._conditionContext, item.apiName);
+            const alertColor = item.color || DEFAULT_ALERT_COLOR;
 
             // C. Layout Logic
             let sizeClass = 'slds-size_1-of-2';
@@ -745,7 +796,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 isAlertActive && !item.editable ? 'nd-field-content_alert-readonly' : '',
                 hasIcon ? 'nd-field-content_has-corner-icon' : ''
             ].filter(Boolean).join(' ');
-            const customStyle = isAlertActive ? `--nd-alert-color: ${item.color};` : '';
+            const customStyle = isAlertActive ? `--nd-alert-color: ${alertColor};` : '';
 
             const isOwner = item.apiName === 'OwnerId';
             const isOpenProblem = item.isOpenProblem === true;
@@ -770,14 +821,36 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             const isEmailList = item.isEmailList === true;
             const emailList = isEmailList ? this._buildEmailList(item.apiName, item.editable === true) : null;
 
+            // H. Inline help text. lightning-input-field / lightning-output-field render
+            // the field's help ⓘ themselves, and keep rendering it when
+            // variant="label-hidden" hides their label — so it lands on its own line,
+            // between our label and the value. Flagging the row lets the CSS float our
+            // label so the icon flows up beside it. Only rows that actually render one of
+            // those two components can produce the icon; every custom widget below draws
+            // its own control and never shows one.
+            const rendersBaseField = item.editable
+                ? !(item.apiName === 'RecordTypeId' || isOwner || isOpenProblem || isUrl || isUrlList || isEmailList)
+                : !(isUrl || isUrlList || isEmailList);
+            const described = this._objectInfo && this._objectInfo.fields
+                ? this._objectInfo.fields[item.apiName]
+                : null;
+            const hasInlineHelp = rendersBaseField && !!(described && described.inlineHelpText);
+
             return {
                 apiName: item.apiName,
                 customLabel: item.label || (isOwner && item.editable ? 'Owner' : null),
+                labelCssClass: hasInlineHelp
+                    ? 'nd-custom-label nd-custom-label_inline-help'
+                    : 'nd-custom-label',
+                fieldCssClass: hasInlineHelp ? 'nd-help-field' : '',
                 isVisible: isVisible,
                 style: customStyle,
                 cssClass: cssClass,
                 contentCssClass: contentCssClass,
-                editable: item.editable || false,
+                // Read-only in the App Builder canvas: an editable picklist, owner picker or
+                // record-type picker each mount a form-associated combobox, and the canvas
+                // clones the DOM. Nothing there is meant to be edited anyway.
+                editable: (item.editable || false) && !this.isDesignPreview,
                 key: item.apiName,
                 isRecordType: item.apiName === 'RecordTypeId',
                 isOwner: isOwner,
@@ -854,11 +927,9 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         this.liveValues = Object.assign({}, this.liveValues, { [apiName]: value });
     }
 
-    // Every field referenced by a showIfField, so live tracking stays bounded.
+    // Every field any condition watches, so live tracking stays bounded to those.
     get _watchedFields() {
-        return new Set(
-            this.configObject.map(item => item.showIfField).filter(Boolean)
-        );
+        return new Set(watchedFieldsOf(this.configObject, this.sectionSettings));
     }
 
     // True when the control's value differs from the saved record value. Errs
@@ -1350,15 +1421,9 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             // non-AvioBook case), so it isn't ours to demand
             if (!this._isRowVisible(item)) return false;
 
-            // Conditional requirement, e.g. Environment only for a Bug or Incident
-            if (item.requiredIfField) {
-                const gate = valueOf(item.requiredIfField);
-                if (item.requiredIfValue !== undefined) {
-                    if (!matchesCsv(gate, item.requiredIfValue)) return false;
-                } else if (isBlank(gate)) {
-                    return false;
-                }
-            }
+            // Conditional requirement, e.g. Environment only for a Bug or Incident.
+            // Same context as the renderer, so the live form value counts here too.
+            if (!holds(item, siteByKey('requiredIf'), this._conditionContext, item.apiName)) return false;
 
             return isBlank(valueOf(item.apiName));
         }).map(item => this._labelFor(item.apiName, item.label));

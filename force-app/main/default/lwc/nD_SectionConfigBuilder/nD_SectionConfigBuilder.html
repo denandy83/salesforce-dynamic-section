@@ -128,6 +128,12 @@
                             <span class="nd-count">{fieldMatchCount}</span>
                         </div>
 
+                        <!-- Not a field, so it does not belong in the field search list. -->
+                        <lightning-button class="nd-add-divider" variant="neutral"
+                            icon-name="utility:dash" label="Add a divider"
+                            title="A rule across the section, optionally captioned"
+                            onclick={handleAddDivider}></lightning-button>
+
                         <template if:false={hasFieldMatches}>
                             <p class="nd-help nd-no-match">No field matches that.</p>
                         </template>
@@ -188,6 +194,20 @@
                         <template for:each={sectionGroups} for:item="group">
                             <fieldset key={group.key} class="nd-group">
                                 <legend>{group.legend}</legend>
+                                <template if:true={group.conditions}>
+                                    <c-n-d_conditions-editor
+                                        site={group.conditions.site}
+                                        legend={group.conditions.legend}
+                                        help={group.conditions.help}
+                                        group={group.conditions.group}
+                                        field-options={group.conditions.fieldOptions}
+                                        value-choices={group.conditions.valueChoices}
+                                        field-types={group.conditions.fieldTypes}
+                                        self-field-label={group.conditions.selfFieldLabel}
+                                        onchange={handleConditionsChange}>
+                                    </c-n-d_conditions-editor>
+                                </template>
+
                                 <template for:each={group.controls} for:item="ctrl">
                                     <div key={ctrl.key} class="nd-control">
                                         <template if:true={ctrl.isCheck}>
@@ -208,16 +228,13 @@
                                                 onchange={handleSectionChange}></lightning-combobox>
                                         </template>
                                         <template if:true={ctrl.isFieldPicker}>
-                                            <lightning-combobox label={ctrl.label} value={ctrl.value}
-                                                options={ctrl.options} data-key={ctrl.key}
-                                                onchange={handleSectionChange}></lightning-combobox>
-                                            <lightning-input class="nd-picker-filter"
-                                                label="Filter" variant="label-hidden"
-                                                placeholder="Type to filter this list…"
-                                                value={ctrl.filterValue}
-                                                data-filter={ctrl.filterKey}
-                                                oninput={handleFieldFilter}
-                                                onchange={handleFieldFilter}></lightning-input>
+                                            <c-n-d_field-combobox
+                                                label={ctrl.label} value={ctrl.value}
+                                                options={ctrl.options}
+                                                blank-label={ctrl.blankLabel}
+                                                disabled={ctrl.disabled}
+                                                data-key={ctrl.key}
+                                                onchange={handleSectionChange}></c-n-d_field-combobox>
                                         </template>
                                         <template if:true={ctrl.isValues}>
                                             <lightning-checkbox-group label={ctrl.label}
@@ -313,6 +330,20 @@
                                     </ul>
                                 </template>
 
+                                <template if:true={group.conditions}>
+                                    <c-n-d_conditions-editor
+                                        site={group.conditions.site}
+                                        legend={group.conditions.legend}
+                                        help={group.conditions.help}
+                                        group={group.conditions.group}
+                                        field-options={group.conditions.fieldOptions}
+                                        value-choices={group.conditions.valueChoices}
+                                        field-types={group.conditions.fieldTypes}
+                                        self-field-label={group.conditions.selfFieldLabel}
+                                        onchange={handleConditionsChange}>
+                                    </c-n-d_conditions-editor>
+                                </template>
+
                                 <template for:each={group.controls} for:item="ctrl">
                                     <div key={ctrl.key} class="nd-control">
                                         <template if:true={ctrl.isCheck}>
@@ -328,16 +359,13 @@
                                                 onchange={handleControlChange}></lightning-input>
                                         </template>
                                         <template if:true={ctrl.isFieldPicker}>
-                                            <lightning-combobox label={ctrl.label} value={ctrl.value}
-                                                options={ctrl.options} data-key={ctrl.key}
-                                                onchange={handleControlChange}></lightning-combobox>
-                                            <lightning-input class="nd-picker-filter"
-                                                label="Filter" variant="label-hidden"
-                                                placeholder="Type to filter this list…"
-                                                value={ctrl.filterValue}
-                                                data-filter={ctrl.filterKey}
-                                                oninput={handleFieldFilter}
-                                                onchange={handleFieldFilter}></lightning-input>
+                                            <c-n-d_field-combobox
+                                                label={ctrl.label} value={ctrl.value}
+                                                options={ctrl.options}
+                                                blank-label={ctrl.blankLabel}
+                                                disabled={ctrl.disabled}
+                                                data-key={ctrl.key}
+                                                onchange={handleControlChange}></c-n-d_field-combobox>
                                         </template>
                                         <template if:true={ctrl.isRecordType}>
                                             <lightning-combobox label={ctrl.label} value={ctrl.value}
@@ -412,17 +440,13 @@
                                                         onchange={handleControlChange}></lightning-input>
                                                 </template>
                                                 <template if:true={ctrl.isFieldPicker}>
-                                                    <lightning-combobox label={ctrl.label}
-                                                        value={ctrl.value} options={ctrl.options}
+                                                    <c-n-d_field-combobox
+                                                        label={ctrl.label} value={ctrl.value}
+                                                        options={ctrl.options}
+                                                        blank-label={ctrl.blankLabel}
+                                                        disabled={ctrl.disabled}
                                                         data-key={ctrl.key}
-                                                        onchange={handleControlChange}></lightning-combobox>
-                                                    <lightning-input class="nd-picker-filter"
-                                                        label="Filter" variant="label-hidden"
-                                                        placeholder="Type to filter this list…"
-                                                        value={ctrl.filterValue}
-                                                        data-filter={ctrl.filterKey}
-                                                        oninput={handleFieldFilter}
-                                                        onchange={handleFieldFilter}></lightning-input>
+                                                        onchange={handleControlChange}></c-n-d_field-combobox>
                                                 </template>
                                                 <template if:true={ctrl.isRecordType}>
                                                     <lightning-combobox label={ctrl.label}

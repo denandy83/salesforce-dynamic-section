@@ -51,7 +51,7 @@ describe('registry shape', () => {
     });
 
     it('only points requires/group at things that exist', () => {
-        const groups = ['field', 'visibility', 'widget', 'alert', 'takeover'];
+        const groups = ['field', 'divider', 'visibility', 'widget', 'alert', 'takeover'];
         expect(CONFIG_KEYS.filter(def => !groups.includes(def.group)).map(def => def.key)).toEqual([]);
         expect(
             CONFIG_KEYS

@@ -32,7 +32,12 @@ import {
     withRowRemoved,
     withKeySet,
     withWidgetSet,
-    selectionAfterRemoval
+    selectionAfterRemoval,
+    CONDITION_SITES,
+    conditionsOf,
+    withConditionsSet,
+    isDivider,
+    withDividerAdded
 } from 'c/nD_sectionConfigSchema';
 
 /**
@@ -79,10 +84,6 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     // flag decides which. Start on the section: it is what a new config needs first.
     @track editingSection = true;
     importNotice = '';
-    // Filter text per field picker, keyed by config key ('__add' for the Add a field box).
-    // The object has 127 fields and lightning-combobox has no type-ahead, so scrolling to
-    // one blind is not realistic.
-    @track fieldFilters = {};
 
     previewRecordId = '';
     previewVisible = true;
@@ -200,6 +201,16 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             else if (def.valuesFromSelf && row.apiName) wanted.add(row.apiName);
         });
 
+        // Every field the condition editors are watching, on this row and on the section.
+        // Each condition can point somewhere different, so this is where the "one wire for
+        // all of them" above earns its keep.
+        CONDITION_SITES.forEach(site => {
+            const holder = site.scope === 'section' ? this.section : row;
+            conditionsOf(holder, site, row.apiName).conditions.forEach(c => {
+                if (c.field) wanted.add(c.field);
+            });
+        });
+
         // Return the SAME array instance while the contents are unchanged. A wire keyed on
         // a getter that builds a new array every time refires on every render, which
         // re-renders, which builds another array — a loop that also wiped anything typed
@@ -277,7 +288,7 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     get fieldPickerOptions() {
         return Object.keys(this.objectFields)
             .sort((a, b) => this.labelFor(a).localeCompare(this.labelFor(b)))
-            .map(apiName => ({ label: `${this.labelFor(apiName)} · ${apiName}`, value: apiName }));
+            .map(apiName => ({ label: this.labelFor(apiName), value: apiName }));
     }
 
     /**
@@ -323,6 +334,12 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         return this.fieldMatches.length > 0;
     }
 
+    handleAddDivider() {
+        this.rows = withDividerAdded(this.rows);
+        this.selectedIndex = this.rows.length - 1;
+        this.refreshPreview();
+    }
+
     handleFieldSearch(event) {
         this.fieldSearch = event.target.value || '';
     }
@@ -356,20 +373,6 @@ export default class ND_SectionConfigBuilder extends LightningElement {
      * same field. A filter that matches nothing returns everything rather than an empty
      * dropdown, which would look broken.
      */
-    filterFieldOptions(options, key) {
-        const needle = (this.fieldFilters[key] || '').trim().toLowerCase();
-        if (!needle) return options;
-        const hits = options.filter(o => o.label.toLowerCase().includes(needle));
-        return hits.length ? hits : options;
-    }
-
-    handleFieldFilter(event) {
-        const key = event.currentTarget.dataset.filter;
-        this.fieldFilters = Object.assign({}, this.fieldFilters, {
-            [key]: event.target.value || ''
-        });
-    }
-
     // Record types excluding Master, which App Builder never scopes a page to either.
     get assignableRecordTypeIds() {
         const infos = (this._objectInfo && this._objectInfo.recordTypeInfos) || {};
@@ -409,8 +412,10 @@ export default class ND_SectionConfigBuilder extends LightningElement {
                 key: `row-${index}`,
                 index,
                 number: String(index + 1).padStart(2, '0'),
-                title: row.label || this.labelFor(row.apiName) || '(no field)',
-                apiName: row.apiName || '—',
+                title: isDivider(row)
+                    ? (String(row.divider || '').trim() || '(plain rule)')
+                    : (row.label || this.labelFor(row.apiName) || '(no field)'),
+                apiName: isDivider(row) ? 'divider' : (row.apiName || '—'),
                 badges: this.badgesFor(row, invalid),
                 cssClass: `nd-row${index === this.selectedIndex ? ' nd-row_selected' : ''}`
                     + `${invalid ? ' nd-row_invalid' : ''}`,
@@ -507,9 +512,10 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             return {
                 key: group.id,
                 legend: group.legend,
-                controls: defs.map(d => this.controlFor(d, this.section))
+                conditions: this.conditionEditorFor(defs, this.section),
+                controls: defs.filter(d => this.isPlainControl(d)).map(d => this.controlFor(d, this.section))
             };
-        }).filter(g => g.controls.length);
+        }).filter(g => g.controls.length || g.conditions);
     }
 
     handleSectionChange(event) {
@@ -574,7 +580,12 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         const row = this.selectedRow;
         if (!row) return [];
 
-        return FIELD_GROUPS.map(group => {
+        // A divider draws a rule; none of the field settings mean anything on one, and its
+        // caption means nothing on a field. Filtering whole groups keeps this out of twenty
+        // separate appliesWhen predicates.
+        const allowed = isDivider(row) ? ['divider', 'visibility'] : null;
+
+        return FIELD_GROUPS.filter(group => (allowed ? allowed.includes(group.id) : group.id !== 'divider')).map(group => {
             const defs = CONFIG_KEYS.filter(
                 d => d.group === group.id && (!d.appliesWhen || d.appliesWhen(row))
             );
@@ -591,12 +602,88 @@ export default class ND_SectionConfigBuilder extends LightningElement {
                 widgetHelp: isWidgetGroup
                     ? WIDGETS.map(w => ({ key: w.key || 'standard', title: w.title, help: w.help }))
                     : [],
-                controls: defs.filter(d => !d.nested).map(d => this.controlFor(d, row)),
-                nestedControls: defs.filter(d => d.nested).map(d => this.controlFor(d, row)),
-                hasNested: defs.some(d => d.nested),
+                conditions: this.conditionEditorFor(defs, row),
+                controls: defs.filter(d => this.isPlainControl(d) && !d.nested).map(d => this.controlFor(d, row)),
+                nestedControls: defs.filter(d => this.isPlainControl(d) && d.nested).map(d => this.controlFor(d, row)),
+                hasNested: defs.some(d => this.isPlainControl(d) && d.nested),
                 sentence: group.id === 'takeover' ? this.requirementSentence : null
             };
-        }).filter(g => g.isWidgetGroup || g.controls.length || g.nestedControls.length);
+        }).filter(g => g.isWidgetGroup || g.controls.length || g.nestedControls.length || g.conditions);
+    }
+
+/**
+     * The flat `showIfField` / `showIfValue` pair is still valid config and still what
+     * gets written for a single condition, but it is no longer worth its own pair of
+     * boxes in the panel: the condition editor covers one condition and any number of
+     * them, and two ways to edit the same setting is how they end up disagreeing.
+     */
+    isPlainControl(def) {
+        return !def.legacy && def.control !== 'conditions';
+    }
+
+    /** The editor view model for whichever site lives in this group, or null. */
+    conditionEditorFor(defs, holder) {
+        const def = defs.find(d => d.control === 'conditions');
+        if (!def) return null;
+
+        const site = CONDITION_SITES.find(s => s.key === def.site);
+        return {
+            site: site.key,
+            legend: site.legend,
+            help: def.help,
+            group: conditionsOf(holder, site, (holder || {}).apiName),
+            fieldOptions: this.fieldPickerOptions,
+            valueChoices: this.valueChoicesByField,
+            fieldTypes: this.fieldTypesByName,
+            // colorIf is the one site where a blank field has always meant "this row's
+            // own field", so it needs that offered rather than looking like a mistake.
+            selfFieldLabel: site.selfField && holder && holder.apiName
+                ? `— this row's own field (${this.labelFor(holder.apiName)}) —`
+                : null
+        };
+    }
+
+    /**
+     * apiName -> describe dataType. Only the date types are acted on, to decide whether a
+     * condition may be compared with "is on or before" and friends.
+     */
+    get fieldTypesByName() {
+        const fields = this.objectFields || {};
+        const out = {};
+        Object.keys(fields).forEach(apiName => {
+            const described = fields[apiName];
+            if (described && described.dataType) out[apiName] = described.dataType;
+        });
+        return out;
+    }
+
+    /** apiName -> fixed value list, for every field a condition might watch. */
+    get valueChoicesByField() {
+        const out = {};
+        const types = this.recordTypesById;
+        const real = this.assignableRecordTypeIds;
+        const ids = real.length ? real : Object.keys(types);
+        if (ids.length) out.RecordTypeId = ids.map(id => ({ label: types[id], value: id }));
+
+        Object.keys(this.picklistValues || {}).forEach(apiName => {
+            const values = this.picklistValues[apiName];
+            if (values && values.length) out[apiName] = values.map(v => ({ label: v, value: v }));
+        });
+        return out;
+    }
+
+    handleConditionsChange(event) {
+        const { site, group } = event.detail;
+        const isSection = CONDITION_SITES.find(s => s.key === site).scope === 'section';
+
+        if (isSection) {
+            this.section = withConditionsSet(this.section, site, group);
+        } else {
+            const next = this.rows.slice();
+            next[this.selectedIndex] = withConditionsSet(next[this.selectedIndex], site, group);
+            this.rows = next;
+        }
+        this.refreshPreview();
     }
 
     controlFor(def, source) {
@@ -631,8 +718,7 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             isColor: def.control === 'color',
             isIcon: def.control === 'icon',
             isRecordType: asRecordType,
-            filterKey: def.key,
-            filterValue: this.fieldFilters[def.key] || '',
+            blankLabel: def.control === 'fieldPicker' && def.blank ? '— none —' : '',
             isValues: def.control === 'values' && !!valueChoices,
             isValuesText: def.control === 'values' && !valueChoices,
             valueOptions: valueChoices || [],
@@ -703,10 +789,9 @@ export default class ND_SectionConfigBuilder extends LightningElement {
 
     optionsFor(def, asRecordType) {
         if (asRecordType) return this.recordTypeOptions;
-        if (def.control === 'fieldPicker') {
-            const base = def.blank ? [{ label: '— none —', value: '' }] : [];
-            return base.concat(this.filterFieldOptions(this.fieldPickerOptions, def.key));
-        }
+        // The blank entry is a label on the combobox now, not an option glued to the front
+        // of the list, so it is passed separately as blank-label.
+        if (def.control === 'fieldPicker') return this.fieldPickerOptions;
         if (def.control === 'select') {
             return def.options.map(o => ({ label: o.title, value: String(o.value) }));
         }

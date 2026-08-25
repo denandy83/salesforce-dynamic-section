@@ -37,6 +37,18 @@
     margin: 0 -0.4rem;
 }
 
+/* Both cells of a row must end at the same height, or their bottom borders draw the
+   section's separator at two different heights and every row looks a pixel or two out.
+   SLDS's grid computes `align-items: flex-start` (verified against a rendered card in
+   UAT), so each cell was only as tall as its own control — and base components disagree
+   about their height by small amounts: a date input measured 70px next to a picklist's
+   68px, and a checkbox is shorter than either by ~13px. Stretching makes the separator a
+   property of the ROW rather than of whichever control happens to be tallest, which fixes
+   the whole class of these instead of one field at a time. */
+.nd-body .slds-grid {
+    align-items: stretch;
+}
+
 .slds-col {
     padding: 0 0.4rem;
 }
@@ -53,6 +65,37 @@
     font-weight: 800;     
     letter-spacing: 0.5px;
     margin-bottom: 2px;
+}
+
+/* A field whose describe carries inline help text. lightning-input-field and
+   lightning-output-field render that ⓘ button themselves, and they keep rendering it
+   when variant="label-hidden" hides their label — so it lands on its own line, between
+   our label and the value. The icon lives in the field component's shadow DOM, which no
+   selector here can reach, so the label is the only side of the boundary that can move:
+   floating it lets the icon's line box flow up beside it.
+   No line-height here on purpose — the label keeps the exact height it has on every
+   other row, so it stays in line with the labels beside it. Only the bottom margin goes
+   (2px on the base rule), which keeps the float's margin box just under the control and
+   so stops the value's lines being indented by the label's width. */
+.nd-custom-label_inline-help {
+    float: left;
+    max-width: calc(100% - 1.75rem);
+    margin: 0 0.375rem 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ...and the field itself comes up to meet it. The line box the platform puts that icon
+   in is ~19px, while our label block is ~15.5px, so a row with help text used to sit
+   ~4px lower than the row beside it — control and all. Pulling the field up by the
+   difference lines the control back up with its neighbours AND carries the icon up to
+   the label's height, since the icon rides in that same line box. Measured on a rendered
+   card against the row separator, so it is one number with a meaning rather than a nudge
+   until it looked right. */
+.nd-help-field {
+    display: block;
+    margin-top: -0.25rem;
 }
 
 .nd-take-link {
@@ -140,6 +183,8 @@
     left: 5px;
     height: 3px;
     border-radius: 0 0 0.25rem 0.25rem;
+    /* Mirrors DEFAULT_ALERT_COLOR in c/nD_sectionConfigSchema. The component sets the
+       property whenever the underline is on, so this only covers it never arriving. */
     background-color: var(--nd-alert-color, #ba0517);
     content: '';
     pointer-events: none;
@@ -668,4 +713,45 @@
 .nd-setup-body strong {
     font-weight: 700;
     color: #514f4d;
+}
+
+/* --- 8. DIVIDER ------------------------------------------------------------------
+   A rule across the section, optionally captioned: ———— SLA ————. The rules are
+   pseudo-elements that each take half the leftover width, so the caption stays
+   centred whatever its length and an uncaptioned divider is one unbroken line. */
+.nd-divider-row {
+    padding: 0.75rem 0 0.25rem;
+}
+
+.nd-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+}
+
+.nd-divider::before,
+.nd-divider::after {
+    height: 1px;
+    flex: 1 1 auto;
+    background-color: #dddbda;
+    content: '';
+}
+
+/* Without a caption there is nothing between the two halves, and a gap would show as a
+   notch in the middle of an otherwise unbroken rule. */
+.nd-divider:not(.nd-divider_captioned) {
+    gap: 0;
+}
+
+.nd-divider-caption {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: #706e6b;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
 }

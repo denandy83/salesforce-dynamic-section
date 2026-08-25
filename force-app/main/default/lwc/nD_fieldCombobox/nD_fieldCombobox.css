@@ -1,0 +1,112 @@
+.nd-fc-label {
+    display: block;
+    margin-bottom: 2px;
+    color: #3e3e3c;
+    font-size: 0.75rem;
+}
+
+/* The panel is positioned against this, so it overlays whatever is below instead of
+   pushing the rest of the panel down every time the list opens. */
+.nd-fc-box {
+    position: relative;
+}
+
+.nd-fc-input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 2rem;
+    padding: 0 0.75rem;
+    border: 1px solid #c9c7c5;
+    border-radius: 0.25rem;
+    background: #ffffff;
+    color: #181818;
+    font-family: inherit;
+    font-size: 0.8125rem;
+}
+
+.nd-fc-input:focus {
+    border-color: #0176d3;
+    box-shadow: 0 0 3px #0176d3;
+    outline: 0;
+}
+
+.nd-fc-panel {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 2px);
+    right: 0;
+    left: 0;
+    border: 1px solid #c9c7c5;
+    border-radius: 0.25rem;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+}
+
+.nd-fc-count {
+    padding: 3px 8px;
+    border-bottom: 1px solid #f3f2f2;
+    color: #8c8c8c;
+    font-size: 0.6875rem;
+}
+
+.nd-fc-none {
+    margin: 0;
+    padding: 6px 8px;
+    color: #706e6b;
+    font-size: 0.75rem;
+}
+
+.nd-fc-matches {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    /* Keep these long-hand: an `overflow` shorthand after them turns the scrolling off. */
+    max-height: 13rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.nd-fc-match {
+    display: flex;
+    width: 100%;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.3125rem 0.5rem;
+    border: 0;
+    border-left: 2px solid transparent;
+    background: none;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.nd-fc-match:hover {
+    background-color: #eef4ff;
+    border-left-color: #0176d3;
+}
+
+.nd-fc-match-label {
+    color: #181818;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.nd-fc-match-api {
+    color: #8c8c8c;
+    font-family: monospace;
+    font-size: 0.6875rem;
+}
+
+/* Opening on an empty search shows the whole list, so the current choice has to be
+   findable in it rather than only visible in the closed input. */
+.nd-fc-match_current {
+    background-color: #f3f9ff;
+    border-left-color: #0176d3;
+}
+
+.nd-fc-match-note {
+    color: #0176d3;
+    font-size: 0.6875rem;
+    font-weight: 600;
+}

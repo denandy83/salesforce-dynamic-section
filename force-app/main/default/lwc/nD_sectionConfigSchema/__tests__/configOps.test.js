@@ -373,7 +373,12 @@ describe('withRowAdded editability', () => {
 
 describe('record type Ids in showIfValue', () => {
     const CTX = {
-        fields: { AVB_Environment__c: { label: 'Environment', updateable: true } },
+        // RecordTypeId belongs in here: a condition now checks that the field it watches
+        // exists on the object, and getObjectInfo always reports RecordTypeId.
+        fields: {
+            AVB_Environment__c: { label: 'Environment', updateable: true },
+            RecordTypeId: { label: 'Record Type ID' }
+        },
         recordTypes: {
             '012KB000000kcw4YAA': 'AvioBook Case',
             '012KB000000kcw5YAA': 'AvioData Case'
@@ -409,7 +414,7 @@ describe('record type Ids in showIfValue', () => {
     it('pluralises when several are missing', () => {
         const findings = validateConfig(row('012000000000000AAA,012999999999999AAA'), CTX);
         expect(findings).toHaveLength(1);
-        expect(findings[0].message).toContain('Record type Ids');
+        expect(findings[0].message).toContain('record type Ids');
         expect(findings[0].message).toContain('are not in this org');
     });
 });

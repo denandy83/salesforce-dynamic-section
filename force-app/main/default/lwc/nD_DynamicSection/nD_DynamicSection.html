@@ -17,6 +17,21 @@
             </div>
 
             <div if:true={ND_isOpen} class="nd-body">
+
+                <!-- Nothing configured. A blank card gives whoever just dropped the
+                     component no idea what to do next, so point at the tool. -->
+                <template if:true={isUnconfigured}>
+                    <div class="nd-setup">
+                        <p class="nd-setup-title">This section has no fields yet</p>
+                        <!-- Each sentence stays on ONE line. LWC collapses the whitespace
+                             between a text node and an element when a newline sits
+                             between them, which silently produced "chooseSection Config
+                             Builder" and "Field JSON Configurationproperty". -->
+                        <p class="nd-setup-body">Open the <strong>App Launcher</strong> and choose <strong>Section Config Builder</strong> to set up how this section should look: which fields it shows, the title, icon, colours and layout.</p>
+                        <p class="nd-setup-body">Then click <strong>Copy JSON</strong> there and paste the result into the <strong>Field JSON Configuration</strong> property of this component.</p>
+                    </div>
+                </template>
+
                 <lightning-record-edit-form
                     record-id={recordId}
                     object-api-name={objectApiName}
@@ -44,24 +59,24 @@
                         </div>
                     </template>
 
-                    <!-- Nothing configured. A blank card gives whoever just dropped the
-                         component no idea what to do next, so point at the tool. -->
-                    <template if:true={isUnconfigured}>
-                        <div class="nd-setup">
-                            <p class="nd-setup-title">This section has no fields yet</p>
-                            <!-- Each sentence stays on ONE line. LWC collapses the whitespace
-                                 between a text node and an element when a newline sits
-                                 between them, which silently produced "chooseSection Config
-                                 Builder" and "Field JSON Configurationproperty". -->
-                            <p class="nd-setup-body">Open the <strong>App Launcher</strong> and choose <strong>Section Config Builder</strong> to set up how this section should look: which fields it shows, the title, icon, colours and layout.</p>
-                            <p class="nd-setup-body">Then click <strong>Copy JSON</strong> there and paste the result into the <strong>Field JSON Configuration</strong> property of this component.</p>
-                        </div>
-                    </template>
 
                     <div class="slds-grid slds-wrap slds-gutters_small">
 
                         <template for:each={ND_finalFieldList} for:item="fieldConfig">
                             <template if:true={fieldConfig.isVisible}>
+
+                                <!-- A divider: a rule across the section, optionally captioned.
+                                     Keep the caption on ONE line with its rules — LWC collapses
+                                     whitespace between a text node and an element. -->
+                                <template if:true={fieldConfig.isDivider}>
+                                    <div key={fieldConfig.key} class={fieldConfig.cssClass}>
+                                        <div class={fieldConfig.dividerClass} role="separator">
+                                            <template if:true={fieldConfig.hasCaption}><span class="nd-divider-caption">{fieldConfig.caption}</span></template>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <template if:false={fieldConfig.isDivider}>
                                 <div key={fieldConfig.key} class={fieldConfig.cssClass}>
                                     <div class={fieldConfig.contentCssClass} style={fieldConfig.style}>
 
@@ -79,7 +94,7 @@
                                         </template>
 
                                         <template if:true={fieldConfig.customLabel}>
-                                            <div class="nd-custom-label">{fieldConfig.customLabel}</div>
+                                            <div class={fieldConfig.labelCssClass} title={fieldConfig.customLabel}>{fieldConfig.customLabel}</div>
                                             <template if:true={fieldConfig.isUrl}>
                                                 <template if:true={fieldConfig.showUrlLink}>
                                                     <div class="nd-url-value">
@@ -203,7 +218,7 @@
                                                 <template if:false={fieldConfig.isUrl}>
                                                     <template if:false={fieldConfig.isUrlList}>
                                                         <template if:false={fieldConfig.isEmailList}>
-                                                            <lightning-output-field field-name={fieldConfig.apiName} variant="label-hidden"></lightning-output-field>
+                                                            <lightning-output-field class={fieldConfig.fieldCssClass} field-name={fieldConfig.apiName} variant="label-hidden"></lightning-output-field>
                                                         </template>
                                                     </template>
                                                 </template>
@@ -239,6 +254,7 @@
                                                                     variant="label-hidden"
                                                                     placeholder="Search Users..."
                                                                     object-api-name="User"
+                                                                    filter={ownerUserFilter}
                                                                     value={selectedOwnerId}
                                                                     onchange={ND_handleOwnerChange}>
                                                                 </lightning-record-picker>
@@ -286,7 +302,7 @@
                                                             <template if:false={fieldConfig.isUrl}>
                                                                 <template if:false={fieldConfig.isUrlList}>
                                                                     <template if:false={fieldConfig.isEmailList}>
-                                                                        <lightning-input-field field-name={fieldConfig.apiName} variant="label-hidden" onchange={ND_handleFieldChange}></lightning-input-field>
+                                                                        <lightning-input-field class={fieldConfig.fieldCssClass} field-name={fieldConfig.apiName} variant="label-hidden" onchange={ND_handleFieldChange}></lightning-input-field>
                                                                     </template>
                                                                 </template>
                                                             </template>
@@ -469,6 +485,7 @@
 
                                     </div>
                                 </div>
+                                </template>
                             </template>
                         </template>
 

@@ -1,0 +1,71 @@
+<template>
+    <div class="nd-cond">
+        <template if:true={help}>
+            <p class="nd-cond-help">{help}</p>
+        </template>
+
+        <template if:false={hasConditions}>
+            <p class="nd-cond-empty">{emptyHint}</p>
+        </template>
+
+        <template for:each={conditions} for:item="c">
+            <div key={c.key} class="nd-cond-row">
+                <div class="nd-cond-head">
+                    <span class="nd-cond-num">{c.number}</span>
+                    <lightning-button-icon icon-name="utility:delete" variant="bare"
+                        size="x-small" alternative-text="Remove this condition"
+                        title="Remove this condition"
+                        data-index={c.index} onclick={handleRemove}></lightning-button-icon>
+                </div>
+
+                <c-n-d_field-combobox label="Watch this field" value={c.fieldValue}
+                    options={fieldOptions} blank-label={selfFieldLabel}
+                    data-index={c.index}
+                    onchange={handleFieldChange}></c-n-d_field-combobox>
+
+                <lightning-combobox label="Match" value={c.operatorValue}
+                    options={c.operatorOptions} data-index={c.index}
+                    onchange={handleOperatorChange}></lightning-combobox>
+
+                <template if:true={c.showValues}>
+                <template if:true={c.hasChoices}>
+                    <lightning-checkbox-group label="Values"
+                        options={c.valueOptions} value={c.selectedValues}
+                        data-index={c.index} onchange={handleValueChange}></lightning-checkbox-group>
+                </template>
+                <template if:false={c.hasChoices}>
+                    <label class="nd-cond-vlabel">{c.valueLabel}</label>
+                    <input type="text" class="nd-cond-input" value={c.valueText}
+                        placeholder={c.valuePlaceholder}
+                        autocomplete="off"
+                        data-index={c.index} onchange={handleValueChange} />
+                    <template if:true={c.valueError}>
+                        <p class="nd-cond-error" role="alert">{c.valueError}</p>
+                    </template>
+                    <p class="nd-cond-vhelp">{c.valueHint}</p>
+                </template>
+                </template>
+            </div>
+        </template>
+
+        <lightning-button class="nd-cond-add" variant="neutral" icon-name="utility:add"
+            label="Add condition" onclick={handleAdd}></lightning-button>
+
+        <template if:true={showLogic}>
+            <div class="nd-cond-logic">
+                <lightning-combobox label="Combine them with" value={logicMode}
+                    options={logicOptions} onchange={handleLogicMode}></lightning-combobox>
+
+                <template if:true={isCustom}>
+                    <lightning-input label="Logic" value={logicExpression}
+                        placeholder="(1 AND 2) OR 3"
+                        onchange={handleLogicExpression}></lightning-input>
+                    <p class="nd-cond-syntax">Condition numbers with AND, OR, NOT and brackets.</p>
+                    <template if:true={logicError}>
+                        <p class="nd-cond-error" role="alert">{logicError}</p>
+                    </template>
+                </template>
+            </div>
+        </template>
+    </div>
+</template>

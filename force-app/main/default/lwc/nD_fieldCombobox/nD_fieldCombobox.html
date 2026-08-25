@@ -1,0 +1,37 @@
+<template>
+    <div class="nd-fc">
+        <label class="nd-fc-label" for="fc-input">{label}</label>
+        <div class="nd-fc-box">
+            <input id="fc-input" type="text" class="nd-fc-input"
+                value={inputValue} placeholder={placeholder} disabled={disabled}
+                autocomplete="off" role="combobox" aria-expanded={isOpen}
+                onfocus={handleFocus} oninput={handleInput}
+                onblur={handleBlur} onkeydown={handleKeyDown} />
+
+            <template if:true={isOpen}>
+                <div class="nd-fc-panel">
+                    <div class="nd-fc-count">{countText}</div>
+                    <template if:false={hasMatches}>
+                        <p class="nd-fc-none">No field matches that.</p>
+                    </template>
+                    <ul class="nd-fc-matches">
+                        <template for:each={matches} for:item="m">
+                            <li key={m.key}>
+                                <button type="button" class={m.cssClass}
+                                    data-field={m.apiName} onmousedown={handlePick}>
+                                    <span class="nd-fc-match-label">{m.label}</span>
+                                    <template if:true={m.showApi}>
+                                        <span class="nd-fc-match-api">{m.apiName}</span>
+                                    </template>
+                                    <template if:true={m.note}>
+                                        <span class="nd-fc-match-note">{m.note}</span>
+                                    </template>
+                                </button>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>

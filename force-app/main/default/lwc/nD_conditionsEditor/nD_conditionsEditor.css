@@ -1,0 +1,96 @@
+.nd-cond-help,
+.nd-cond-empty,
+.nd-cond-syntax {
+    margin: 0 0 6px;
+    color: #706e6b;
+    font-size: 0.7rem;
+    line-height: 1.4;
+}
+
+.nd-cond-empty {
+    font-style: italic;
+}
+
+/* Each condition is a card, because "which field belongs to which value list" stops
+   being obvious the moment there are three of them in a column. */
+.nd-cond-row {
+    position: relative;
+    margin-bottom: 8px;
+    padding: 8px 8px 6px;
+    border: 1px solid #dddbda;
+    border-radius: 6px;
+    background: #f7f8fa;
+}
+
+.nd-cond-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+/* The number is what a custom expression refers to, so it has to be visible on the row
+   rather than implied by position. */
+.nd-cond-num {
+    display: grid;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #014486;
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    place-items: center;
+}
+
+.nd-cond-add {
+    margin-top: 2px;
+}
+
+.nd-cond-logic {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #e6ebee;
+}
+
+.nd-cond-error {
+    margin: 4px 0 0;
+    color: #ba0517;
+    font-size: 0.7rem;
+    line-height: 1.35;
+}
+
+/* A plain input, so it commits on blur rather than on every keystroke — see the handler.
+   Styled to match lightning-input so the row does not look half-native. */
+.nd-cond-vlabel {
+    display: block;
+    margin-bottom: 2px;
+    color: #3e3e3c;
+    font-size: 0.75rem;
+}
+
+.nd-cond-input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 2rem;
+    padding: 0 0.75rem;
+    border: 1px solid #c9c7c5;
+    border-radius: 0.25rem;
+    background: #ffffff;
+    color: #181818;
+    font-family: inherit;
+    font-size: 0.8125rem;
+}
+
+.nd-cond-input:focus {
+    border-color: #0176d3;
+    box-shadow: 0 0 3px #0176d3;
+    outline: 0;
+}
+
+.nd-cond-vhelp {
+    margin: 2px 0 0;
+    color: #706e6b;
+    font-size: 0.68rem;
+    line-height: 1.35;
+}
