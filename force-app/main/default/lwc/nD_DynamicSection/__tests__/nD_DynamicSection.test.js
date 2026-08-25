@@ -664,6 +664,55 @@ describe('read-only values line up with editable ones', () => {
             .not.toContain('nd-readonly-value');
     });
 
+    // A checkbox is not a 2rem control: an editable one measures ~16.6px and sits near the
+    // top, so there is no shared band to centre a read-only one in. Centring it moved it
+    // 7.7px BELOW its editable counterpart, when its natural position was already within 2px.
+    it('leaves a read-only checkbox at its natural height', async () => {
+        const element = mount({
+            recordId: '500KB00000000001AAA',
+            objectApiName: 'Case',
+            ND_jsonConfigString: JSON.stringify({
+                section: {}, fields: [{ apiName: 'AVB_Fix_Sent__c', label: 'Fix Sent' }]
+            })
+        });
+        getObjectInfo.emit({
+            apiName: 'Case',
+            fields: { AVB_Fix_Sent__c: { apiName: 'AVB_Fix_Sent__c', dataType: 'Boolean' } },
+            recordTypeInfos: {}
+        });
+        getRecord.emit({
+            id: '500KB00000000001AAA', apiName: 'Case', fields: { AVB_Fix_Sent__c: { value: true } }
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('lightning-output-field').className)
+            .not.toContain('nd-readonly-value');
+    });
+
+    it('still aligns a read-only value whose editable form IS a 2rem control', async () => {
+        const element = mount({
+            recordId: '500KB00000000001AAA',
+            objectApiName: 'Case',
+            ND_jsonConfigString: JSON.stringify({
+                section: {}, fields: [{ apiName: 'CaseNumber', label: 'Case Number' }]
+            })
+        });
+        getObjectInfo.emit({
+            apiName: 'Case',
+            fields: { CaseNumber: { apiName: 'CaseNumber', dataType: 'String' } },
+            recordTypeInfos: {}
+        });
+        getRecord.emit({
+            id: '500KB00000000001AAA', apiName: 'Case', fields: { CaseNumber: { value: '1' } }
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('lightning-output-field').className)
+            .toContain('nd-readonly-value');
+    });
+
     // Those widgets draw their own boxes, already at min-height 2rem.
     it.each([['isUrl'], ['isUrlList'], ['isEmailList']])(
         'leaves a read-only %s widget alone, it sizes its own box', async widget => {

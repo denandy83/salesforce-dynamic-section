@@ -803,13 +803,22 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             // row actually RENDERS, not what the config asked for — in the App Builder canvas
             // an "editable" row renders read-only, and used to get the editable offset.
             const rowEditable = (item.editable || false) && !this.isDesignPreview;
+            const described = this._objectInfo && this._objectInfo.fields
+                ? this._objectInfo.fields[item.apiName]
+                : null;
             // A plain read-only value gets the control's height so its text lines up with the
             // text in an editable field beside it — which also means it no longer needs the
             // extra drop the underline used to get for having no control box to sit under.
-            // Read from `item`, not from the widget consts below: those are declared later in
-            // this function, and depending on that order is how the last two of these ended
-            // up throwing "cannot access before initialization".
+            // A checkbox is NOT a 2rem control — an editable one measures ~16.6px and sits
+            // near the top — so there is no shared band to centre a read-only one in, and
+            // centring it in 2rem moved it 7.7px BELOW its editable counterpart instead of
+            // the 2px it was already within. Booleans keep their natural height.
+            const isCheckbox = !!described && String(described.dataType).toLowerCase() === 'boolean';
+            // Read the widget flags from `item`, not from the consts below: those are declared
+            // later in this function, and depending on that order is how two of these ended up
+            // throwing "cannot access before initialization".
             const alignedReadonly = !rowEditable
+                && !isCheckbox
                 && item.isUrl !== true && item.isUrlList !== true && item.isEmailList !== true;
             const contentCssClass = [
                 'nd-field-content',
@@ -857,9 +866,6 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             const rendersBaseField = rowEditable
                 && !(item.apiName === 'RecordTypeId' || isOwner || isOpenProblem
                     || isUrl || isUrlList || isEmailList);
-            const described = this._objectInfo && this._objectInfo.fields
-                ? this._objectInfo.fields[item.apiName]
-                : null;
             const hasInlineHelp = rendersBaseField && !!(described && described.inlineHelpText);
 
             return {

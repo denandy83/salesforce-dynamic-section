@@ -262,6 +262,13 @@ Supported per-field keys:
   static value's line-height is. Applies to plain read-only rows only — `isUrl`, `isUrlList` and
   `isEmailList` draw their own boxes, already at `min-height: 2rem`. **Costs ~13px of height per
   read-only row**, which is what alignment buys.
+- **⚠️ Booleans are excluded, because a checkbox is not a 2rem control.** An editable checkbox
+  measures **16.6px** and sits near the top (centre 24.3), so there is no shared band to centre a
+  read-only one in: centring it in 2rem put it at 32, i.e. **7.7px BELOW** its editable
+  counterpart, when its natural position (centre 26.3) was already within **2px**. Measured in
+  UAT. The rule to take from it: before aligning A to B, measure B — "read-only sits higher than
+  editable" is true for text and picklists and false for checkboxes, and one fix cannot serve
+  both.
 - **That retired the read-only underline offset for those rows.** The extra 4px drop existed
   only because a read-only value had no control box to sit under; with one, keeping it put the
   rule at 51 against the editable row's 47. `.nd-field-content_alert-readonly` now applies only
@@ -586,7 +593,7 @@ in. Deployed to **UAT and PROD**.
 PROD deploys: Apex + tests `0AfTX000001jUB30AM` · schema/builder/tab `0AfTX000001jUEH0A2` ·
 `nD_DynamicSection` `0AfTX000001jUSn0AM` (08-06) → **`0AfTX000001kCdV0AU` (08-15, owner filter)** ·
 permission sets `0AfTX000001jajV0AQ`. UAT permission sets `0AfUB00000MrMdd0AF`. 27 Apex tests,
-375 Jest tests, all green.
+377 Jest tests, all green.
 
 **Done since:** permission sets created and assigned in both orgs · PROD record pages repopulated ·
 Confluence screenshots added and the Permissions page merged in · owner picker filtered to internal
