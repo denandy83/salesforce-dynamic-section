@@ -976,3 +976,39 @@ describe('a field that is already a row', () => {
         expect(element.shadowRoot.querySelector('.nd-group legend').textContent).toBe('Field');
     });
 });
+
+describe('dividers in the builder', () => {
+    async function loadDivider(element, json) {
+        const textarea = element.shadowRoot.querySelector('lightning-textarea');
+        textarea.value = json;
+        textarea.dispatchEvent(new CustomEvent('change', { detail: { value: json } }));
+        Array.from(element.shadowRoot.querySelectorAll('lightning-button'))
+            .find(b => b.label === 'Load').click();
+        await Promise.resolve();
+        await Promise.resolve();
+    }
+
+    // Every divider used to carry a "read only" badge: that badge fires when `editable` is
+    // falsy, and a divider has no `editable` key at all.
+    it('badges a divider as a divider, and not as read only', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+        await loadDivider(element, '[{"divider":"SLA"}]');
+
+        const badges = Array.from(element.shadowRoot.querySelectorAll(`${FIELD_ROW} .nd-badge`))
+            .map(b => b.textContent.trim());
+        expect(badges).toContain('divider');
+        expect(badges).not.toContain('read only');
+    });
+
+    it('names an unlabelled divider rather than calling it "(no field)"', async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        await Promise.resolve();
+        await loadDivider(element, '[{"divider":""}]');
+
+        expect(text(element, `${FIELD_ROW} .nd-row-title`) || text(element, FIELD_ROW))
+            .toMatch(/plain rule/);
+    });
+});

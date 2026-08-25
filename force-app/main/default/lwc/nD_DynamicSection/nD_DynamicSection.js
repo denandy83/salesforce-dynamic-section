@@ -767,8 +767,13 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             // silently did not. Past the opt-in it is the same engine as everything else, so
             // it reacts to the live form value too rather than only to what is saved.
             const colorSite = siteByKey('colorIf');
-            const wantsUnderline = !!item.color
-                || conditionsOf(item, colorSite, item.apiName).conditions.length > 0;
+            // Only FINISHED conditions count as opting in. An unfinished one — no field
+            // chosen yet — is ignored by the engine, which then sees no conditions at all and
+            // reports "always on" for this site. Counting it as an opt-in therefore underlined
+            // the row the instant "add condition" was clicked, before anything was chosen.
+            const colourConditions = conditionsOf(item, colorSite, item.apiName)
+                .conditions.filter(c => !isBlank(c.field));
+            const wantsUnderline = !!item.color || colourConditions.length > 0;
             const isAlertActive = wantsUnderline
                 && holds(item, colorSite, this._conditionContext, item.apiName);
             const alertColor = item.color || DEFAULT_ALERT_COLOR;
@@ -790,10 +795,14 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             }
 
             const hasIcon = !!recordLinkId;
+            // The underline sits lower under a read-only value, so this has to follow how the
+            // row actually RENDERS, not what the config asked for — in the App Builder canvas
+            // an "editable" row renders read-only, and used to get the editable offset.
+            const rowEditable = (item.editable || false) && !this.isDesignPreview;
             const contentCssClass = [
                 'nd-field-content',
                 isAlertActive ? 'nd-field-content_alert' : '',
-                isAlertActive && !item.editable ? 'nd-field-content_alert-readonly' : '',
+                isAlertActive && !rowEditable ? 'nd-field-content_alert-readonly' : '',
                 hasIcon ? 'nd-field-content_has-corner-icon' : ''
             ].filter(Boolean).join(' ');
             const customStyle = isAlertActive ? `--nd-alert-color: ${alertColor};` : '';
@@ -850,7 +859,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 // Read-only in the App Builder canvas: an editable picklist, owner picker or
                 // record-type picker each mount a form-associated combobox, and the canvas
                 // clones the DOM. Nothing there is meant to be edited anyway.
-                editable: (item.editable || false) && !this.isDesignPreview,
+                editable: rowEditable,
                 key: item.apiName,
                 isRecordType: item.apiName === 'RecordTypeId',
                 isOwner: isOwner,

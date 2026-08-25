@@ -431,6 +431,14 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         const badges = [];
         if (invalid) badges.push({ key: 'bad', label: 'invalid', cssClass: 'nd-badge nd-badge_bad' });
 
+        // None of the field badges mean anything on a divider, and the "read only" one fired
+        // on every single one of them: it shows when `editable` is falsy, and a divider has
+        // no `editable` key at all.
+        if (isDivider(row)) {
+            badges.push({ key: 'divider', label: 'divider', cssClass: 'nd-badge nd-badge_cond' });
+            return badges;
+        }
+
         // Org-derived, not config-derived: worth showing so a formula field is obvious in
         // the list rather than only once the row is selected.
         if (this.isNotUpdateable(row.apiName)) {
@@ -639,7 +647,10 @@ export default class ND_SectionConfigBuilder extends LightningElement {
             // own field", so it needs that offered rather than looking like a mistake.
             selfFieldLabel: site.selfField && holder && holder.apiName
                 ? `— this row's own field (${this.labelFor(holder.apiName)}) —`
-                : null
+                : null,
+            // The choice writes the row's real field name: a blank field means "not chosen
+            // yet" at every site now, so it cannot double as "this row's own field".
+            selfFieldValue: site.selfField && holder ? (holder.apiName || '') : ''
         };
     }
 

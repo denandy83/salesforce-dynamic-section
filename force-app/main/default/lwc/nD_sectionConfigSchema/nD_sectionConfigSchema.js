@@ -698,8 +698,15 @@ function conditionsOf(holder, site, ownApiName) {
     const conditions = list
         .filter(c => c && typeof c === 'object')
         .map(c => {
-            const field = isBlank(c.field) && site.selfField ? ownApiName : c.field;
-            const out = { field: field, negate: c.negate === true };
+            // No substitution here on purpose. A blank field means "not chosen yet" at EVERY
+            // site, so a freshly added condition is ignored until it is finished. The one
+            // place a blank field genuinely means "this row's own field" is the legacy
+            // `colorIfValue`-with-no-`colorIfField` shape, and that branch above fills the
+            // name in explicitly. Substituting here as well made clicking "add condition"
+            // under the underline site instantly underline the row: blank became the row's
+            // own field, and a blank value means "any non-blank value", so the condition was
+            // complete and true before anything had been chosen.
+            const out = { field: c.field, negate: c.negate === true };
             if (c.value !== undefined) out.value = c.value;
             if (!isBlank(c.op)) out.op = String(c.op);
             return out;
@@ -1008,6 +1015,14 @@ function conditionFindings(holder, site, context, ownApiName) {
             `Both "${site.key}" and the older "${site.legacyField}" are set. `
             + `"${site.key}" wins and "${site.legacyField}" is ignored.`
         );
+    }
+
+    // An object with no usable `conditions` list is almost certainly a mistyped group, and
+    // silently behaves as though the site were never configured.
+    if (declared !== undefined && !Array.isArray(declared) && declared
+        && !Array.isArray(declared.conditions)) {
+        add('error', `"${site.key}" has no "conditions" list, so nothing is checked.`);
+        return out;
     }
 
     const group = conditionsOf(holder, site, ownApiName);
@@ -1464,14 +1479,22 @@ function withConditionsSet(holder, siteOrKey, group) {
     // exception — there a blank field with a value is exactly what colorIfValue on its own
     // has always meant. One condition also cannot tell AND from OR, so either flattens.
     // The flat pair has room for a field and a value and nothing else, so a condition
-    // carrying an operator can only be written structurally.
-    const sayable = (!isBlank(conditions[0].field)
-        || (site.selfField && conditions[0].value !== undefined))
-        && isBlank(conditions[0].op);
+    // carrying an operator can only be written structurally — and one that names no field
+    // cannot be written flat at all.
+    //
+    // The underline site used to be excused from that second rule, so an unfinished
+    // condition (blank field, blank value) was written as `colorIfValue: ""` — which the
+    // reader correctly understands as "this row's own field, any value", making it complete
+    // again by the back door. Reading that legacy shape still works; writing it no longer
+    // does, so the same condition means the same thing whichever shape it is in.
+    const sayable = !isBlank(conditions[0].field) && isBlank(conditions[0].op);
+    // OR is deliberately NOT flattenable even though it means the same as AND for a single
+    // condition: the flat pair has nowhere to record it, so deleting back down to one
+    // condition used to drop the OR silently, and adding a second brought it back as AND.
     const flattenable = conditions.length === 1
         && !conditions[0].negate
         && sayable
-        && (!logic || upper === LOGIC_AND || upper === LOGIC_OR);
+        && (!logic || upper === LOGIC_AND);
 
     if (flattenable) {
         const only = conditions[0];
@@ -1532,11 +1555,21 @@ function withRowRemoved(rows, index) {
 }
 
 /** Setting a key to blank/false removes it, so the JSON never carries dead entries. */
+/**
+ * Keys whose PRESENCE carries the meaning, so an empty value is a real state and not an
+ * instruction to remove them. `divider` is the entry-type discriminator: deleting it when
+ * the caption was cleared turned a plain rule into a row with no field, and made
+ * `{"divider": ""}` unreachable from an editor.
+ */
+const PRESENCE_KEYS = ['divider'];
+
 function withKeySet(rows, index, key, value) {
     const next = rows.slice();
     const row = Object.assign({}, next[index]);
+    const empty = value === '' || value === false || value === null || value === undefined;
 
-    if (value === '' || value === false || value === null || value === undefined) delete row[key];
+    if (PRESENCE_KEYS.includes(key)) row[key] = empty ? '' : value;
+    else if (empty) delete row[key];
     else row[key] = value;
 
     next[index] = row;

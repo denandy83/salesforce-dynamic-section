@@ -5,7 +5,7 @@
             <input id="fc-input" type="text" class="nd-fc-input"
                 value={inputValue} placeholder={placeholder} disabled={disabled}
                 autocomplete="off" role="combobox" aria-expanded={isOpen}
-                onfocus={handleFocus} oninput={handleInput}
+                onfocus={handleFocus} onmousedown={handleMouseDown} oninput={handleInput}
                 onblur={handleBlur} onkeydown={handleKeyDown} />
 
             <template if:true={isOpen}>

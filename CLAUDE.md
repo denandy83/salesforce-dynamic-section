@@ -562,7 +562,7 @@ in. Deployed to **UAT and PROD**.
 PROD deploys: Apex + tests `0AfTX000001jUB30AM` · schema/builder/tab `0AfTX000001jUEH0A2` ·
 `nD_DynamicSection` `0AfTX000001jUSn0AM` (08-06) → **`0AfTX000001kCdV0AU` (08-15, owner filter)** ·
 permission sets `0AfTX000001jajV0AQ`. UAT permission sets `0AfUB00000MrMdd0AF`. 27 Apex tests,
-343 Jest tests, all green.
+362 Jest tests, all green.
 
 **Done since:** permission sets created and assigned in both orgs · PROD record pages repopulated ·
 Confluence screenshots added and the Permissions page merged in · owner picker filtered to internal
@@ -589,6 +589,35 @@ still on the 08-15 bundle.
 3. `npm install` is required before `npm test` or eslint — **there is no lockfile**. Installing it
    also activates husky's pre-commit hook, which fails on 8 pre-existing lint errors (the `ND_*`
    `@api` naming rule and four `setTimeout` calls), so commits here use `--no-verify`.
+
+## Bugs that shipped once (2026-08-25 review)
+All eight were found reviewing the same day's work, and all have regression tests. Two of them
+are the same mistake in different clothes: **a rule that is correct on its own producing a wrong
+result when combined with another rule that is also correct on its own.**
+- **An empty value must not delete a key whose PRESENCE is the meaning.** `withKeySet` deletes
+  on empty, and `divider` is the entry-type discriminator, so clearing a divider's caption in
+  the builder turned the rule into a fieldless row — and made `{"divider": ""}` unreachable.
+  `PRESENCE_KEYS` now exempts it.
+- **A blank field means "not chosen yet" at EVERY site.** `conditionsOf` used to substitute the
+  row's own field for a blank one on the underline site, so a freshly added condition (blank
+  field + blank value = "any non-blank value") was complete and TRUE before anything had been
+  chosen: clicking "add condition" underlined the row. Reading the legacy
+  `colorIfValue`-with-no-`colorIfField` shape still fills the name in — that is the one place a
+  blank really did mean the row's own field — but **writing** it no longer does, and the editor's
+  "this row's own field" choice now carries the real apiName. Three separate places had to agree
+  before it was actually fixed: the normaliser, the writer's `sayable`, and the component's
+  opt-in (which counted unfinished conditions and so flipped the site to its "no conditions
+  means always on" default).
+- **`preventDefault` on a pick keeps focus, so `onfocus` alone cannot reopen a list.**
+  `nD_fieldCombobox` also opens on mousedown.
+- **The flat pair has nowhere to record OR**, so a single condition with OR is no longer
+  flattened — it used to lose the OR silently and come back as AND on the next condition.
+- Derived CSS must follow how a row RENDERS, not what the config asked for: the read-only
+  underline offset read `item.editable` while the canvas forces read-only.
+- A `badgeWhenFalsy` badge fires on entries that have no such key at all — every divider showed
+  "read only". Dividers get their own badge and skip the field ones.
+- A structured group with no `conditions` list was silently ignored; now reported.
+- A capped list must not report the uncapped total ("127 fields" over 60 rows).
 
 ## Testing lessons
 - **Three green unit tests can hide a broken feature.** "Add condition" did nothing while the

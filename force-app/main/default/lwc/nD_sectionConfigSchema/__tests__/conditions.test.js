@@ -1,4 +1,7 @@
 import {
+    isDivider,
+    withDividerAdded,
+    withKeySet,
     operandDay,
     fieldDay,
     localToday,
@@ -350,9 +353,21 @@ describe('which shape gets written', () => {
             .toEqual({ apiName: 'X', showIfField: 'Type' });
     });
 
-    it('still flattens a single condition whichever way the logic is set, AND or OR', () => {
+    // OR means the same as AND for a single condition, but the flat pair has nowhere to
+    // record it — flattening dropped it silently, and adding a second condition brought the
+    // group back as AND after the author had deliberately set OR.
+    it('keeps the structured shape for a single condition when OR was set', () => {
         expect(set({ apiName: 'X' }, { logic: 'OR', conditions: [{ field: 'Type' }] }))
-            .toEqual({ apiName: 'X', showIfField: 'Type' });
+            .toEqual({ apiName: 'X', showIf: { logic: 'OR', conditions: [{ field: 'Type' }] } });
+    });
+
+    it('survives deleting down to one and adding another, still OR', () => {
+        const two = set({ apiName: 'X' }, { logic: 'OR', conditions: [{ field: 'A' }, { field: 'B' }] });
+        const one = set(two, { logic: 'OR', conditions: [{ field: 'A' }] });
+        expect(conditionsOf(one, site, 'X').logic).toBe('OR');
+
+        const backToTwo = set(one, { logic: 'OR', conditions: [{ field: 'A' }, { field: 'C' }] });
+        expect(conditionsOf(backToTwo, site, 'X').logic).toBe('OR');
     });
 
     it('round-trips through the serialiser', () => {
@@ -784,5 +799,75 @@ describe('comparing dates', () => {
             { conditions: [{ field: 'D__c', op: 'onOrBefore', value: 'today' }] },
             api => (api === 'D__c' ? 'Remind Me' : api)
         )).toBe('Remind Me is on or before today');
+    });
+});
+
+// Regressions. Each of these shipped and was found in review; they stay so the same
+// reasoning cannot be made twice.
+describe('bugs that shipped once', () => {
+    const site = siteByKey('showIf');
+    const colorSite = siteByKey('colorIf');
+
+    // Presence of `divider` IS the entry type, and an editor clearing the caption sends an
+    // empty string — which used to delete the key and turn the rule into a fieldless row.
+    it('keeps a divider when its caption is cleared', () => {
+        const rows = withDividerAdded([], 'SLA');
+        const cleared = withKeySet(rows, 0, 'divider', '');
+
+        expect(isDivider(cleared[0])).toBe(true);
+        expect(cleared[0]).toEqual({ divider: '' });
+        expect(validateConfig(cleared, { fields: {} })).toEqual([]);
+    });
+
+    it('still deletes an ordinary key when it is emptied', () => {
+        expect(withKeySet([{ apiName: 'X', label: 'L' }], 0, 'label', ''))
+            .toEqual([{ apiName: 'X' }]);
+    });
+
+    // A blank field means "not chosen yet" at EVERY site. It used to be substituted with the
+    // row's own field on the underline site, so a freshly added condition — blank field, blank
+    // value, i.e. "any non-blank value" — was complete and true before anything was chosen,
+    // and the row underlined the moment you clicked Add.
+    it('writes a half-added underline condition as unfinished, not as the row\'s own field', () => {
+        const row = withConditionsSet({ apiName: 'Priority' }, colorSite, {
+            conditions: [{ field: '', value: '', negate: false }]
+        });
+
+        // Not colorIfValue: "" — the reader understands that as "this row's own field, any
+        // value", which made the unfinished condition complete again by the back door.
+        expect(row.colorIfValue).toBeUndefined();
+        expect(conditionsOf(row, colorSite, 'Priority').conditions)
+            .toEqual([{ field: '', negate: false, value: '' }]);
+    });
+
+    // The legacy shape is the one place a blank field really did mean the row's own field.
+    it('still reads colorIfValue on its own as the row\'s own field', () => {
+        const ctx = { savedFields: { Type: { value: 'Bug or Incident' } } };
+        expect(holds({ apiName: 'Type', colorIfValue: 'Bug or Incident' }, colorSite, ctx, 'Type'))
+            .toBe(true);
+        expect(conditionsOf({ apiName: 'Type', colorIfValue: 'x' }, colorSite, 'Type').conditions)
+            .toEqual([{ field: 'Type', value: 'x', negate: false }]);
+    });
+
+    it('leaves a blank field unfinished on the underline site too', () => {
+        expect(conditionsOf({ apiName: 'Type', colorIf: [{ field: '' }] }, colorSite, 'Type')
+            .conditions).toEqual([{ field: '', negate: false }]);
+    });
+
+    // A structured group with no conditions list behaved as though the site were never
+    // configured, and said nothing about it.
+    it('reports a group that declares no conditions list', () => {
+        const out = validateConfig(
+            [{ apiName: 'X__c', showIf: { logic: 'OR' } }],
+            { fields: { X__c: { label: 'X' } } }
+        ).map(f => f.message);
+        expect(out[0]).toMatch(/no "conditions" list/);
+    });
+
+    it('says nothing about a well-formed group', () => {
+        expect(validateConfig(
+            [{ apiName: 'X__c', showIf: { logic: 'OR', conditions: [{ field: 'X__c' }] } }],
+            { fields: { X__c: { label: 'X' } } }
+        )).toEqual([]);
     });
 });

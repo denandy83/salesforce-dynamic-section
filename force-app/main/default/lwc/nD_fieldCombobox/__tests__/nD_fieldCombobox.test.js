@@ -218,3 +218,71 @@ describe('disabled', () => {
         expect(panel(element)).toBeNull();
     });
 });
+
+describe('bugs that shipped once', () => {
+    // Picking has to preventDefault on mousedown, or blur closes the list before the click
+    // lands — which means focus never leaves the input, so a second click fired no focus
+    // event and the list stayed shut until you clicked away and back.
+    it('reopens on a click, without having to leave the field first', async () => {
+        const element = mount();
+        await Promise.resolve();
+
+        input(element).dispatchEvent(new CustomEvent('focus'));
+        await Promise.resolve();
+        matches(element)[0].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        await Promise.resolve();
+        expect(panel(element)).toBeNull();
+
+        // A click with no focus change, exactly as after a pick.
+        input(element).dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        await Promise.resolve();
+        expect(panel(element)).not.toBeNull();
+    });
+
+    it('does not reset the search when clicking an already-open list', async () => {
+        const element = mount();
+        await search(element, 'icao');
+        input(element).dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        await Promise.resolve();
+
+        expect(matchApis(element)).toEqual(['AVB_ICAO_Account__c']);
+    });
+
+    // Saying "127 fields" over a list showing 60 of them is simply untrue.
+    it('counts what is on screen when the list is capped', async () => {
+        const many = Array.from({ length: 80 }, (_, i) => ({ label: `Field ${i}`, value: `F${i}__c` }));
+        const element = mount({ options: many });
+        input(element).dispatchEvent(new CustomEvent('focus'));
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('.nd-fc-count').textContent).toBe('first 60 of 80');
+    });
+
+    it('still reports the total when everything fits', async () => {
+        const element = mount();
+        input(element).dispatchEvent(new CustomEvent('focus'));
+        await Promise.resolve();
+        expect(element.shadowRoot.querySelector('.nd-fc-count').textContent).toBe('4 fields');
+    });
+
+    // The underline site's "this row's own field" has to select a REAL field name: a blank
+    // one means "not chosen yet" at every site now.
+    it('selects a real value for the extra leading choice', async () => {
+        const element = mount({ blankLabel: "— this row's own field (Priority) —", blankValue: 'Priority' });
+        const seen = captureChange(element);
+        input(element).dispatchEvent(new CustomEvent('focus'));
+        await Promise.resolve();
+
+        expect(matchApis(element)[0]).toBe('Priority');
+        matches(element)[0].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        expect(seen).toEqual(['Priority']);
+    });
+
+    it('shows that choice as the selection when it is the current value', async () => {
+        const element = mount({
+            blankLabel: "— this row's own field (Priority) —", blankValue: 'Priority', value: 'Priority'
+        });
+        await Promise.resolve();
+        expect(input(element).value).toBe("— this row's own field (Priority) —");
+    });
+});

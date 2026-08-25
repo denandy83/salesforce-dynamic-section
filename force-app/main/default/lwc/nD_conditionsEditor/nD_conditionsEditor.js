@@ -71,8 +71,14 @@ export default class ND_ConditionsEditor extends LightningElement {
     /** { apiName: [{label, value}] } for fields with a fixed set of values. */
     @api valueChoices = {};
 
-    /** Set for the site where a blank field means "this row's own field" (colorIf). */
+    /** Label for the underline site's "this row's own field" choice, when there is one. */
     @api selfFieldLabel;
+
+    /**
+     * The field that choice actually selects — the row's own apiName. It writes a REAL name
+     * rather than a blank, because a blank field now means "not chosen yet" at every site.
+     */
+    @api selfFieldValue = '';
 
     /** { apiName: dataType } — only Date and DateTime are acted on, to offer date operators. */
     @api fieldTypes = {};

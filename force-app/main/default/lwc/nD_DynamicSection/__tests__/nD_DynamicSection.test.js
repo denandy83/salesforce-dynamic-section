@@ -296,6 +296,27 @@ describe('the value underline', () => {
         expect(content(element).getAttribute('style')).toBeFalsy();
     });
 
+    // Clicking "add condition" under the underline site used to underline the row instantly:
+    // the unfinished condition counted as opting in, while the engine ignored it and reported
+    // "no conditions", which at this site means always on.
+    it('stays off for a condition that has not been finished', async () => {
+        const element = await mountRow(
+            { apiName: 'Priority', label: 'Priority', colorIf: { conditions: [{ field: '', value: '' }] } },
+            { Priority: { value: 'High' } }
+        );
+
+        expect(content(element).className).not.toContain('nd-field-content_alert');
+    });
+
+    it('turns on once that condition names a field', async () => {
+        const element = await mountRow(
+            { apiName: 'Priority', label: 'Priority', colorIf: { conditions: [{ field: 'Priority', value: 'High' }] } },
+            { Priority: { value: 'High' } }
+        );
+
+        expect(content(element).className).toContain('nd-field-content_alert');
+    });
+
     it('is always on for a colour with no condition, as it always was', async () => {
         const element = await mountRow(
             { apiName: 'Priority', label: 'Priority', color: '#2e844a' },
@@ -443,6 +464,27 @@ describe('the App Builder canvas', () => {
         inCanvas(true);
         const element = await mountIt();
         expect(element.shadowRoot.querySelector('lightning-record-edit-form')).not.toBeNull();
+    });
+
+    // The underline sits lower under a read-only value. In the canvas an "editable" row
+    // renders read-only, so the offset has to follow how the row RENDERS, not the config.
+    it('uses the read-only underline offset there, since the row renders read-only', async () => {
+        inCanvas(true);
+        const element = mount({
+            recordId: '500KB00000000001AAA',
+            objectApiName: 'Case',
+            ND_jsonConfigString: JSON.stringify({
+                section: {},
+                fields: [{ apiName: 'Status', label: 'Status', editable: true, color: '#ba0517' }]
+            })
+        });
+        getObjectInfo.emit({ apiName: 'Case', fields: { Status: { apiName: 'Status' } }, recordTypeInfos: {} });
+        getRecord.emit({ id: '500KB00000000001AAA', apiName: 'Case', fields: { Status: { value: 'New' } } });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('.nd-field-content').className)
+            .toContain('nd-field-content_alert-readonly');
     });
 
     it('still draws dividers there', async () => {

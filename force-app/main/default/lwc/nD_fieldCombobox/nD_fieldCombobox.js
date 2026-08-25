@@ -21,8 +21,15 @@ export default class ND_FieldCombobox extends LightningElement {
     /** [{ label, value }] — value is the API name, shown beside the label like "Add a field". */
     @api options = [];
     @api placeholder = 'Search fields…';
-    /** Label for the empty value, on the one site where blank means something. */
+    /** Label for an extra leading choice, where a site has one. */
     @api blankLabel;
+
+    /**
+     * What that extra choice actually selects. It carries a REAL field name for the
+     * underline site's "this row's own field", rather than an empty string: a blank field
+     * means "not chosen yet" everywhere, so selecting it must write something.
+     */
+    @api blankValue = '';
     @api disabled = false;
 
     // null means "not searching, showing the selection". A string means the user is typing,
@@ -38,7 +45,8 @@ export default class ND_FieldCombobox extends LightningElement {
     }
 
     get selectedText() {
-        if (!this.value) return this.blankLabel || '';
+        if (this.blankLabel && this.value === this.blankValue) return this.blankLabel;
+        if (!this.value) return '';
         const hit = (this.options || []).find(o => o.value === this.value);
         return hit ? `${hit.label} · ${hit.value}` : this.value;
     }
@@ -50,7 +58,7 @@ export default class ND_FieldCombobox extends LightningElement {
 
     get matches() {
         const needle = String(this.draft || '').trim().toLowerCase();
-        const base = this.blankLabel ? [{ label: this.blankLabel, value: '' }] : [];
+        const base = this.blankLabel ? [{ label: this.blankLabel, value: this.blankValue }] : [];
 
         const hits = (this.options || []).filter(o => !needle
             || o.label.toLowerCase().includes(needle)
@@ -90,16 +98,32 @@ export default class ND_FieldCombobox extends LightningElement {
     get countText() {
         const total = (this.options || []).length;
         const shown = this.matches.length;
+        // The list is capped, so saying "127 fields" over a list of 60 is simply untrue.
+        if (shown >= MATCH_LIMIT) return `first ${shown} of ${total}`;
         if (this.draft === null || !String(this.draft).trim()) return `${total} fields`;
-        return shown >= MATCH_LIMIT ? `first ${shown} of ${total}` : `${shown} of ${total}`;
+        return `${shown} of ${total}`;
     }
 
     // --- interaction ---------------------------------------------------------------
 
     handleFocus() {
-        // Open on an empty search so the whole list is there to browse, the way the dropdown
-        // it replaces was. The current choice is marked in the list, so it is not lost.
-        this.draft = '';
+        this.open();
+    }
+
+    /**
+     * Also opens on mousedown, because focus alone is not enough: picking a match keeps
+     * focus on the input (the pick has to preventDefault so blur does not close the list
+     * first), so a second click fired no focus event and the list stayed shut until you
+     * clicked away and back.
+     */
+    handleMouseDown() {
+        this.open();
+    }
+
+    open() {
+        // An empty search so the whole list is there to browse, the way the dropdown it
+        // replaces was. The current choice is marked in the list, so it is not lost.
+        if (this.draft === null) this.draft = '';
     }
 
     handleInput(event) {
