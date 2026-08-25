@@ -53,8 +53,11 @@
     padding: 0 0.4rem;
 }
 
+/* No row separator on purpose. Rows are divided by whitespace alone, the way standard
+   field sections do it — which leaves the `divider` entries as the section's ONLY
+   horizontal rules, so a `———— SLA ————` now reads as the deliberate grouping device it
+   is rather than as one more line among many. */
 .nd-field-row {
-    border-bottom: 1px solid #f3f3f3;
     padding: 0.5rem 0;
 }
 

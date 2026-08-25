@@ -262,6 +262,13 @@ Supported per-field keys:
   static value's line-height is. Applies to plain read-only rows only — `isUrl`, `isUrlList` and
   `isEmailList` draw their own boxes, already at `min-height: 2rem`. **Costs ~13px of height per
   read-only row**, which is what alignment buys.
+- **No row separators either** — `.nd-field-row` carries padding only. Rows are divided by
+  whitespace alone, the way standard field sections do it. Useful side effect: the `divider`
+  entries are now the section's ONLY horizontal rules, so a `———— SLA ————` reads as the
+  deliberate grouping device it is rather than one more line among many. If a dense section
+  reads tight without them, the lever is `.nd-field-row`'s padding, not putting the rule back.
+  (`align-items: stretch` stays — it was added so these separators lined up across columns, but
+  it still does the useful job of equalising cell heights.)
 - **SLDS's own 1px rule under a read-only value is turned OFF**
   (`.nd-body lightning-output-field { border-bottom: none }`). SLDS draws it as the read-only
   counterpart of an input's border, so a value still reads as a field — reasonable in general,
