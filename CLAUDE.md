@@ -77,7 +77,13 @@ Supported per-field keys:
   needed as opt-ins: without the colour half, `color` with no condition would stop meaning
   "always on"; without the condition half, every row in the section would underline, since no
   conditions means "yes" at this site.
-- `isRecordLink` — value is a record Id; opens via `NavigationMixin` (corner open-window icon)
+- `isRecordLink` — value is a record Id; opens via `NavigationMixin`. The open-window icon sits
+  **beside the label**, at the weight of the inline-help ⓘ it may share the line with (small,
+  grey, blue on hover). It used to sit in the bottom-right corner of the VALUE at
+  `transform: scale(2)`, which made a secondary action the loudest thing in the row. A row with
+  **no config `label`** keeps the corner icon as a fallback: the base component draws its own
+  label inside its shadow DOM, so there is nothing of ours to sit beside — and only that
+  fallback reserves the 28px on the right.
 - **Row separators only line up because the grid is forced to `align-items: stretch`.**
   SLDS's `.slds-grid` computes **`align-items: flex-start`** (verified in a rendered card in
   UAT), so each `.nd-field-row` cell was only as tall as its own control and its
@@ -103,9 +109,13 @@ Supported per-field keys:
   disappear with them. Every other key is meaningless on it and `validateConfig` says so. Keyed
   by index, since a divider has no apiName and two unlabelled ones would otherwise collide.
 - **A field with inline help text puts its ⓘ on its own line, and the fix is a floated
-  label.** `lightning-input-field` / `lightning-output-field` draw the field's help button
-  themselves, and **`variant="label-hidden"` hides their label but NOT that button** — so it
-  keeps the label's slot and lands between the `.nd-custom-label` div and the value. The icon
+  label.** **`lightning-input-field` draws the field's help button itself — and
+  `lightning-output-field` does NOT** (verified in UAT against a field that has inline help
+  text; an earlier note here wrongly said both did, so read-only rows were being given the
+  floated label for an icon that never appears). **`variant="label-hidden"` hides the label but
+  NOT that button**, so it keeps the label's slot and lands between the `.nd-custom-label` div
+  and the value. Only EDITABLE rows are flagged — and via the effective editability, since the
+  App Builder canvas renders everything read-only. The icon
   is inside the field component's shadow DOM, so no selector in `nD_DynamicSection.css` can
   reach it: the label is the only side of the boundary that can move. Rows whose describe has
   `inlineHelpText` get `.nd-custom-label_inline-help`, which floats the label so the icon's
@@ -562,7 +572,7 @@ in. Deployed to **UAT and PROD**.
 PROD deploys: Apex + tests `0AfTX000001jUB30AM` · schema/builder/tab `0AfTX000001jUEH0A2` ·
 `nD_DynamicSection` `0AfTX000001jUSn0AM` (08-06) → **`0AfTX000001kCdV0AU` (08-15, owner filter)** ·
 permission sets `0AfTX000001jajV0AQ`. UAT permission sets `0AfUB00000MrMdd0AF`. 27 Apex tests,
-362 Jest tests, all green.
+369 Jest tests, all green.
 
 **Done since:** permission sets created and assigned in both orgs · PROD record pages repopulated ·
 Confluence screenshots added and the Permissions page merged in · owner picker filtered to internal

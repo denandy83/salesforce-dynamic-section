@@ -794,7 +794,11 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 recordLinkId = this.ND_recordData.fields[item.apiName].value;
             }
 
-            const hasIcon = !!recordLinkId;
+            const isOwner = item.apiName === 'OwnerId';
+            const customLabel = item.label || (isOwner && item.editable ? 'Owner' : null);
+            // The link icon sits beside the label when there IS one. Only the fallback corner
+            // variant needs room reserved on the right.
+            const hasIcon = !!recordLinkId && !customLabel;
             // The underline sits lower under a read-only value, so this has to follow how the
             // row actually RENDERS, not what the config asked for — in the App Builder canvas
             // an "editable" row renders read-only, and used to get the editable offset.
@@ -807,7 +811,6 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             ].filter(Boolean).join(' ');
             const customStyle = isAlertActive ? `--nd-alert-color: ${alertColor};` : '';
 
-            const isOwner = item.apiName === 'OwnerId';
             const isOpenProblem = item.isOpenProblem === true;
 
             // E. isUrl widget state
@@ -837,9 +840,14 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             // label so the icon flows up beside it. Only rows that actually render one of
             // those two components can produce the icon; every custom widget below draws
             // its own control and never shows one.
-            const rendersBaseField = item.editable
-                ? !(item.apiName === 'RecordTypeId' || isOwner || isOpenProblem || isUrl || isUrlList || isEmailList)
-                : !(isUrl || isUrlList || isEmailList);
+            // Only lightning-input-field draws the help button. lightning-output-field does
+            // NOT — verified in UAT against a field that has inline help text — so a
+            // read-only row was getting the floated label, with its nowrap and ellipsis, for
+            // an icon that never appears. rowEditable rather than item.editable, because the
+            // App Builder canvas renders everything read-only.
+            const rendersBaseField = rowEditable
+                && !(item.apiName === 'RecordTypeId' || isOwner || isOpenProblem
+                    || isUrl || isUrlList || isEmailList);
             const described = this._objectInfo && this._objectInfo.fields
                 ? this._objectInfo.fields[item.apiName]
                 : null;
@@ -847,7 +855,12 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
             return {
                 apiName: item.apiName,
-                customLabel: item.label || (isOwner && item.editable ? 'Owner' : null),
+                customLabel: customLabel,
+                // Beside the label where there is one to sit beside; the base component draws
+                // its own label inside its shadow DOM, so a row without a config label has
+                // nowhere to put it and keeps the corner icon.
+                hasLabelLink: !!recordLinkId && !!customLabel,
+                hasCornerLink: !!recordLinkId && !customLabel,
                 labelCssClass: hasInlineHelp
                     ? 'nd-custom-label nd-custom-label_inline-help'
                     : 'nd-custom-label',

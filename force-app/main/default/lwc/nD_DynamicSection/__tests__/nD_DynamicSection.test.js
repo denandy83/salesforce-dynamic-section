@@ -171,13 +171,17 @@ describe('the label of a field that carries inline help text', () => {
         expect(pulledUpFields(element)).toBe(0);
     });
 
-    it('is floated for a read-only row too — the output field shows the icon as well', async () => {
+    // Corrects an earlier assumption: lightning-input-field draws the help button,
+    // lightning-output-field does NOT (verified in UAT). So a read-only row must not get the
+    // floated label — it would take the nowrap and the ellipsis for an icon that never
+    // appears, and a long label would be truncated for nothing.
+    it('is left alone on a read-only row, where no icon is drawn', async () => {
         const element = await mountWithHelp(
             { apiName: 'AVB_Version__c', label: 'Version' },
             { AVB_Version__c: { apiName: 'AVB_Version__c', label: 'Version', inlineHelpText: HELP } }
         );
 
-        expect(labelClassOf(element)).toContain('nd-custom-label_inline-help');
+        expect(labelClassOf(element)).toBe('nd-custom-label');
     });
 
     // Every other row must be left alone: with no icon on the first line there is nothing
@@ -506,5 +510,118 @@ describe('the App Builder canvas', () => {
         const element = await mountIt();
         expect(element.recordId).toBe('500KB00000000001AAA');
         expect(element.shadowRoot.querySelectorAll('lightning-input-field')).toHaveLength(0);
+    });
+});
+
+// The record-link icon used to sit in the bottom-right corner of the VALUE at
+// transform: scale(2), which made a secondary action the loudest thing in the row. It now
+// sits beside the label at the weight of the inline-help ⓘ next to it.
+describe('the record-link icon', () => {
+    const CTX_FIELDS = { ParentId: { apiName: 'ParentId' }, Subject: { apiName: 'Subject' } };
+
+    async function mountRow(row) {
+        const element = mount({
+            recordId: '500KB00000000001AAA',
+            objectApiName: 'Case',
+            ND_jsonConfigString: JSON.stringify({ section: {}, fields: [row] })
+        });
+        getObjectInfo.emit({ apiName: 'Case', fields: CTX_FIELDS, recordTypeInfos: {} });
+        getRecord.emit({
+            id: '500KB00000000001AAA', apiName: 'Case',
+            fields: { ParentId: { value: '500KB00000000002AAA' }, Subject: { value: 'x' } }
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+        return element;
+    }
+
+    it('sits inside the label, not in the corner of the value', async () => {
+        const element = await mountRow({ apiName: 'ParentId', label: 'Problem Case', isRecordLink: true });
+
+        const label = element.shadowRoot.querySelector('.nd-custom-label');
+        expect(label.querySelector('.nd-label-link')).not.toBeNull();
+        expect(element.shadowRoot.querySelector('.nd-url-icon')).toBeNull();
+    });
+
+    // scale(2) was the reason it shouted. Nothing should be resizing it now.
+    it('is rendered at icon size, not scaled up', async () => {
+        const element = await mountRow({ apiName: 'ParentId', label: 'Problem Case', isRecordLink: true });
+        const icon = element.shadowRoot.querySelector('.nd-label-link');
+        expect(icon.size).toBe('xx-small');
+    });
+
+    it('still opens the record it points at', async () => {
+        const element = await mountRow({ apiName: 'ParentId', label: 'Problem Case', isRecordLink: true });
+        expect(element.shadowRoot.querySelector('.nd-label-link').dataset.id)
+            .toBe('500KB00000000002AAA');
+    });
+
+    // The base component draws its own label inside its shadow DOM, so a row with no config
+    // label has nothing of ours to sit beside and keeps the corner icon rather than losing
+    // the link altogether.
+    it('falls back to the corner when the row has no label of ours', async () => {
+        const element = await mountRow({ apiName: 'ParentId', isRecordLink: true });
+
+        expect(element.shadowRoot.querySelector('.nd-url-icon')).not.toBeNull();
+        expect(element.shadowRoot.querySelector('.nd-label-link')).toBeNull();
+    });
+
+    it('reserves room on the right only for the corner variant', async () => {
+        const beside = await mountRow({ apiName: 'ParentId', label: 'Problem Case', isRecordLink: true });
+        expect(beside.shadowRoot.querySelector('.nd-field-content').className)
+            .not.toContain('nd-field-content_has-corner-icon');
+
+        const corner = await mountRow({ apiName: 'ParentId', isRecordLink: true });
+        expect(corner.shadowRoot.querySelector('.nd-field-content').className)
+            .toContain('nd-field-content_has-corner-icon');
+    });
+
+    // Nothing to open, so nothing to click. (isRecordLink trusts the config about the field
+    // holding an Id — pointing it at a text field has always produced a link to whatever is
+    // in there, which is unchanged here.)
+    it('shows no icon at all when the field is empty', async () => {
+        const element = mount({
+            recordId: '500KB00000000001AAA',
+            objectApiName: 'Case',
+            ND_jsonConfigString: JSON.stringify({
+                section: {}, fields: [{ apiName: 'ParentId', label: 'Problem Case', isRecordLink: true }]
+            })
+        });
+        getObjectInfo.emit({ apiName: 'Case', fields: CTX_FIELDS, recordTypeInfos: {} });
+        getRecord.emit({
+            id: '500KB00000000001AAA', apiName: 'Case', fields: { ParentId: { value: null } }
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('.nd-label-link')).toBeNull();
+        expect(element.shadowRoot.querySelector('.nd-url-icon')).toBeNull();
+    });
+
+    // A row can have both, and the label is floated in that case — the icon has to stay in it.
+    it('coexists with the inline-help ⓘ on the same label', async () => {
+        const element = mount({
+            recordId: '500KB00000000001AAA',
+            objectApiName: 'Case',
+            ND_jsonConfigString: JSON.stringify({
+                section: {},
+                fields: [{ apiName: 'ParentId', label: 'Problem Case', isRecordLink: true, editable: true }]
+            })
+        });
+        getObjectInfo.emit({
+            apiName: 'Case',
+            fields: { ParentId: { apiName: 'ParentId', inlineHelpText: 'Which problem this belongs to.' } },
+            recordTypeInfos: {}
+        });
+        getRecord.emit({
+            id: '500KB00000000001AAA', apiName: 'Case',
+            fields: { ParentId: { value: '500KB00000000002AAA' } }
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const label = element.shadowRoot.querySelector('.nd-custom-label');
+        expect(label.className).toContain('nd-custom-label_inline-help');
+        expect(label.querySelector('.nd-label-link')).not.toBeNull();
     });
 });

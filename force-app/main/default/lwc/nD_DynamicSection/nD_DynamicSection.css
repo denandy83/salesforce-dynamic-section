@@ -148,13 +148,32 @@
     color: #ba0517;
 }
 
+/* Beside the label, at the weight of the inline-help ⓘ next to it. It used to sit in the
+   bottom-right corner of the value at `transform: scale(2)`, which made a secondary action
+   the loudest thing in the row. Same colour, normal size, and it now reads as part of the
+   label — which is what it describes: "this label names a record you can open". */
+.nd-label-link {
+    display: inline-flex;
+    margin-left: 0.25rem;
+    vertical-align: middle;
+    --sds-c-icon-color-foreground-default: #747474;
+}
+
+.nd-label-link:hover {
+    --sds-c-icon-color-foreground-default: #005fb2;
+}
+
+/* Fallback for a row with no config label: the base component draws its own label inside
+   its shadow DOM, so there is nothing of ours to sit beside. No scale(2) here either. */
 .nd-url-icon {
     position: absolute;
     bottom: 2px;
     right: 4px;
-    transform: scale(2);
-    transform-origin: bottom right;
-    --sds-c-icon-color-foreground-default: #005FB2;
+    --sds-c-icon-color-foreground-default: #747474;
+}
+
+.nd-url-icon:hover {
+    --sds-c-icon-color-foreground-default: #005fb2;
 }
 
 /* --- 5. CONDITIONAL FIELD ALERT --- */

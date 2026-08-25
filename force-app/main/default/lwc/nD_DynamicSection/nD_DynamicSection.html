@@ -80,7 +80,7 @@
                                 <div key={fieldConfig.key} class={fieldConfig.cssClass}>
                                     <div class={fieldConfig.contentCssClass} style={fieldConfig.style}>
 
-                                        <template if:true={fieldConfig.hasRecordLink}>
+                                        <template if:true={fieldConfig.hasCornerLink}>
                                             <lightning-button-icon
                                                 class="nd-url-icon"
                                                 icon-name="utility:new_window"
@@ -94,7 +94,7 @@
                                         </template>
 
                                         <template if:true={fieldConfig.customLabel}>
-                                            <div class={fieldConfig.labelCssClass} title={fieldConfig.customLabel}>{fieldConfig.customLabel}</div>
+                                            <div class={fieldConfig.labelCssClass} title={fieldConfig.customLabel}>{fieldConfig.customLabel}<template if:true={fieldConfig.hasLabelLink}><lightning-button-icon class="nd-label-link" icon-name="utility:new_window" variant="bare" size="xx-small" title="Open record" alternative-text="Open record" data-id={fieldConfig.recordLinkId} onclick={ND_handleOpenRecord}></lightning-button-icon></template></div>
                                             <template if:true={fieldConfig.isUrl}>
                                                 <template if:true={fieldConfig.showUrlLink}>
                                                     <div class="nd-url-value">
