@@ -158,6 +158,18 @@ const SECTION_KEYS = [
         help: 'Comma-separated membership. Empty means any non-blank value.'
     },
     {
+        key: 'alertTitle',
+        group: 'sectionAlert',
+        label: 'Alert title',
+        control: 'text',
+        requires: 'alertField',
+        requiresSite: 'alertIf',
+        placeholder: 'Same as the section title',
+        help:
+            'Header title while the condition holds. Falls back to the normal title, so leave '
+            + 'it empty to recolour without renaming. Field interpolation works here too.'
+    },
+    {
         key: 'alertColor',
         group: 'sectionAlert',
         label: 'Alert background',
@@ -206,6 +218,7 @@ const GROUPS = [
     { id: 'sectionAlert', legend: 'Recolour the header when…', scope: 'section' },
     { id: 'field', legend: 'Field', scope: 'field' },
     { id: 'divider', legend: 'Divider', scope: 'field' },
+    { id: 'rollup', legend: 'Child rollup', scope: 'field' },
     { id: 'visibility', legend: 'Show this row only when…', scope: 'field' },
     { id: 'widget', legend: 'Render as', scope: 'field' },
     { id: 'alert', legend: 'Underline the value when…', scope: 'field' },
@@ -240,11 +253,27 @@ const CONFIG_KEYS = [
         help: 'Leave it empty for a plain rule with no caption. The row is always full width.'
     },
     {
+        key: 'childRollup',
+        group: 'rollup',
+        label: 'Child rollup',
+        control: 'rollup',
+        badge: 'rollup',
+        badgeClass: 'cond',
+        help:
+            'Reads one field off every child record and joins the values into a single '
+            + 'read-only row. Needs a child relationship name and a field on the child. '
+            + 'Values are split on commas, de-duplicated and sorted.'
+    },
+    {
         key: 'apiName',
         group: 'field',
         label: 'Salesforce field',
         control: 'fieldPicker',
         required: true,
+        // A rollup row reads from child records and has no field on THIS object, so an
+        // editor must not offer it one. Keeps `label` and `colSpan` available from the
+        // same group, which a rollup does use.
+        appliesWhen: row => !isChildRollup(row),
         help: 'The API name of the field on this object.'
     },
     {
@@ -276,6 +305,9 @@ const CONFIG_KEYS = [
         // describe. Ticking this on one of them cannot work, so an editor should refuse
         // rather than imply the field became editable.
         requiresUpdateable: true,
+        // A rollup is read-only by nature: it is derived from many child records, so there
+        // is no single field behind it to save into.
+        appliesWhen: row => !isChildRollup(row),
         help: 'Unchecked renders the value as read-only output.'
     },
 
@@ -433,6 +465,89 @@ const KNOWN_KEYS = CONFIG_KEYS.map(d => d.key).concat(WIDGET_KEYS);
  */
 function isDivider(row) {
     return !!row && Object.prototype.hasOwnProperty.call(row, 'divider');
+}
+
+/**
+ * Whether a config row is a child rollup — one field read off every child record on the
+ * other side of a child relationship, joined into one value.
+ *
+ * PRESENCE of the key is the discriminator, as with `divider`, and for the same reason: the
+ * value is an options object, so "present but not yet filled in" is a real state that has to
+ * survive a round trip through the config while it is being edited.
+ *
+ * A rollup row has NO apiName. Its value does not come from a field on this record, which is
+ * exactly why it exists: a formula cannot reach child records (cross-object formulas only go
+ * child → parent) and a roll-up summary only does COUNT / SUM / MIN / MAX, never text.
+ */
+function isChildRollup(row) {
+    return !!row && Object.prototype.hasOwnProperty.call(row, 'childRollup');
+}
+
+/**
+ * The only keys that do anything on a rollup row. Everything else is about a field on THIS
+ * record, which a rollup does not have. Visibility is included for the same reason a divider
+ * takes it: a rollup usually belongs with a group of rows that appear together.
+ */
+const ROLLUP_ALLOWED_KEYS = [
+    'childRollup', 'label', 'colSpan', 'showIf', 'showIfField', 'showIfValue'
+];
+
+/** The rollup's options, with the defaults applied. Never returns null for a rollup row. */
+function rollupOptions(row) {
+    const raw = (isChildRollup(row) && row.childRollup) || {};
+    return {
+        relationship: isBlank(raw.relationship) ? '' : String(raw.relationship).trim(),
+        field: isBlank(raw.field) ? '' : String(raw.field).trim(),
+        // The child field already holds a comma-separated list in the case this was built for
+        // (one Jira ticket can name four fix versions), so splitting is the default, not a
+        // special case. An explicit empty string turns it off and treats the value as atomic.
+        split: raw.split === undefined ? ',' : String(raw.split),
+        exclude: isBlank(raw.exclude) ? '' : String(raw.exclude),
+        separator: raw.separator === undefined ? ', ' : String(raw.separator)
+    };
+}
+
+/**
+ * The displayed value for a rollup row: every child's value, split, cleaned and joined.
+ *
+ * Pure, so the whole of the interesting behaviour is testable without an org. The Apex side
+ * deliberately returns the raw strings and does none of this.
+ *
+ * - split      each child value on this delimiter (empty = do not split)
+ * - exclude    comma-separated placeholder values to drop, matched case-insensitively.
+ *              Jira carries "not_applicable" and "no" in this field, and they are noise here.
+ * - dedupe     always on, case-insensitively, keeping the FIRST spelling seen. Two tickets
+ *              naming the same version is the normal case, not an edge one.
+ * - sort       always on, so the same case reads the same way twice regardless of the order
+ *              the children came back in.
+ */
+function rollupValues(rawValues, options) {
+    const opts = options || {};
+    const split = opts.split === undefined ? ',' : String(opts.split);
+    const excluded = splitCsv(opts.exclude).map(v => v.toLowerCase());
+
+    const parts = [];
+    (Array.isArray(rawValues) ? rawValues : []).forEach(raw => {
+        if (isBlank(raw)) return;
+        const pieces = split === '' ? [String(raw)] : String(raw).split(split);
+        pieces.forEach(piece => {
+            const value = piece.trim();
+            if (!value) return;
+            if (excluded.includes(value.toLowerCase())) return;
+            parts.push(value);
+        });
+    });
+
+    const seen = new Set();
+    const unique = [];
+    parts.forEach(value => {
+        const key = value.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        unique.push(value);
+    });
+
+    return unique.sort((a, b) => a.localeCompare(b));
 }
 
 /** Which widget a row has chosen, or null for a plain field. */
@@ -1146,6 +1261,20 @@ function validateConfig(config, context) {
                 if (['divider', 'showIf', 'showIfField', 'showIfValue'].includes(key)) return;
                 push('warning', `"${key}" has no effect on a divider.`, key);
             });
+        } else if (isChildRollup(row)) {
+            // A rollup reads from child records, so it has no apiName on this object and
+            // nothing about a field on this record applies to it. Visibility and width do.
+            const opts = rollupOptions(row);
+            if (!opts.relationship) {
+                push('error', 'Child rollup has no "relationship" — nothing to read from.', 'childRollup');
+            }
+            if (!opts.field) {
+                push('error', 'Child rollup has no "field" — nothing to read.', 'childRollup');
+            }
+            Object.keys(row).forEach(key => {
+                if (ROLLUP_ALLOWED_KEYS.includes(key)) return;
+                push('warning', `"${key}" has no effect on a child rollup.`, key);
+            });
         } else if (isBlank(row.apiName)) {
             push('error', 'No apiName — the row has no field to render.', 'apiName');
         } else if (ctx.fields && !ctx.fields[row.apiName]) {
@@ -1172,6 +1301,9 @@ function validateConfig(config, context) {
             const present = row[def.key] !== undefined;
             if (!present) return;
             if (isDivider(row) && def.key !== 'divider') return;
+            // Already reported by the ROLLUP_ALLOWED_KEYS sweep above; without this the
+            // new appliesWhen predicates would warn about the same key a second time.
+            if (isChildRollup(row) && !ROLLUP_ALLOWED_KEYS.includes(def.key)) return;
             if (def.requires && isBlank(row[def.requires]) && !satisfiedBySite(row, def)) {
                 push('error', `"${def.key}" is set but "${def.requires}" is not.`, def.key);
             }
@@ -1531,6 +1663,46 @@ function withDividerAdded(rows, caption = '') {
     return rows.concat({ divider: caption });
 }
 
+/**
+ * A child-rollup entry, deliberately EMPTY apart from the label.
+ *
+ * The relationship and field are chosen in the editor afterwards, which is why the row has
+ * to be storable while they are still blank — the same reason an unfinished condition is
+ * stored rather than dropped. validateConfig reports both as errors until they are filled
+ * in, so it cannot stay half-configured by accident.
+ */
+function withRollupAdded(rows, label = '') {
+    return rows.concat({ label: label, childRollup: { relationship: '', field: '' } });
+}
+
+/**
+ * One key inside a row's `childRollup`, set or cleared.
+ *
+ * Kept separate from `withKeySet` because the target is nested: writing `childRollup` as a
+ * flat value would replace the whole options object and lose the other half of the pair.
+ * `relationship` and `field` are always written even when empty — they are the two the
+ * editor is steering, and dropping them would make a half-finished rollup indistinguishable
+ * from one that was never started.
+ */
+function withRollupKeySet(row, key, value) {
+    const next = { ...row };
+    const opts = { ...(next.childRollup || {}) };
+    const empty = value === undefined || value === null || String(value) === '';
+
+    if (empty && key !== 'relationship' && key !== 'field') {
+        delete opts[key];
+    } else {
+        opts[key] = value === undefined || value === null ? '' : value;
+    }
+    // Changing the relationship changes which object the field belongs to, so a field
+    // chosen against the old child can never match — same rule as a condition's value
+    // being cleared when its field changes.
+    if (key === 'relationship') opts.field = '';
+
+    next.childRollup = opts;
+    return next;
+}
+
 function withRowMoved(rows, index, step) {
     const target = index + step;
     if (target < 0 || target >= rows.length) return rows;
@@ -1633,6 +1805,12 @@ export {
     matchesCsv,
     isDivider,
     withDividerAdded,
+    withRollupAdded,
+    withRollupKeySet,
+    isChildRollup,
+    rollupOptions,
+    rollupValues,
+    ROLLUP_ALLOWED_KEYS,
     DEFAULT_ALERT_COLOR,
     DATE_OPS,
     DATE_OP_KEYS,

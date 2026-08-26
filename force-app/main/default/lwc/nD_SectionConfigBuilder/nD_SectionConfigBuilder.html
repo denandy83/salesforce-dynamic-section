@@ -128,11 +128,15 @@
                             <span class="nd-count">{fieldMatchCount}</span>
                         </div>
 
-                        <!-- Not a field, so it does not belong in the field search list. -->
+                        <!-- Neither is a field, so neither belongs in the field search list. -->
                         <lightning-button class="nd-add-divider" variant="neutral"
                             icon-name="utility:dash" label="Add a divider"
                             title="A rule across the section, optionally captioned"
                             onclick={handleAddDivider}></lightning-button>
+                        <lightning-button class="nd-add-divider" variant="neutral"
+                            icon-name="utility:rollup" label="Add a child rollup"
+                            title="One field read off every child record, joined into one value"
+                            onclick={handleAddRollup}></lightning-button>
 
                         <template if:false={hasFieldMatches}>
                             <p class="nd-help nd-no-match">No field matches that.</p>
@@ -329,6 +333,43 @@
                                             <li key={w.key}><b>{w.title}</b> — {w.help}</li>
                                         </template>
                                     </ul>
+                                </template>
+
+                                <!-- Child rollup: two dependent pickers, so it is one
+                                     editor rather than a list of plain controls. -->
+                                <template if:true={group.rollup}>
+                                    <c-n-d_field-combobox
+                                        label="Read from these child records"
+                                        value={group.rollup.relationship}
+                                        options={group.rollup.relationshipOptions}
+                                        placeholder="Search child relationships…"
+                                        data-rollup-key="relationship"
+                                        onchange={handleRollupChange}></c-n-d_field-combobox>
+                                    <p class="nd-help">relationship — the child relationship name, e.g. Jira_Tickets__r.</p>
+                                    <template if:false={group.rollup.hasRelationships}>
+                                        <p class="nd-help nd-no-match">No child relationships available on this object.</p>
+                                    </template>
+
+                                    <c-n-d_field-combobox
+                                        label="Read this field off each child"
+                                        value={group.rollup.field}
+                                        options={group.rollup.fieldOptions}
+                                        placeholder={group.rollup.fieldPlaceholder}
+                                        disabled={group.rollup.fieldDisabled}
+                                        data-rollup-key="field"
+                                        onchange={handleRollupChange}></c-n-d_field-combobox>
+                                    <template if:true={group.rollup.childSummary}>
+                                        <p class="nd-help">field — on {group.rollup.childSummary}.</p>
+                                    </template>
+
+                                    <lightning-input
+                                        type="text"
+                                        label="Ignore these values"
+                                        value={group.rollup.exclude}
+                                        placeholder="not_applicable,no"
+                                        data-rollup-key="exclude"
+                                        onchange={handleRollupChange}></lightning-input>
+                                    <p class="nd-help">exclude — comma-separated placeholders to leave out. Values are always split on commas, de-duplicated and sorted.</p>
                                 </template>
 
                                 <template if:true={group.conditions}>

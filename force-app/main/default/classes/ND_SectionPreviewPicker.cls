@@ -19,6 +19,51 @@ public with sharing class ND_SectionPreviewPicker {
         @AuraEnabled public String sublabel;
     }
 
+    public class ChildRelationshipOption {
+        @AuraEnabled public String relationshipName;   // what a childRollup config stores
+        @AuraEnabled public String childObject;        // API name, to describe its fields
+        @AuraEnabled public String childLabel;         // plural label, for the picker
+        @AuraEnabled public String fieldName;          // the lookup/master-detail field
+    }
+
+    /**
+     * The parent object's child relationships, for the Config Builder's childRollup picker.
+     *
+     * This needs Apex because the UI API's object describe does NOT expose child
+     * relationships — `getObjectInfo` returns fields and record types only. Without it an
+     * admin would have to know that Case's Jira Ticket relationship is called
+     * `Jira_Tickets__r` (and not `AVB_Jira_Tickets__r`, which is what the field name
+     * suggests), which is exactly the guesswork the builder exists to remove.
+     *
+     * Unnamed relationships are skipped: getRelationshipName() is null for some standard
+     * ones, and a rollup config has nothing to store without a name.
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<ChildRelationshipOption> getChildRelationships(String objectApiName) {
+        Schema.DescribeSObjectResult parent = describeOrThrow(objectApiName);
+
+        List<ChildRelationshipOption> out = new List<ChildRelationshipOption>();
+        for (Schema.ChildRelationship rel : parent.getChildRelationships()) {
+            String name = rel.getRelationshipName();
+            if (String.isBlank(name)) {
+                continue;
+            }
+            Schema.DescribeSObjectResult child = rel.getChildSObject().getDescribe();
+            // No point offering something the running user cannot read: the rollup would
+            // render empty and look broken rather than forbidden.
+            if (!child.isAccessible()) {
+                continue;
+            }
+            ChildRelationshipOption option = new ChildRelationshipOption();
+            option.relationshipName = name;
+            option.childObject = child.getName();
+            option.childLabel = child.getLabelPlural();
+            option.fieldName = rel.getField().getDescribe().getName();
+            out.add(option);
+        }
+        return out;
+    }
+
     /**
      * Records the running user viewed most recently, newest first.
      *

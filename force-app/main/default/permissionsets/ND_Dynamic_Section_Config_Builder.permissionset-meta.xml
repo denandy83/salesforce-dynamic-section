@@ -4,6 +4,10 @@
     <description>Superset of ND_Dynamic_Section_User plus the Section Config Builder tab. The live preview embeds the real nD_DynamicSection, so it needs those classes too. Assign alone. Pasting into App Builder also needs Customize Application, not granted here.</description>
     <hasActivationRequired>false</hasActivationRequired>
     <classAccesses>
+        <apexClass>ND_ChildRollup</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>ND_EmailResolver</apexClass>
         <enabled>true</enabled>
     </classAccesses>

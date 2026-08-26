@@ -6,9 +6,13 @@ import { NavigationMixin } from 'lightning/navigation';
 import USER_ID from '@salesforce/user/Id';
 import getOpenProblems from '@salesforce/apex/ND_ProblemPicker.getOpenProblems';
 import resolveEmails from '@salesforce/apex/ND_EmailResolver.resolveEmails';
+import getChildValues from '@salesforce/apex/ND_ChildRollup.getChildValues';
 import {
     isBlank,
     isDivider,
+    isChildRollup,
+    rollupOptions,
+    rollupValues,
     isRowVisible,
     holds,
     siteByKey,
@@ -115,6 +119,13 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     @track emailListError = {};      // apiName -> message for addresses we refused
     emailListDirty = false;
     _emailsRequested = new Set();    // addresses already sent to Apex, so we ask once
+
+    // For childRollup rows — one field read off every child record, joined into one value.
+    // Keyed by recordId|relationship|field, so two rollups on the same row set never collide
+    // and a different record never shows the previous one's values. `undefined` means "not
+    // back yet", which is what separates "loading" from "genuinely nothing to show".
+    @track rollupRawValues = {};
+    _rollupsRequested = new Set();
 
     // For isUrlList fields (multiple labeled links stored as JSON)
     @track urlListValues = {};  // apiName -> [{id,label,url}]
@@ -263,6 +274,65 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
     renderedCallback() {
         this._warnAboutConfigOnce();
+        this._fetchChildRollups();
+    }
+
+    /**
+     * Asks Apex for each configured rollup's child values, once per record + rollup.
+     *
+     * Driven from renderedCallback rather than a wire because the rollup's relationship and
+     * field come out of the JSON config, and a wire's parameters have to be declared
+     * statically — there is no way to wire N rollups whose targets are only known at runtime.
+     *
+     * A failed request is NOT retried. This runs on every render, so clearing the requested
+     * key on failure would turn one broken config into an endless stream of callouts.
+     */
+    _fetchChildRollups() {
+        if (!this.recordId) return;
+
+        this.configObject.forEach(item => {
+            if (!isChildRollup(item)) return;
+            const opts = rollupOptions(item);
+            if (!opts.relationship || !opts.field) return;   // validateConfig reports these
+
+            const key = this._rollupKey(opts);
+            if (this._rollupsRequested.has(key)) return;
+            this._rollupsRequested.add(key);
+
+            getChildValues({
+                parentId: this.recordId,
+                relationshipName: opts.relationship,
+                fieldName: opts.field
+            })
+                .then(values => {
+                    this._settleRollup(key, values || []);
+                })
+                .catch(error => {
+                    // Config problems go to the console, like every other config fault here.
+                    // An empty array marks it as answered so the row shows its empty state
+                    // rather than sitting on "…" forever.
+                    console.warn('nD_DynamicSection: child rollup failed for', key, error);
+                    this._settleRollup(key, []);
+                });
+        });
+    }
+
+    _rollupKey(opts) {
+        return `${this.recordId}|${opts.relationship}|${opts.field}`;
+    }
+
+    /**
+     * Store a rollup's answer and then re-derive the dirty state.
+     *
+     * The re-derive is the point. This write lands AFTER the form has finished loading, so
+     * it starts a second render pass, and a base input re-rendering fires `change` exactly
+     * like a user edit does — the trap already documented on ND_handleFieldChange for a
+     * cold load. Without asking for a recompute, the section could come up showing Save and
+     * Cancel on a record nobody had touched.
+     */
+    _settleRollup(key, values) {
+        this.rollupRawValues = { ...this.rollupRawValues, [key]: values };
+        this._recomputeDirtyAfterRefresh();
     }
 
     get isHeaderActive() {
@@ -660,7 +730,16 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     // --- 5. VISUAL LOGIC ---
     // A title may interpolate field values, e.g. "Details for {CaseNumber}".
     get computedTitle() {
-        const titleRaw = this.sectionSettings.title || '';
+        const settings = this.sectionSettings;
+        // The alert can rename the header as well as recolour it, so an overdue case can say
+        // "OVERDUE" instead of "Details" rather than only turning red. Blank falls back to
+        // the normal title — the same rule alertTextColor uses, so the two halves of the
+        // alert behave the same way and neither has to be set to use the other.
+        const titleRaw = (this.isHeaderActive && settings.alertTitle)
+            ? settings.alertTitle
+            : (settings.title || '');
+        // Interpolation runs on whichever title won, so the alert title can carry field
+        // values too — the point of it is usually to say WHAT is wrong.
         if (!this.ND_recordData) return titleRaw;
 
         return titleRaw.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, fieldApiName) => {
@@ -757,6 +836,32 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                     // mistake rather than a divider.
                     cssClass: 'slds-col slds-size_1-of-1 nd-divider-row',
                     dividerClass: caption ? 'nd-divider nd-divider_captioned' : 'nd-divider'
+                };
+            }
+
+            // A child rollup is read-only by nature — there is no single field behind it to
+            // write back to — so it skips the whole editable/widget/alert view model below.
+            if (isChildRollup(item)) {
+                const opts = rollupOptions(item);
+                const raw = this.rollupRawValues[this._rollupKey(opts)];
+                const values = rollupValues(raw, opts);
+                const rollupSize = (this.sectionSettings.columns === 1 || item.colSpan === 2)
+                    ? 'slds-size_1-of-1'
+                    : 'slds-size_1-of-2';
+                return {
+                    // Like a divider, a rollup has no apiName to key on.
+                    key: `rollup-${index}`,
+                    isChildRollup: true,
+                    isVisible: isVisible,
+                    cssClass: `slds-col ${rollupSize} nd-field-row`,
+                    contentCssClass: 'nd-field-content',
+                    customLabel: item.label || '',
+                    labelCssClass: 'nd-custom-label',
+                    // undefined means the request has not come back; an empty array means it
+                    // has and there was nothing. Those must not look the same on screen.
+                    isLoading: raw === undefined,
+                    hasValues: values.length > 0,
+                    displayValue: values.join(opts.separator)
                 };
             }
 
@@ -869,6 +974,10 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
             const hasInlineHelp = rendersBaseField && !!(described && described.inlineHelpText);
 
             return {
+                // The template needs a positive flag for "this row renders a field", because
+                // LWC has no else and there are now three row types. Keying the field block
+                // off `if:false={isDivider}` was fine with two.
+                isFieldRow: true,
                 apiName: item.apiName,
                 customLabel: customLabel,
                 // Beside the label where there is one to sit beside; the base component draws
@@ -1007,10 +1116,23 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
     // values and wrongly marked the section dirty. Deferred a tick so the form has
     // finished reloading its inputs.
     _recomputeDirtyAfterRefresh() {
-        if (this._recomputeQueued) return;
+        // Coalesce, but never DROP. A call that arrives while one is already queued used to
+        // be discarded, so the last change event of a render pass could be the one whose
+        // settle-up went missing — leaving isDirty true with nothing left to correct it.
+        // That was survivable while every render pass came from a wire; the child rollup
+        // adds a second pass after the form has settled, which made it reachable.
+        if (this._recomputeQueued) {
+            this._recomputeAgain = true;
+            return;
+        }
         this._recomputeQueued = true;
         setTimeout(() => {
             this._recomputeQueued = false;
+            const runAgain = this._recomputeAgain;
+            this._recomputeAgain = false;
+            // Re-request BEFORE the early returns below, so a pass that bails out (still
+            // restoring, saving, or no record yet) does not also swallow the repeat.
+            if (runAgain) this._recomputeDirtyAfterRefresh();
             if (this._restoring || this.isSaving) return;
             // Nothing to compare against yet. Leave isDirty alone; the wire calls
             // this again as soon as the record lands.

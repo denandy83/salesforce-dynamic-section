@@ -204,4 +204,55 @@ private class ND_SectionPreviewPickerTest {
         }
         System.assert(threw, 'A blank object name must be refused');
     }
+
+    @isTest
+    static void listsChildRelationshipsForCase() {
+        Test.startTest();
+        List<ND_SectionPreviewPicker.ChildRelationshipOption> rels =
+            ND_SectionPreviewPicker.getChildRelationships('Case');
+        Test.stopTest();
+
+        System.assert(!rels.isEmpty(), 'Case has child relationships');
+
+        // The one this was built for. Its name is Jira_Tickets__r, NOT AVB_Jira_Tickets__r
+        // as the field name AVB_Case__c would suggest — which is why the builder has to
+        // offer the list rather than expect anyone to type it.
+        ND_SectionPreviewPicker.ChildRelationshipOption jira = null;
+        for (ND_SectionPreviewPicker.ChildRelationshipOption r : rels) {
+            if (r.relationshipName == 'Jira_Tickets__r') {
+                jira = r;
+            }
+            System.assert(String.isNotBlank(r.relationshipName), 'Every option is named');
+            System.assert(String.isNotBlank(r.childObject), 'Every option names its child object');
+        }
+        System.assertNotEquals(null, jira, 'Jira_Tickets__r is offered');
+        System.assertEquals('AVB_Jira_Ticket__c', jira.childObject, 'Resolved to the child object');
+        System.assertEquals('AVB_Case__c', jira.fieldName, 'Resolved to the lookup field');
+    }
+
+    @isTest
+    static void childRelationshipsRejectsUnknownObject() {
+        Test.startTest();
+        Boolean threw = false;
+        try {
+            ND_SectionPreviewPicker.getChildRelationships('Not_An_Object__c');
+        } catch (Exception e) {
+            threw = true;
+        }
+        Test.stopTest();
+        System.assert(threw, 'An unknown object is refused, not queried');
+    }
+
+    @isTest
+    static void childRelationshipsRejectsBlankObject() {
+        Test.startTest();
+        Boolean threw = false;
+        try {
+            ND_SectionPreviewPicker.getChildRelationships('');
+        } catch (Exception e) {
+            threw = true;
+        }
+        Test.stopTest();
+        System.assert(threw, 'A blank object name is refused');
+    }
 }

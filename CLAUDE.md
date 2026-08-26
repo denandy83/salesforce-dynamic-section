@@ -100,6 +100,41 @@ Supported per-field keys:
   Anything that needs to move a base component's internals has to be done from outside its
   host element. Measuring the real thing means piercing `shadowRoot` recursively (Playwright
   over a `sf org open --url-only` front-door URL works, and beats guessing from screenshots).
+- **`childRollup`** — the entry reads ONE field off EVERY child record and joins the values
+  into a single read-only row. `{"label":"Fix versions","childRollup":{"relationship":
+  "Jira_Tickets__r","field":"AVB_Fix_Versions__c","exclude":"not_applicable,no"}}`.
+  Keyed by PRESENCE of the key, like `divider`, and for the same reason: the value is an
+  options object, so "present but not filled in yet" has to survive a round trip while it is
+  being edited. Optional `split` (default `,`; empty string treats the child value as atomic),
+  `separator` (default `", "`), `exclude` (comma-separated placeholders, matched
+  case-insensitively). Values are always de-duplicated case-insensitively (keeping the first
+  spelling) and sorted, so the same case reads the same way twice.
+  - **A rollup row has NO apiName**, which is the whole point: **a formula cannot do this.**
+    Cross-object formulas only traverse child → parent, and a roll-up summary offers only
+    COUNT / SUM / MIN / MAX — there is no text concatenation. Verified against the org, not
+    assumed. `apiName` and `editable` carry `appliesWhen: row => !isChildRollup(row)` so an
+    editor never offers them; `ROLLUP_ALLOWED_KEYS` is the rest of the whitelist and
+    `validateConfig` warns on anything else.
+  - **Backed by `ND_ChildRollup.getChildValues`** (Apex), because the UI API's describe does
+    not expose child relationships at all. Values come back RAW; splitting, de-duplicating and
+    filtering happen in `rollupValues()` in the schema module, which keeps them pure and
+    Jest-testable.
+  - **`—` and `…` are different states on purpose**: `…` while the request is out, `—` once it
+    came back empty. Both looked like an empty row when they shared a rendering.
+  - **The fetch is imperative, from `renderedCallback`, not a wire.** The relationship and
+    field come out of the JSON, and a wire's parameters have to be declared statically — there
+    is no way to wire N rollups whose targets are only known at runtime. A failed request is
+    deliberately NOT retried: this runs on every render, so clearing the key on failure would
+    turn one broken config into an endless stream of callouts.
+  - **⚠️ That late write is what made the section come up dirty.** It lands after the form has
+    settled, starting a second render pass, and a base input re-rendering fires `change`
+    exactly like a user edit — the trap already noted on `ND_handleFieldChange` for cold loads.
+    Fixed by `_settleRollup`, which re-derives the dirty state after storing the answer, and by
+    `_recomputeDirtyAfterRefresh` no longer DROPPING a call that arrives while one is queued
+    (it now guarantees one more pass). That swallow was pre-existing and unreachable while
+    every render pass came from a wire; the rollup made it reachable. Isolated with three
+    builder variants — the decisive one being a rollup row that is **not rendered** and still
+    turned the card dirty, which is what proved the cause was the fetch and not the markup.
 - **`divider`** — the entry is a RULE across the section, `———— SLA ————`, not a field.
   `{"divider": "SLA"}`, or `{"divider": ""}` for a plain unlabelled rule. **Presence of the key
   is the discriminator, not its truthiness**, so an empty caption is a deliberate plain rule
@@ -153,6 +188,15 @@ Supported per-field keys:
   scrambled copies still validate. Existing stored values are never removed by the rule.
 - `isUrlList` — **multiple labeled links** stored as JSON `[{label,url}]` in a Long Text Area; add/edit via a pop-out modal (Label + URL fields), `×` to remove, click label to open. Backward-compatible: a legacy plain-URL value renders as one chip.
 - `isOpenProblem` — Case lookup rendered as a **modal picker** (Case # / Subject / Status table) backed by `ND_ProblemPicker` Apex; removable filter chips (record type / open-only), search by number or subject; a linked value opens the case.
+- **`alertTitle` (section setting) renames the header while the alert holds**, so an overdue
+  case can say "OVERDUE" rather than only turning red. **Blank falls back to the normal
+  title** — the same rule `alertTextColor` already used, which keeps recolour-without-rename
+  the default and means no existing config loses its header text the moment its alert fires.
+  Deliberately has NO `fallback` in the registry: a fallback would make "unset"
+  indistinguishable from "same as the title" and the renderer's check could never take the
+  second branch. Interpolation runs on whichever title won, so `{CaseNumber}` works in it —
+  but only for fields the section already loads, which is a pre-existing limit of title
+  interpolation, not specific to this key.
 - Header alert (App Builder props, NOT the JSON): `ND_headerLogicField` + `ND_headerLogicValue` + `ND_headerActiveColor` (single field only).
 - **`ND_showConfigDiagnostics`** (App Builder Boolean, default off) — renders a config check inside
   the card: unknown/misspelled keys, two widgets on one row, settings with no effect, and the
@@ -474,6 +518,26 @@ an existing config into.
   child gets nothing. This cost an hour; the giveaway was the preview header showing the
   default title.
 
+**Child rollup is authored in the builder, not by hand.** "Add a child rollup" sits beside
+"Add a divider"; the row's panel offers two dependent `nD_fieldCombobox` pickers plus an
+"Ignore these values" box. The relationship list comes from
+`ND_SectionPreviewPicker.getChildRelationships` (Apex — the UI API's describe has no child
+relationships), and the child's field list from a **dynamic `getObjectInfo` wire** on whichever
+object the chosen relationship resolves to, so there is no second Apex call and FLS stays the
+platform's. Typing "Jira" narrows 65 child relationships to `Jira Tickets · Jira_Tickets__r` —
+which is the point: the field is `AVB_Case__c` and the relationship is **not**
+`AVB_Jira_Tickets__r`, so nobody should be expected to guess it.
+- The field picker is **disabled until a relationship is chosen** ("Pick a relationship first"),
+  because an empty list reads as broken. Changing the relationship **clears the field**, since
+  the old field belonged to the old child object — the same rule a condition's value follows.
+- `withRollupKeySet` writes into the NESTED options object; a flat `withKeySet` would replace
+  the whole thing and lose the other half of the pair. `relationship` and `field` are kept even
+  when empty, so a half-finished rollup stays distinguishable from one never started.
+- **Bug this surfaced: `handleAddDivider` never cleared `editingSection`.** The pane picks
+  between the section panel and the row panel on that flag alone, so "Add a divider" added the
+  row and left the panel on Section — the row was there but nothing opened, which reads as the
+  button having done nothing. Both add-a-row paths now go through one `selectRow()`.
+
 ### `lwc/nD_sectionConfigSchema` (service module, no UI)
 **The single definition of the config vocabulary.** Exports `CONFIG_KEYS` (one entry per supported
 key: `label`, `control`, `help`, `group`, optional `requires` / `appliesWhen` / `badge`), `WIDGETS`
@@ -509,6 +573,18 @@ dropped, duplicates folded case-insensitively. Only genuine User photos are retu
 segment is a key prefix rather than a photo Id (only ~9% of PROD users have a real photo).
 `Contact.PhotoUrl` is deliberately unused, it always resolves to the generic silhouette endpoint
 and cannot be distinguished from a real photo. Test class is self-contained (7 tests).
+
+### `classes/ND_ChildRollup` (+ `ND_ChildRollupTest`)
+`getChildValues(parentId, relationshipName, fieldName)` — one field off every child on the far
+side of a child relationship, for the `childRollup` row type. `cacheable=true`,
+`WITH SECURITY_ENFORCED`, `LIMIT 500`, ordered by the child's name field where it has one.
+**Every name that reaches the query comes from the DESCRIBE, never from the caller's strings**:
+the relationship name is matched against the parent's child relationships and everything after
+that is read off the matched describe, so the only outside value in the query is `parentId` and
+that goes through a bind. An inaccessible child object or field returns empty rather than
+throwing — an agent without read should see an empty row, not a page error — while a
+misconfigured relationship or field name DOES throw, because that is a config fault worth
+surfacing. 8 tests.
 
 ### `classes/ND_ProblemPicker` (+ `ND_ProblemPickerTest`)
 `getOpenProblems(searchTerm, recordTypeDeveloperName, excludedStatuses)` — dynamic SOQL over Case,
@@ -623,6 +699,15 @@ privilege-escalation vector.
 - An `alert` entry type could also be added to `nD_DynamicSection` for an in-section banner (same
   rule format). **This is now the cheap option**: the condition engine is done, and it needs no
   template change and no new object — but it lives inside the card, not across the page.
+
+## Status (as of 2026-08-26)
+**Done 2026-08-26** — `childRollup` rows (+ builder editor, `ND_ChildRollup`), the section
+`alertTitle`, the dirty-on-load race, and `ND_Notify_New_Case` v6/v7 in PROD (see below).
+**423 Jest tests, 36 Apex tests, all green.** eslint sits at 21 pre-existing errors — verified
+by stashing and re-linting, so none of them are from this work.
+**Known open:** the section can still come up dirty intermittently on the full 42-row Case
+config even after the fix, so at least one more path is unaccounted for. It was reproduced and
+fixed in isolation (three builder variants) but not eliminated on the record page.
 
 ## Status (as of 2026-08-25)
 Working on `main`; `feat/section-config-editor` now points at the same commit, so the editor work is
@@ -744,7 +829,38 @@ result when combined with another rule that is also correct on its own.**
 - Verified after the fix: **0** form-associated elements in the entire canvas, down from 10, with
   22 output fields still showing real data.
 
-## ⚠️ PROD's Apex test suite is currently BROKEN (found 2026-08-25)
+## ✅ `ND_Notify_New_Case` — FIXED in PROD (2026-08-26). History below.
+
+**PROD is on v7 and all four repo test classes pass (36 tests).** Apex CAN be deployed again.
+Two changes got there, and the order matters:
+- **v6** (routing): the `No_Contact` rule was DELETED and the **default outcome** pointed at
+  `Get_New_Other`. That is what the subscriptions actually mean — KLM subs get KLM, SWA subs get
+  SWA, Other subs get everything else INCLUDING no-contact. No earlier version had both: v3 had
+  default→Other, v4/v5 traded it for No_Contact→Other. Measured cost of that trade: **46 of 53
+  cases (87%)** created between 08-20 15:02 and the fix produced no notification at all.
+- **v7** (safety): a **single shared fault path** from all three Send Custom Notification
+  actions to one `Create_error` on `Error_Log__c`. `Missing required input parameter:
+  recipientIds` IS catchable by a fault connector — established by experiment, not assumed:
+  UAT v2 baseline passed (No_Contact ended the flow), UAT v3 with the routing change but no
+  fault path failed exactly like PROD, UAT v4 with the fault path passed 4/4.
+- **⚠️ v6 raised the stakes for v7.** Before it, 87% of cases hit default→END and could not
+  fail; afterwards every case reaches a Send. So without the guard, the day the last "New
+  Other" subscriber unticks their box, EVERY Case insert fails. PROD has 8 subscribers on that
+  path (KLM 9, SWA 9), all active — UAT has **one**.
+- **The fault handler must not itself fail**, or it re-raises and rolls the Case back anyway —
+  same symptom, rarer trigger, much harder to diagnose. `Error_Log__c` was checked before being
+  trusted: `Error_Description__c` is a 32,768-char textarea so fault messages fit, `More_info__c`
+  is 255 and `v_ICAO` is short, `Name` is an auto-number so nothing required is unset.
+- **A fault path is per ELEMENT, not flow-wide**, and governor limits bypass it entirely. Those
+  three Sends are safe; `Get_notification`, the filters, loops and assignments are not.
+- **UAT is now a copy of PROD v7.** They had diverged in notification CONTENT as well as
+  routing (UAT said "NEW CASE" on all three; PROD says KLM / SWA / `v_ICAO`), so **never deploy
+  the UAT flow file to PROD** — it would flatten PROD's better bodies.
+- Loose end: `More_info__c = v_ICAO` reads "No contact" on almost every case that actually
+  faults, because `AVB_ICAO_Account__c` resolves through Contact. `$Record.Account.AVB_ICAO__c`
+  would name the airline instead.
+
+### Why it failed (the original diagnosis, kept — the mechanism still applies)
 `sf project deploy validate --target-org PROD` fails with **68 test errors and 0 component
 errors**. None of them is this repo's code:
 - **65 × `CANNOT_EXECUTE_FLOW_TRIGGER`** — the **`ND_Notify_New_Case`** Flow fails with *"Missing
@@ -753,7 +869,7 @@ errors**. None of them is this repo's code:
   fine in UAT.
 - 3 × a username validation rule (*"Please adjust the username to end with @aviobook.support."*).
 
-**Consequence: no Apex can be deployed to PROD until that Flow is fixed**, because an Apex
+**Consequence at the time: no Apex could be deployed to PROD until that Flow was fixed**, because an Apex
 deployment must run tests — and both of this repo's Case-inserting test classes
 (`ND_ProblemPickerTest`, `ND_SectionPreviewPickerTest`) are among the casualties, so even the
 documented `--test-level RunSpecifiedTests` gate fails. LWC-only deployments are unaffected: they

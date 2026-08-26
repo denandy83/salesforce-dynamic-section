@@ -4,6 +4,10 @@
     <description>Apex access for the people and Problem widgets in nD_DynamicSection. Assign to everyone working Cases. No object or field permissions by design. Admins who edit record pages get ND_Dynamic_Section_Config_Builder instead, a superset of this.</description>
     <hasActivationRequired>false</hasActivationRequired>
     <classAccesses>
+        <apexClass>ND_ChildRollup</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>ND_EmailResolver</apexClass>
         <enabled>true</enabled>
     </classAccesses>

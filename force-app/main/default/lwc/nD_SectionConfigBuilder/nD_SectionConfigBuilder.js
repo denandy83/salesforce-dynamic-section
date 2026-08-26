@@ -9,6 +9,7 @@ import {
 import getRecentRecords from '@salesforce/apex/ND_SectionPreviewPicker.getRecentRecords';
 import resolveRecordId from '@salesforce/apex/ND_SectionPreviewPicker.resolveRecordId';
 import getPicklistValues from '@salesforce/apex/ND_SectionPreviewPicker.getPicklistValues';
+import getChildRelationships from '@salesforce/apex/ND_SectionPreviewPicker.getChildRelationships';
 import {
     WIDGETS,
     SECTION_GROUPS,
@@ -37,7 +38,11 @@ import {
     conditionsOf,
     withConditionsSet,
     isDivider,
-    withDividerAdded
+    isChildRollup,
+    withDividerAdded,
+    withRollupAdded,
+    withRollupKeySet,
+    rollupOptions
 } from 'c/nD_sectionConfigSchema';
 
 /**
@@ -238,6 +243,45 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         }
     }
 
+    // Child relationships of the previewed object, for a childRollup row's first picker.
+    // Apex, because the UI API's describe does not expose child relationships at all.
+    @track _childRelationships = [];
+    @wire(getChildRelationships, { objectApiName: '$objectApiName' })
+    wiredChildRelationships({ data, error }) {
+        if (data) {
+            this._childRelationships = data;
+        } else if (error) {
+            // A builder without this list can still edit everything else, so it degrades
+            // to an empty picker rather than breaking the page.
+            this._childRelationships = [];
+            console.warn('nD_SectionConfigBuilder: could not load child relationships', error);
+        }
+    }
+
+    /**
+     * The child object behind the selected rollup row, so the field picker can describe it.
+     * Null when no rollup row is selected, which is what stops the wire firing needlessly.
+     */
+    get rollupChildObject() {
+        const row = this.selectedRow;
+        if (!row || !isChildRollup(row)) return undefined;
+        const rel = rollupOptions(row).relationship;
+        if (!rel) return undefined;
+        const hit = this._childRelationships.find(r => r.relationshipName === rel);
+        return hit ? hit.childObject : undefined;
+    }
+
+    // A dynamic getObjectInfo: the child object is only known once a relationship is picked.
+    @track _childObjectInfo;
+    @wire(getObjectInfo, { objectApiName: '$rollupChildObject' })
+    wiredChildObjectInfo({ data, error }) {
+        if (data) {
+            this._childObjectInfo = data;
+        } else if (error) {
+            this._childObjectInfo = undefined;
+        }
+    }
+
     @wire(getObjectInfo, { objectApiName: '$objectApiName' })
     wiredObjectInfo({ data, error }) {
         this._objectInfo = data || undefined;
@@ -334,9 +378,28 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         return this.fieldMatches.length > 0;
     }
 
+    handleAddRollup() {
+        this.rows = withRollupAdded(this.rows);
+        this.selectRow(this.rows.length - 1);
+    }
+
     handleAddDivider() {
         this.rows = withDividerAdded(this.rows);
-        this.selectedIndex = this.rows.length - 1;
+        this.selectRow(this.rows.length - 1);
+    }
+
+    /**
+     * Select a row and show its properties.
+     *
+     * `editingSection` has to be cleared as well as the index: the pane chooses between the
+     * section panel and the row panel on that flag alone, so setting the index by itself
+     * pointed the selection at the new row while the panel still showed the section. That
+     * made "Add a divider" look like it had done nothing — the row was there, but nothing
+     * opened. Both add-a-row paths go through here now so they cannot drift apart again.
+     */
+    selectRow(index) {
+        this.selectedIndex = index;
+        this.editingSection = false;
         this.refreshPreview();
     }
 
@@ -415,7 +478,9 @@ export default class ND_SectionConfigBuilder extends LightningElement {
                 title: isDivider(row)
                     ? (String(row.divider || '').trim() || '(plain rule)')
                     : (row.label || this.labelFor(row.apiName) || '(no field)'),
-                apiName: isDivider(row) ? 'divider' : (row.apiName || '—'),
+                apiName: isDivider(row)
+                    ? 'divider'
+                    : (isChildRollup(row) ? 'child rollup' : (row.apiName || '—')),
                 badges: this.badgesFor(row, invalid),
                 cssClass: `nd-row${index === this.selectedIndex ? ' nd-row_selected' : ''}`
                     + `${invalid ? ' nd-row_invalid' : ''}`,
@@ -436,6 +501,13 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         // no `editable` key at all.
         if (isDivider(row)) {
             badges.push({ key: 'divider', label: 'divider', cssClass: 'nd-badge nd-badge_cond' });
+            return badges;
+        }
+
+        // Same reasoning for a rollup: it has no apiName and no `editable`, so every
+        // field-derived badge is either meaningless or actively wrong on it.
+        if (isChildRollup(row)) {
+            badges.push({ key: 'rollup', label: 'rollup', cssClass: 'nd-badge nd-badge_cond' });
             return badges;
         }
 
@@ -591,17 +663,29 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         // A divider draws a rule; none of the field settings mean anything on one, and its
         // caption means nothing on a field. Filtering whole groups keeps this out of twenty
         // separate appliesWhen predicates.
-        const allowed = isDivider(row) ? ['divider', 'visibility'] : null;
+        // A rollup reads from child records, so every field setting is as meaningless on it
+        // as on a divider. Only visibility is offered: the `childRollup` options themselves
+        // have no control in this builder yet, so they are authored in the paste-JSON box.
+        // Showing an empty "Child rollup" fieldset would read as a broken editor.
+        const allowed = isDivider(row)
+            ? ['divider', 'visibility']
+            : (isChildRollup(row) ? ['rollup', 'field', 'visibility'] : null);
+        const hiddenGroups = ['divider', 'rollup'];   // shown only on the row type that owns them
 
-        return FIELD_GROUPS.filter(group => (allowed ? allowed.includes(group.id) : group.id !== 'divider')).map(group => {
+        return FIELD_GROUPS.filter(group => (allowed ? allowed.includes(group.id) : !hiddenGroups.includes(group.id))).map(group => {
             const defs = CONFIG_KEYS.filter(
                 d => d.group === group.id && (!d.appliesWhen || d.appliesWhen(row))
             );
             const isWidgetGroup = group.id === 'widget';
+            // The rollup group is one composite editor rather than a list of plain controls:
+            // the two pickers depend on each other (the field list comes from whichever
+            // child object the relationship resolves to).
+            const rollup = group.id === 'rollup' ? this.rollupPanel : null;
 
             return {
                 key: group.id,
                 legend: group.legend,
+                rollup: rollup,
                 isWidgetGroup,
                 widgetOptions: isWidgetGroup
                     ? WIDGETS.map(w => ({ label: w.title, value: w.key || 'standard' }))
@@ -611,12 +695,14 @@ export default class ND_SectionConfigBuilder extends LightningElement {
                     ? WIDGETS.map(w => ({ key: w.key || 'standard', title: w.title, help: w.help }))
                     : [],
                 conditions: this.conditionEditorFor(defs, row),
-                controls: defs.filter(d => this.isPlainControl(d) && !d.nested).map(d => this.controlFor(d, row)),
+                controls: defs
+                    .filter(d => this.isPlainControl(d) && !d.nested && d.control !== 'rollup')
+                    .map(d => this.controlFor(d, row)),
                 nestedControls: defs.filter(d => this.isPlainControl(d) && d.nested).map(d => this.controlFor(d, row)),
                 hasNested: defs.some(d => this.isPlainControl(d) && d.nested),
                 sentence: group.id === 'takeover' ? this.requirementSentence : null
             };
-        }).filter(g => g.isWidgetGroup || g.controls.length || g.nestedControls.length || g.conditions);
+        }).filter(g => g.isWidgetGroup || g.rollup || g.controls.length || g.nestedControls.length || g.conditions);
     }
 
 /**
@@ -821,6 +907,59 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     }
 
     // --- editing ------------------------------------------------------------------
+    /**
+     * Everything the childRollup editor needs for the selected row, or null when the
+     * selected row is not a rollup.
+     *
+     * The two pickers are the same nD_fieldCombobox used everywhere else — a relationship
+     * list is the same problem as a field list (Case has 60-odd child relationships), and
+     * lightning-combobox still has no type-ahead.
+     */
+    get rollupPanel() {
+        const row = this.selectedRow;
+        if (!row || !isChildRollup(row)) return null;
+
+        const opts = rollupOptions(row);
+        const relationshipOptions = this._childRelationships
+            .map(r => ({ label: r.childLabel || r.childObject, value: r.relationshipName }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+
+        const chosen = this._childRelationships.find(r => r.relationshipName === opts.relationship);
+        const childFields = (this._childObjectInfo && this._childObjectInfo.fields) || {};
+        const fieldOptions = Object.keys(childFields)
+            .map(apiName => ({ label: childFields[apiName].label || apiName, value: apiName }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+
+        return {
+            relationship: opts.relationship,
+            relationshipOptions: relationshipOptions,
+            hasRelationships: relationshipOptions.length > 0,
+            field: opts.field,
+            fieldOptions: fieldOptions,
+            // Offering the field picker before a relationship is chosen would list nothing
+            // and look broken, so it says what to do instead.
+            fieldDisabled: !opts.relationship,
+            fieldPlaceholder: opts.relationship
+                ? 'Search fields on the child…'
+                : 'Pick a relationship first',
+            childSummary: chosen ? `${chosen.childLabel} · ${chosen.childObject}` : '',
+            exclude: opts.exclude,
+            separator: opts.separator,
+            split: opts.split
+        };
+    }
+
+    handleRollupChange(event) {
+        const key = event.currentTarget.dataset.rollupKey;
+        const value = (event.detail && event.detail.value !== undefined)
+            ? event.detail.value
+            : event.target.value;
+        const next = this.rows.slice();
+        next[this.selectedIndex] = withRollupKeySet(this.selectedRow, key, value);
+        this.rows = next;
+        this.refreshPreview();
+    }
+
     updateSelected(key, value) {
         this.rows = withKeySet(this.rows, this.selectedIndex, key, value);
         this.refreshPreview();

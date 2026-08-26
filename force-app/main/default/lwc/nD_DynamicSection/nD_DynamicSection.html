@@ -76,7 +76,29 @@
                                     </div>
                                 </template>
 
-                                <template if:false={fieldConfig.isDivider}>
+                                <!-- A child rollup: one field read off every child record,
+                                     joined into a single read-only value. No apiName, nothing
+                                     editable, so none of the field markup below applies. -->
+                                <template if:true={fieldConfig.isChildRollup}>
+                                    <div key={fieldConfig.key} class={fieldConfig.cssClass}>
+                                        <div class={fieldConfig.contentCssClass}>
+                                            <template if:true={fieldConfig.customLabel}>
+                                                <div class={fieldConfig.labelCssClass} title={fieldConfig.customLabel}>{fieldConfig.customLabel}</div>
+                                            </template>
+                                            <div class="nd-rollup-value">
+                                                <template if:true={fieldConfig.isLoading}>
+                                                    <span class="nd-rollup-empty">…</span>
+                                                </template>
+                                                <template if:false={fieldConfig.isLoading}>
+                                                    <template if:true={fieldConfig.hasValues}>{fieldConfig.displayValue}</template>
+                                                    <template if:false={fieldConfig.hasValues}><span class="nd-rollup-empty">—</span></template>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <template if:true={fieldConfig.isFieldRow}>
                                 <div key={fieldConfig.key} class={fieldConfig.cssClass}>
                                     <div class={fieldConfig.contentCssClass} style={fieldConfig.style}>
 

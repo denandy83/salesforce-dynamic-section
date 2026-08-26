@@ -788,3 +788,71 @@ describe('the "take it!" link', () => {
         expect(element.shadowRoot.querySelector('.nd-take-link')).toBeNull();
     });
 });
+
+
+// The header alert can rename as well as recolour. `alertTitle` follows the same rule as
+// `alertTextColor`: blank means "keep the normal one", so recolouring without renaming
+// stays the default and neither half has to be set to use the other.
+describe('the alert title', () => {
+    function mountWith(section, statusValue) {
+        const element = mount({
+            recordId: '500KB00000000001AAA',
+            objectApiName: 'Case',
+            ND_jsonConfigString: JSON.stringify({ section, fields: [{ apiName: 'Status' }] })
+        });
+        getObjectInfo.emit({ apiName: 'Case', fields: { Status: { apiName: 'Status' } }, recordTypeInfos: {} });
+        getRecord.emit({
+            id: '500KB00000000001AAA',
+            apiName: 'Case',
+            fields: { Status: { value: statusValue } }
+        });
+        return element;
+    }
+
+    const titleOf = element =>
+        element.shadowRoot.querySelector('.nd-header-title').textContent.trim();
+
+    const ALERT = {
+        title: 'Details',
+        alertField: 'Status',
+        alertValue: 'Escalated',
+        alertColor: '#ba0517',
+        alertTitle: 'ESCALATED'
+    };
+
+    it('shows the alert title while the condition holds', async () => {
+        const element = mountWith(ALERT, 'Escalated');
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(titleOf(element)).toBe('ESCALATED');
+    });
+
+    it('shows the normal title when the condition does not hold', async () => {
+        const element = mountWith(ALERT, 'New');
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(titleOf(element)).toBe('Details');
+    });
+
+    it('falls back to the normal title when no alert title is set', async () => {
+        // Recolour-only is the pre-existing behaviour and has to stay the default, or every
+        // config already in the org would lose its header text the moment its alert fired.
+        const element = mountWith(
+            { title: 'Details', alertField: 'Status', alertValue: 'Escalated', alertColor: '#ba0517' },
+            'Escalated'
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(titleOf(element)).toBe('Details');
+    });
+
+    it('interpolates field values in the alert title', async () => {
+        const element = mountWith(
+            { ...ALERT, alertTitle: 'ESCALATED — {Status}' },
+            'Escalated'
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(titleOf(element)).toBe('ESCALATED — Escalated');
+    });
+});

@@ -808,6 +808,25 @@
     min-height: 2rem;
 }
 
+/* A child rollup's value. Same 2rem control height as a read-only field so it lines up with
+   whatever is beside it, but it must WRAP: this is many children's values joined, and one
+   case in PROD has 34 of them. So `align-items` is not centred here — with two or three
+   lines, centring would push the first line away from the label. */
+.nd-rollup-value {
+    display: flex;
+    align-items: center;
+    min-height: 2rem;
+    flex-wrap: wrap;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+/* "…" while the request is out, "—" once it is back and there was nothing. Two different
+   states that would otherwise both look like an empty row. */
+.nd-rollup-empty {
+    color: #747474;
+}
+
 /* SLDS draws a 1px rule under every read-only field, as the read-only counterpart of an
    input's border, so a value still reads as a field. It is on the HOST element — the base
    component stamps `slds-form-element_readonly` onto its own host — which is in this

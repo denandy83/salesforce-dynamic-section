@@ -4,6 +4,7 @@ import { getObjectInfo } from 'lightning/uiObjectInfoApi';
 import getRecentRecords from '@salesforce/apex/ND_SectionPreviewPicker.getRecentRecords';
 import resolveRecordId from '@salesforce/apex/ND_SectionPreviewPicker.resolveRecordId';
 import getPicklistValues from '@salesforce/apex/ND_SectionPreviewPicker.getPicklistValues';
+import getChildRelationships from '@salesforce/apex/ND_SectionPreviewPicker.getChildRelationships';
 
 // Both Apex imports need explicit mocks: getRecentRecords is consumed through @wire and
 // needs a test wire adapter to push data in; resolveRecordId is imperative and needs a
@@ -23,6 +24,14 @@ jest.mock(
 );
 jest.mock(
     '@salesforce/apex/ND_SectionPreviewPicker.getPicklistValues',
+    () => {
+        const { createApexTestWireAdapter } = require('@salesforce/wire-service-jest-util');
+        return { default: createApexTestWireAdapter(jest.fn()) };
+    },
+    { virtual: true }
+);
+jest.mock(
+    '@salesforce/apex/ND_SectionPreviewPicker.getChildRelationships',
     () => {
         const { createApexTestWireAdapter } = require('@salesforce/wire-service-jest-util');
         return { default: createApexTestWireAdapter(jest.fn()) };
@@ -1010,5 +1019,139 @@ describe('dividers in the builder', () => {
 
         expect(text(element, `${FIELD_ROW} .nd-row-title`) || text(element, FIELD_ROW))
             .toMatch(/plain rule/);
+    });
+});
+
+
+// --- child rollup -------------------------------------------------------------------
+// The point of these: a rollup must be addable and editable WITHOUT knowing the JSON
+// syntax. Anything that only works by pasting config is a failure of the builder.
+describe('child rollup', () => {
+    const CHILD_RELATIONSHIPS = [
+        {
+            relationshipName: 'Jira_Tickets__r',
+            childObject: 'AVB_Jira_Ticket__c',
+            childLabel: 'Jira Tickets',
+            fieldName: 'AVB_Case__c'
+        },
+        {
+            relationshipName: 'CaseComments',
+            childObject: 'CaseComment',
+            childLabel: 'Case Comments',
+            fieldName: 'ParentId'
+        }
+    ];
+
+    const CHILD_OBJECT_INFO = {
+        apiName: 'AVB_Jira_Ticket__c',
+        fields: {
+            AVB_Fix_Versions__c: { apiName: 'AVB_Fix_Versions__c', label: 'Fix Versions', dataType: 'String', updateable: true },
+            AVB_Affects_Versions__c: { apiName: 'AVB_Affects_Versions__c', label: 'Affects Versions', dataType: 'String', updateable: true }
+        }
+    };
+
+    const boot = async () => {
+        const element = mount();
+        getObjectInfo.emit(OBJECT_INFO);
+        getChildRelationships.emit(CHILD_RELATIONSHIPS);
+        await Promise.resolve();
+        await Promise.resolve();
+        return element;
+    };
+
+    const jsonOf = element =>
+        element.shadowRoot.querySelector('.nd-json') ||
+        element.shadowRoot.querySelector('pre');
+
+    it('adds a rollup row from a button, with no JSON typed', async () => {
+        const element = await boot();
+        const button = Array.from(element.shadowRoot.querySelectorAll('lightning-button'))
+            .find(b => b.label === 'Add a child rollup');
+        expect(button).toBeTruthy();
+
+        button.dispatchEvent(new CustomEvent('click'));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // .nd-row also matches the Section card, hence the :not()
+        const rows = element.shadowRoot.querySelectorAll('.nd-row:not(.nd-row_section)');
+        expect(rows.length).toBe(1);
+        expect(element.shadowRoot.textContent).toContain('child rollup');
+    });
+
+    it('offers the object\'s child relationships in a picker', async () => {
+        const element = await boot();
+        Array.from(element.shadowRoot.querySelectorAll('lightning-button'))
+            .find(b => b.label === 'Add a child rollup')
+            .dispatchEvent(new CustomEvent('click'));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const combos = Array.from(element.shadowRoot.querySelectorAll('c-n-d_field-combobox'));
+        const relPicker = combos.find(c => c.label === 'Read from these child records');
+        expect(relPicker).toBeTruthy();
+        const values = relPicker.options.map(o => o.value);
+        expect(values).toEqual(expect.arrayContaining(['Jira_Tickets__r', 'CaseComments']));
+    });
+
+    it('disables the field picker until a relationship is chosen', async () => {
+        const element = await boot();
+        Array.from(element.shadowRoot.querySelectorAll('lightning-button'))
+            .find(b => b.label === 'Add a child rollup')
+            .dispatchEvent(new CustomEvent('click'));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const fieldPicker = Array.from(element.shadowRoot.querySelectorAll('c-n-d_field-combobox'))
+            .find(c => c.label === 'Read this field off each child');
+        expect(fieldPicker.disabled).toBe(true);
+        expect(fieldPicker.placeholder).toBe('Pick a relationship first');
+    });
+
+    it('writes the chosen relationship into the config, and then the field', async () => {
+        const element = await boot();
+        Array.from(element.shadowRoot.querySelectorAll('lightning-button'))
+            .find(b => b.label === 'Add a child rollup')
+            .dispatchEvent(new CustomEvent('click'));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const relPicker = Array.from(element.shadowRoot.querySelectorAll('c-n-d_field-combobox'))
+            .find(c => c.label === 'Read from these child records');
+        relPicker.dispatchEvent(new CustomEvent('change', { detail: { value: 'Jira_Tickets__r' } }));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(jsonOf(element).textContent).toContain('Jira_Tickets__r');
+
+        // The field list comes from the child object's describe, which only resolves once
+        // the relationship is known.
+        getObjectInfo.emit(CHILD_OBJECT_INFO);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const fieldPicker = Array.from(element.shadowRoot.querySelectorAll('c-n-d_field-combobox'))
+            .find(c => c.label === 'Read this field off each child');
+        expect(fieldPicker.disabled).toBe(false);
+        fieldPicker.dispatchEvent(new CustomEvent('change', { detail: { value: 'AVB_Fix_Versions__c' } }));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(jsonOf(element).textContent).toContain('AVB_Fix_Versions__c');
+    });
+
+    it('does not offer a Salesforce field or an Editing checkbox on a rollup row', async () => {
+        const element = await boot();
+        Array.from(element.shadowRoot.querySelectorAll('lightning-button'))
+            .find(b => b.label === 'Add a child rollup')
+            .dispatchEvent(new CustomEvent('click'));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // A rollup reads from children; it has no field on this object and nothing to save.
+        const combos = Array.from(element.shadowRoot.querySelectorAll('c-n-d_field-combobox'))
+            .map(c => c.label);
+        expect(combos).not.toContain('Salesforce field');
+        expect(element.shadowRoot.textContent).not.toContain('Users can edit this field');
     });
 });
