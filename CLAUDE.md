@@ -540,6 +540,25 @@ about the 22 internal instances changed.
   site page config is not retrievable and placement is a UI-only step.
 - Guest users are out: LDS/UI API is not available to them, so this only goes on authenticated pages.
 
+**The working portal config (UAT, 2026-09-04) — kept here because THIS FILE IS ITS ONLY BACKUP.**
+The site page is not retrievable (see above), so a config pasted into Experience Builder exists
+nowhere else. Paste-back copy:
+```json
+{"section":{},"fields":[
+ {"apiName":"CaseNumber","label":"Case Number"},
+ {"apiName":"OwnerId","label":"Owner ID"},
+ {"apiName":"Type","label":"Issue Type"},
+ {"apiName":"AVB_Product__c","label":"Product"},
+ {"apiName":"Subject","label":"Subject","colSpan":2},
+ {"apiName":"AVB_Collaborators__c","label":"Collaborators","colSpan":2,"editable":true,"isEmailList":true},
+ {"apiName":"AVB_Division__c","label":"Division","editable":true,"showIfField":"AVB_ICAO_Account__c","showIfValue":"DHL"}]}
+```
+Note it DOES carry `isEmailList` (Collaborators), so this instance does call `ND_EmailResolver` and
+the "no Apex access needed" shortcut above does **not** hold for it as written — either grant the
+class to the two community profiles or drop that row. Untested as at 2026-09-04; the addresses will
+render as plain text with grey avatars until the grant exists, which is a permissions symptom that
+looks like "not in Salesforce". `OwnerId` is present too, but read-only, so no "take it!" appears.
+
 **Portal org facts (UAT, 2026-09-04):** site `AvioBook Customer Portal` (`0DBKB000000L3cW4AS`, Live,
 `/aviobookportal`), Aura template. Members: `AVB_System_Administrator` plus two `CspLitePortal`
 profiles — `AVB_General_Community_User` (78) and `AVB_General_Customer_Community_Login_User` (313).
@@ -824,12 +843,20 @@ privilege-escalation vector.
 ## Status (as of 2026-09-04)
 **Done 2026-09-04** — `nD_DynamicSection` exposed to **Experience Cloud** (Aura customer portal):
 community targets + `recordId`/`objectApiName` properties, and the setup prompt suppressed inside a
-site. Working on a real Case in the portal. Plus **three-column sections** (`colSpan` read as a span),
-for the portal card. **455 Jest tests, all green** (32 new). eslint unchanged at its pre-existing errors — verified
-by linting the file before and after. Deployed to **UAT** (LWC only, no tests run) and confirmed by
-retrieving the meta back. **Not yet in PROD**, and not yet placed on a portal page.
-**Next:** place it on the portal's Case detail page, bind `{!recordId}` / `{!objectApiName}`, paste a
-portal config, then test as a real portal user — see the FLS warning in the Experience Cloud section.
+site. Plus **three-column sections** (`colSpan` read as a span), for the portal card.
+**455 Jest tests, all green** (32 new). eslint unchanged at its pre-existing errors — verified by
+**stashing and re-linting**, which is the only way to say that honestly.
+
+**Shipped:** branch `feat/experience-cloud-and-three-columns`, fast-forwarded into `main` at
+`7ba94ed` and pushed. Deployed to **UAT** and **PROD** — LWC only, so no test level and 0 tests
+run in either. UAT was confirmed by retrieving the meta back.
+
+**Placed and working**: the card renders on a real Case in the AvioBook Customer Portal, on the
+Case detail page, as a portal user.
+
+**Next:** switch that instance to `columns: 3` and look at it. Then, before adding rows: the
+portal config is the one thing NOT in version control, because ExperienceBundle Metadata API is
+off for Aura sites in this org.
 
 ## Status (as of 2026-08-26)
 **Done 2026-08-26** — `childRollup` rows (+ builder editor, `ND_ChildRollup`), the section
@@ -1038,6 +1065,40 @@ nothing for a path — a config record deleted, or an ICAO with no matching conf
 creation fails outright for the user. The robust fix is a decision guarding each Send Custom
 Notification on `v_Recipient` not being empty; reverting the `No_Contact` / default swap only
 hides it.
+
+## Org-investigation lessons (2026-09-04) — how to find things out without a browser
+Diagnosing the portal meant asking the org a lot of questions. These are the walls hit, so the
+next session does not hit them again.
+- **`sf org display --json` REDACTS `accessToken`** (`[REDACTED] Use 'sf org auth show-access-token'`).
+  So the obvious way to build a `secur/frontdoor.jsp?sid=…` URL does not work. It matters because
+  **a Lightning session cookie does NOT carry to `my.site.com`** — a Playwright session front-doored
+  into LEX is bounced to the site's login page. Driving an Experience Cloud site therefore needs its
+  own front door on the SITE domain (`/<prefix>/secur/frontdoor.jsp`), which needs that token.
+  `sf org open --url-only --json` DOES return a usable front-door URL, but only for the Lightning
+  domain.
+- **Aura vs LWR in one command:** `sf org list metadata --metadata-type ExperienceBundle` vs
+  `DigitalExperienceBundle`. A site in the FIRST and not the second is Aura. Faster and surer than
+  reading templates.
+- **`ExperienceBundle` retrieve fails on Aura sites** unless *Enable ExperienceBundle Metadata API*
+  is on in Digital Experiences settings — and the error says exactly that, which is itself the
+  cheapest Aura/LWR test. Consequence: the portal's page config **cannot be version-controlled or
+  diffed** the way the 8 flexipages are.
+- **SOQL shapes that do NOT exist**, each of which cost a round trip: `NetworkMemberGroup` has no
+  `Parent` relationship and no `MemberType` (query `ParentId` and resolve it yourself); `User` has
+  no `UserLicense` relationship; `SiteDetail` has no `Name` or `UrlPathPrefix` and **requires a
+  filter on `DurableId`**. For portal URLs, query **`Domain`** instead.
+- **`GROUP BY` aliases collide**: `SELECT Profile.Name, Profile.UserLicense.Name … GROUP BY` fails
+  with `duplicate alias: Name`. Group by one at a time.
+- **Which permission sets portal users actually have** is worth checking before designing any grant:
+  `PermissionSetAssignment` filtered to `Assignee.UserType='CspLitePortal'` and
+  `PermissionSet.IsOwnedByProfile=false`. Here it returned **2 assignments across 391 users** —
+  everything comes from the profile, which is why the profile is the right place to grant Apex if it
+  is ever needed.
+- **Prove a lint claim by stashing.** `git stash && npx eslint <file> && git stash pop` is the only
+  honest way to say "these errors are pre-existing" — the line numbers shift when you add code, so
+  comparing counts by eye is not evidence.
+- **`catch { }` (optional catch binding) avoids adding to the lint debt.** The repo's `no-unused-vars`
+  errors include several `catch (e)` blocks; a new one does not have to join them.
 
 ## Deploy lessons that cost real time
 - **A property tag cannot be removed while the component is on ANY Lightning page**, and clearing
