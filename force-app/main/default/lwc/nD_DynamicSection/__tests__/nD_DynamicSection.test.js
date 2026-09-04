@@ -856,3 +856,88 @@ describe('the alert title', () => {
         expect(titleOf(element)).toBe('ESCALATED — Escalated');
     });
 });
+
+// The setup prompt names the App Launcher and the Section Config Builder — internal tools
+// on the internal Lightning domain. In an Experience Cloud site the reader is a customer
+// who can reach neither, so an instance whose config has not arrived must show them a
+// blank card rather than a set of admin instructions.
+//
+// The detection reads window.location, so these tests set it. It is written to fail
+// towards SHOWING the prompt, which is why the default jsdom path (and every test above)
+// still gets it.
+describe('the setup prompt in an Experience Cloud site', () => {
+    const realLocation = window.location;
+
+    function atPath(pathname) {
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            writable: true,
+            value: { pathname }
+        });
+    }
+
+    afterEach(() => {
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            writable: true,
+            value: realLocation
+        });
+    });
+
+    it('is hidden on a site path with a URL prefix', async () => {
+        atPath('/aviobookportal/s/case/500KB00000000001AAA/detail');
+        const element = mount({ ND_jsonConfigString: '' });
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('.nd-setup')).toBeNull();
+    });
+
+    it('is hidden on a site with no URL prefix', async () => {
+        atPath('/s/case/500KB00000000001AAA/detail');
+        const element = mount({ ND_jsonConfigString: '' });
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('.nd-setup')).toBeNull();
+    });
+
+    // The App Builder canvas is exactly where an admin HAS just dropped the component and
+    // does need telling what to do next, so the site check must not swallow it.
+    it('still shows in the App Builder canvas', async () => {
+        atPath('/flexipageEditor/surface.app');
+        const element = mount({ ND_jsonConfigString: '' });
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('.nd-setup')).not.toBeNull();
+    });
+
+    it('still shows on a Lightning record page', async () => {
+        atPath('/lightning/r/Case/500KB00000000001AAA/view');
+        const element = mount({ ND_jsonConfigString: '' });
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('.nd-setup')).not.toBeNull();
+    });
+
+    // "setup" contains an s; a path SEGMENT of exactly "s" is the marker, not a substring.
+    it('still shows in Setup, whose path merely contains an s', async () => {
+        atPath('/lightning/setup/SetupOneHome/home');
+        const element = mount({ ND_jsonConfigString: '' });
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('.nd-setup')).not.toBeNull();
+    });
+
+    // A configured portal instance is the normal case: no prompt either way, and the card
+    // renders its rows.
+    it('leaves a configured card alone in a site', async () => {
+        atPath('/aviobookportal/s/case/500KB00000000001AAA/detail');
+        const element = mount({
+            recordId: '500KB00000000001AAA',
+            objectApiName: 'Case',
+            ND_jsonConfigString: CONFIG
+        });
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector('.nd-setup')).toBeNull();
+    });
+});

@@ -76,6 +76,76 @@ const DEFAULT_ALERT_COLOR = '#ba0517';
  * as the field rows so the whole section is one artefact that the builder can compose,
  * validate and preview in one piece — and so App Builder needs exactly one field.
  * ------------------------------------------------------------------------------- */
+/**
+ * Column layout. `colSpan` has ALWAYS meant "how many of the section's columns this row
+ * spans" — it was only ever written as "2 = full width" because every section was two
+ * columns wide. Reading it as a span is what lets three columns arrive without migrating a
+ * single live config: colSpan 2 keeps meaning full width in a two-column section and starts
+ * meaning two thirds in a three-column one, and nothing changes until someone deliberately
+ * sets columns to 3.
+ *
+ * Both the runtime and the builder go through here, so the SLDS class, the dropdown label
+ * and the badge can never disagree about what a span means.
+ */
+const COLUMN_COUNTS = [1, 2, 3];
+
+/** The section width, defaulted and clamped, so every caller reads the same number. */
+function columnsOf(columns) {
+    const n = Number(columns);
+    return COLUMN_COUNTS.indexOf(n) > -1 ? n : 2;
+}
+
+/** A colSpan as a usable span: at least 1, never more than the section is wide. */
+function spanOf(colSpan, columns) {
+    const cols = columnsOf(columns);
+    const raw = Number(colSpan);
+    const span = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
+    return Math.min(span, cols);
+}
+
+/**
+ * The SLDS width class for a row. Clamps rather than trusting the number: a row left at
+ * colSpan 3 after the section is switched back to two columns renders full width instead of
+ * asking SLDS for a class that does not exist.
+ */
+function sizeClassFor(colSpan, columns) {
+    const cols = columnsOf(columns);
+    const span = spanOf(colSpan, cols);
+    if (span >= cols) return 'slds-size_1-of-1';
+    if (cols === 3) return span === 2 ? 'slds-size_2-of-3' : 'slds-size_1-of-3';
+    return 'slds-size_1-of-2';
+}
+
+/** What a span is CALLED at this section width — one wording for the dropdown and the badge. */
+function spanTitle(colSpan, columns) {
+    const cols = columnsOf(columns);
+    const span = spanOf(colSpan, cols);
+    if (span >= cols) return 'Full width';
+    if (cols === 3) return span === 2 ? 'Two thirds' : 'One third';
+    return 'Half width';
+}
+
+/**
+ * The Width dropdown's options for a section this wide.
+ *
+ * `current` is included even when it is not one of them, because a combobox holding a value
+ * absent from its own options renders BLANK — the row would look as if it had no width set
+ * while the JSON says otherwise. The date-operator combobox already cost this lesson once.
+ */
+function colSpanOptions(columns, current) {
+    const cols = columnsOf(columns);
+    const spans = cols === 3 ? [1, 2, 3] : [1, 2];
+    const options = spans.map(span => ({
+        // 1 is the default and is written as an absent key, like every other default here.
+        value: span === 1 ? '' : span,
+        title: spanTitle(span, cols)
+    }));
+    if (isBlank(current)) return options;
+    const asNumber = Number(current);
+    if (options.some(o => Number(o.value) === asNumber)) return options;
+    return options.concat([{ value: asNumber, title: `${asNumber} columns (more than this section has)` }]);
+}
+
 const SECTION_KEYS = [
     {
         key: 'title',
@@ -99,8 +169,12 @@ const SECTION_KEYS = [
         label: 'Columns',
         control: 'select',
         fallback: 2,
-        options: [{ value: 2, title: 'Two columns' }, { value: 1, title: 'One column' }],
-        help: 'One column forces every row full width.'
+        options: [
+            { value: 2, title: 'Two columns' },
+            { value: 1, title: 'One column' },
+            { value: 3, title: 'Three columns' }
+        ],
+        help: 'One column forces every row full width. Three needs the room — it was added for a full-page-width portal card, not for a record page\u2019s centre column.'
     },
     {
         key: 'startCollapsed',
@@ -288,10 +362,15 @@ const CONFIG_KEYS = [
         group: 'field',
         label: 'Width',
         control: 'select',
+        // The list depends on how wide the SECTION is, so the builder asks colSpanOptions()
+        // rather than reading this. These stay as the two-column answer, which is both the
+        // default and what every live config uses.
         options: [{ value: '', title: 'Half width' }, { value: 2, title: 'Full width' }],
-        badge: 'full width',
-        badgeWhen: 2,
-        help: 'Set to 2 for a full-width row.'
+        // Not a fixed badge: "full width" is a lie for colSpan 2 in a three-column section,
+        // where it is two thirds. Same accuracy rule that gave dividers their own badge
+        // instead of inheriting "read only".
+        badgeFor: (value, ctx) => (isBlank(value) ? null : spanTitle(value, ctx && ctx.columns)),
+        help: 'How many of the section\u2019s columns this row spans. 2 is full width in a two-column section and two thirds in a three-column one.'
     },
     {
         key: 'editable',
@@ -1250,9 +1329,25 @@ function validateConfig(config, context) {
         return [{ row: -1, level: 'error', message: 'Config is not a JSON array.' }];
     }
 
+    const columns = columnsOf(ctx.columns);
+
     config.forEach((row, index) => {
         const name = row.label || row.apiName || `row ${index + 1}`;
         const push = (level, message, key) => findings.push({ row: index, name, level, message, key });
+
+        // Renders full width rather than breaking, so this is a warning — but it is worth
+        // saying, because the row is not doing what the number asks and nothing on screen
+        // says so.
+        if (!isBlank(row.colSpan)) {
+            const asked = Number(row.colSpan);
+            if (!Number.isFinite(asked) || asked < 1) {
+                push('error', `"colSpan" must be a whole number of columns, not "${row.colSpan}".`, 'colSpan');
+            } else if (asked > columns) {
+                push('warning',
+                    `"colSpan" of ${asked} is wider than the section's ${columns} column${columns === 1 ? '' : 's'}, so this row renders full width.`,
+                    'colSpan');
+            }
+        }
 
         if (isDivider(row)) {
             // A divider draws a rule; anything about a field is meaningless on it. Visibility
@@ -1820,6 +1915,12 @@ export {
     fieldDay,
     localToday,
     isRowVisible,
+    COLUMN_COUNTS,
+    columnsOf,
+    spanOf,
+    sizeClassFor,
+    spanTitle,
+    colSpanOptions,
     LOGIC_AND,
     LOGIC_OR,
     CONDITION_SITES,

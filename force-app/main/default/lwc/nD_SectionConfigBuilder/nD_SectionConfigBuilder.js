@@ -42,7 +42,8 @@ import {
     withDividerAdded,
     withRollupAdded,
     withRollupKeySet,
-    rollupOptions
+    rollupOptions,
+    colSpanOptions
 } from 'c/nD_sectionConfigSchema';
 
 /**
@@ -530,15 +531,23 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         CONFIG_KEYS.forEach(def => {
             if (!def.badge) return;
             const value = row[def.key];
+
+            // A badge whose TEXT depends on other settings computes it, rather than the
+            // registry naming one fixed word. Width is the case: "full width" is wrong for
+            // colSpan 2 in a three-column section, where it is two thirds.
+            let label = def.badge;
             let on;
-            if (def.badgeWhen !== undefined) on = value === def.badgeWhen;
+            if (def.badgeFor) {
+                label = def.badgeFor(value, { columns: (this.section || {}).columns });
+                on = !!label;
+            } else if (def.badgeWhen !== undefined) on = value === def.badgeWhen;
             else if (def.badgeWhenFalsy) on = !value;
             else on = !isBlank(value) && value !== false;
 
             if (on) {
                 badges.push({
                     key: def.key,
-                    label: def.badge,
+                    label: label,
                     cssClass: `nd-badge${def.badgeClass ? ` nd-badge_${def.badgeClass}` : ''}`
                 });
             }
@@ -889,6 +898,15 @@ export default class ND_SectionConfigBuilder extends LightningElement {
         // The blank entry is a label on the combobox now, not an option glued to the front
         // of the list, so it is passed separately as blank-label.
         if (def.control === 'fieldPicker') return this.fieldPickerOptions;
+        // Width is the one select whose choices depend on another setting: a three-column
+        // section offers thirds, a two-column one offers halves. colSpanOptions also keeps
+        // the row's CURRENT value in the list even when the section is now too narrow for
+        // it, so the combobox never renders blank over a value the JSON really holds.
+        if (def.key === 'colSpan') {
+            const row = this.selectedRow || {};
+            return colSpanOptions((this.section || {}).columns, row.colSpan)
+                .map(o => ({ label: o.title, value: String(o.value) }));
+        }
         if (def.control === 'select') {
             return def.options.map(o => ({ label: o.title, value: String(o.value) }));
         }
@@ -993,7 +1011,9 @@ export default class ND_SectionConfigBuilder extends LightningElement {
     get findings() {
         const ctx = {
             fields: this.hasObjectInfo ? this.objectFields : null,
-            recordTypes: this.recordTypesById
+            recordTypes: this.recordTypesById,
+            // Row width is only checkable against how wide the section is.
+            columns: (this.section || {}).columns
         };
         return validateSection(this.section, ctx).concat(validateConfig(this.rows, ctx));
     }

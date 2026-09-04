@@ -272,6 +272,43 @@ Supported per-field keys:
   `ND_SectionPreviewPicker.getPicklistValues`). Anything else falls back to a comma-separated text
   box. Applies to `showIfValue`, `colorIfValue`, `requiredIfValue` and the section's `alertValue`.
 
+### Columns — 1, 2 or 3, and `colSpan` as a SPAN (2026-09-04)
+`columns` takes **3** as well as 1 and 2. Added for the **portal card, which is full page
+width**; the internal instances stay at 2, because those sit in the centre column of a
+three-column page template and thirds would be cramped there. `columns` is per-instance
+config, so the same component is 3 wide in the portal and 2 wide on the record page —
+no code knows the difference.
+- **`colSpan` has ALWAYS meant "how many of the section's columns this row spans."** It was
+  only ever *written* as "2 = full width" because every section was two columns. Reading it
+  as a span is what let three columns arrive **without migrating a single live config**:
+  `colSpan: 2` still means full width at 2 columns and starts meaning two thirds at 3, and
+  nothing changes until someone deliberately sets `columns: 3`.
+
+  | | unset | `colSpan: 2` | `colSpan: 3` |
+  |---|---|---|---|
+  | 2 columns | half | full | full (clamped) |
+  | 3 columns | one third | two thirds | full |
+- **`sizeClassFor(colSpan, columns)` in the schema module is the single decision**, used by
+  the field row, the rollup row and the builder. It was previously the same ternary written
+  out **twice** in `nD_DynamicSection` — the two could have drifted and nothing would have
+  caught it. Dividers are still unconditionally full width.
+- **It CLAMPS rather than trusting the number.** A row left at `colSpan: 3` after the section
+  is switched back to two columns renders full width instead of asking SLDS for a class that
+  does not exist at that width. `validateConfig` warns about it separately (an error for a
+  non-numeric span), because rendering something sane is not the same as the row doing what
+  the number asks.
+- **The Width dropdown's options depend on the section's width** — the one select that does.
+  `colSpanOptions(columns, current)` **keeps the row's current value on offer even when the
+  section is now too narrow for it**, because a combobox holding a value absent from its own
+  options renders BLANK, and the row would look as if it had no width set while the JSON says
+  otherwise. Exactly the lesson the date-operator combobox already cost.
+- **The badge is computed, not a fixed word.** `badgeFor(value, ctx)` replaced
+  `badge: 'full width' / badgeWhen: 2`, which is a lie for `colSpan: 2` in a three-column
+  section. Same accuracy rule that stopped dividers inheriting "read only".
+- **No responsive breakpoints, deliberately.** The existing sizes are non-responsive and
+  mixing the two would be inconsistent; the lever for a narrow region is the section's own
+  `columns` setting, which is already per-instance. 26 Jest tests in `columns.test.js`.
+
 ### Conditions — the shared engine behind all four "when…" settings (2026-08-25)
 **Four places watch a field and act on what it holds**, and they all now run through ONE engine in
 `nD_sectionConfigSchema`, so a fix or a feature lands on all four at once:
@@ -425,6 +462,90 @@ Supported per-field keys:
   expression would otherwise come to mean different conditions than the author picked.
 - **Not done (deliberate):** no numeric or text comparison operators, and no cross-object or
   cross-field conditions. Date comparison IS done — see above.
+
+### Experience Cloud — the same component in the Aura customer portal (2026-09-04)
+`nD_DynamicSection` is exposed to **Experience Builder** as well as Lightning record pages.
+Targets are additive and the config is per-instance, so ONE bundle serves both and nothing
+about the 22 internal instances changed.
+
+- **Targets:** `lightningCommunity__Page` puts it in the palette, `lightningCommunity__Default`
+  is what lets it have properties there. Both are needed; one alone does nothing useful.
+- **⚠️ A site does NOT inject `recordId` or `objectApiName`.** A Lightning record page supplies
+  them; Experience Builder does not, so both are declared in the community `targetConfig` and
+  the admin binds them to `{!recordId}` / `{!objectApiName}` in the property panel. Without
+  them `nd_wireFields` returns undefined at its first line and the card comes up EMPTY — which
+  reads as a broken component rather than a missing binding. This is the single most likely
+  thing to go wrong when placing it.
+- **⚠️ Those three property tags are as unremovable as the LEX one.** Same platform rule, same
+  strip-it-off-every-page sequence. They are the minimum a site instance needs. Do not add a
+  fourth.
+- **No Apex, no permission set, no profile change is needed** — verified, not assumed. All three
+  Apex calls are gated on row types being present: `getChildValues` returns early unless
+  `isChildRollup(item)`, `resolveEmails` returns on an empty `wanted` list, and `getOpenProblems`
+  is only reachable from the `isOpenProblem` modal. A portal config that omits those rows makes
+  no callout at all. That matters because portal users get almost nothing from permission sets
+  here (391 active `CspLitePortal` users; 2 permission-set assignments between them) — everything
+  comes from their profile, and `PermissionSetAssignment` is data that does not travel in a deploy.
+- **Read-only comes out clean with no work.** Save/Cancel live inside `<template if:true={isDirty}>`
+  and `isDirty` can only be set by an editable widget, so an all-read-only config renders a card
+  with no footer and nothing to suppress.
+- **The internal widgets are excluded by CONFIG, not by code.** Owner + "take it!", `isOpenProblem`,
+  `isEmailList` and `childRollup` are opt-in per row, so the portal instance simply omits them.
+  Gating them in code would have been the wrong layer — the component is config-driven and the
+  configs are already per-instance.
+- **The setup prompt is suppressed in a site** (`isCommunityContext` → `showSetupPrompt`). It names
+  the App Launcher and the Section Config Builder, which live on the internal Lightning domain, so
+  an instance whose config had not arrived would show a CUSTOMER admin instructions and a tool they
+  cannot reach. Detection is a path-segment check for exactly `s` — Aura sites route every page
+  under `/<prefix>/s/…` (or `/s/…` with no prefix) and nothing in `/lightning/…` or
+  `/flexipageEditor/…` has such a segment, so **the App Builder canvas still shows the prompt**,
+  which is where an admin has just dropped the component and does need it. Like `isDesignPreview`
+  this reads a platform URL rather than an API, and is deliberately written to fail towards
+  SHOWING: a missed detection is exactly the old behaviour. 6 Jest tests, including Setup
+  (`/lightning/setup/…`) as the substring-vs-segment case.
+
+- **⚠️ `objectApiName` is a LITERAL (`Case`), never `{!objectApiName}` — this cost an afternoon
+  on 2026-09-04.** Salesforce documents the expression as resolving *"only when you place or
+  invoke the component in an explicit record context"* and *"only for components where the
+  `{!objectApiName}` is in the route"*. A portal route is `/<prefix>/s/case/<id>`, whose segment
+  is the object's URL NAME, not its API name — so it silently arrives unset. `{!recordId}` has
+  no such caveat and does resolve; the meta's `default` is now `Case` for this reason.
+  - **The symptom is a fully-drawn card holding nothing**, which is why it misleads: labels come
+    from the JSON so every row renders, while ONE missing value blanks both data paths at once —
+    no describe means `nd_wireFields` returns `undefined` at its second line and `getRecord`
+    never fires (so the custom widgets are empty), and `lightning-record-edit-form` cannot load
+    either (so every output field is empty). No error banner appears, because the form never gets
+    far enough to raise a load error. It reads as "the component loaded and found no data" when
+    it is really "the component was never told its object".
+  - **The diagnostic that settles it in one look: WHICH things are blank.** Those two paths are
+    independent and share only `recordId` / `objectApiName`, so both being empty points at the
+    inputs, not at data access. A `showIf` row vanishing (no saved fields → condition false) is
+    the same evidence. Conversely, if only the custom widgets were empty and the standard fields
+    had values, THAT would be the FLS / bad-field case.
+  - Ruled out on the way, and worth not re-checking: FLS is fine — `AVB_Product__c`,
+    `AVB_Collaborators__c` and `Type` are all Read+Edit for both portal profiles.
+
+**Still open / worth knowing:**
+- **`isDesignPreview` does not fire in Experience Builder.** It keys on `/flexipageEditor/`, so the
+  render-read-only mitigation for the form-associated-combobox drag crash is INACTIVE in the site
+  builder. Whether Experience Builder's drag has the same jQuery-`cloneNode` bug is **untested** —
+  deliberately left until observed rather than guessed at. If it crashes, it is one more path in
+  that check. A mostly read-only portal config renders few comboboxes anyway.
+- **⚠️ FLS could blank the whole card, and it would look like a broken component.** `getRecord` is
+  all-or-nothing — the repo already learned this for a field that does not exist in the org. A field
+  in the portal config that the community profiles lack FLS on risks the same. **Test the portal
+  config as a real portal user, not as an admin.**
+- **The portal's pages cannot be version-controlled.** `ExperienceBundle` Metadata API is **off for
+  Aura sites** in this org (`sf project retrieve` says so outright), so unlike the 8 flexipages the
+  site page config is not retrievable and placement is a UI-only step.
+- Guest users are out: LDS/UI API is not available to them, so this only goes on authenticated pages.
+
+**Portal org facts (UAT, 2026-09-04):** site `AvioBook Customer Portal` (`0DBKB000000L3cW4AS`, Live,
+`/aviobookportal`), Aura template. Members: `AVB_System_Administrator` plus two `CspLitePortal`
+profiles — `AVB_General_Community_User` (78) and `AVB_General_Customer_Community_Login_User` (313).
+Both have **Read+Edit on Case**, Read on Account/Contact, and **no access to the Jira ticket object**
+(so a `childRollup` row would show `—` even if one were configured). Unrelated portal work exists in
+the org and not in this repo: `ND_Portal_Agent_Actions`, `ND_Timeline_v2`.
 
 ### `lwc/nD_fieldCombobox` (service UI, used by the builder and the conditions editor)
 **One control for picking a field: type to narrow, click to choose.** It replaced a
@@ -699,6 +820,16 @@ privilege-escalation vector.
 - An `alert` entry type could also be added to `nD_DynamicSection` for an in-section banner (same
   rule format). **This is now the cheap option**: the condition engine is done, and it needs no
   template change and no new object — but it lives inside the card, not across the page.
+
+## Status (as of 2026-09-04)
+**Done 2026-09-04** — `nD_DynamicSection` exposed to **Experience Cloud** (Aura customer portal):
+community targets + `recordId`/`objectApiName` properties, and the setup prompt suppressed inside a
+site. Working on a real Case in the portal. Plus **three-column sections** (`colSpan` read as a span),
+for the portal card. **455 Jest tests, all green** (32 new). eslint unchanged at its pre-existing errors — verified
+by linting the file before and after. Deployed to **UAT** (LWC only, no tests run) and confirmed by
+retrieving the meta back. **Not yet in PROD**, and not yet placed on a portal page.
+**Next:** place it on the portal's Case detail page, bind `{!recordId}` / `{!objectApiName}`, paste a
+portal config, then test as a real portal user — see the FLS warning in the Experience Cloud section.
 
 ## Status (as of 2026-08-26)
 **Done 2026-08-26** — `childRollup` rows (+ builder editor, `ND_ChildRollup`), the section

@@ -14,6 +14,7 @@ import {
     rollupOptions,
     rollupValues,
     isRowVisible,
+    sizeClassFor,
     holds,
     siteByKey,
     conditionsOf,
@@ -222,6 +223,36 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
         return !this.configObject.length;
     }
 
+    /**
+     * True when the card is running inside an Experience Cloud site rather than Lightning
+     * Experience. Only the setup prompt uses it: that prompt names the App Launcher and the
+     * Section Config Builder, which live on the internal Lightning domain. A portal customer
+     * can neither reach them nor act on them, so an instance whose ND_jsonConfigString has
+     * not arrived — a property left unbound, a config not yet pasted — would show a customer
+     * a set of admin instructions and a tool they have no access to.
+     *
+     * HOW: Aura sites route every page under an "s" path segment (/<prefix>/s/detail/<id>,
+     * or /s/... when the site has no URL prefix). Nothing in Lightning Experience or the App
+     * Builder canvas has a segment of exactly "s" — those are /lightning/... and
+     * /flexipageEditor/... — so the App Builder canvas, where an admin HAS just dropped the
+     * component and does need the instructions, still shows them.
+     *
+     * Like isDesignPreview this reads a platform URL rather than an API, so it is written to
+     * fail towards SHOWING the prompt: a missed detection is exactly today's behaviour, while
+     * a false positive costs an admin nothing worse than a blank card and a look at this file.
+     */
+    get isCommunityContext() {
+        try {
+            return window.location.pathname.split('/').indexOf('s') > -1;
+        } catch {
+            return false;
+        }
+    }
+
+    get showSetupPrompt() {
+        return this.isUnconfigured && !this.isCommunityContext;
+    }
+
     get builderUrl() {
         return BUILDER_URL;
     }
@@ -252,7 +283,8 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
 
         const ctx = {
             fields: this._objectInfo ? this._objectInfo.fields : null,
-            recordTypes: this._recordTypeNamesById
+            recordTypes: this._recordTypeNamesById,
+            columns: (parsed.section || {}).columns
         };
         return validateSection(parsed.section, ctx).concat(validateConfig(parsed.rows, ctx));
     }
@@ -845,9 +877,7 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 const opts = rollupOptions(item);
                 const raw = this.rollupRawValues[this._rollupKey(opts)];
                 const values = rollupValues(raw, opts);
-                const rollupSize = (this.sectionSettings.columns === 1 || item.colSpan === 2)
-                    ? 'slds-size_1-of-1'
-                    : 'slds-size_1-of-2';
+                const rollupSize = sizeClassFor(item.colSpan, this.sectionSettings.columns);
                 return {
                     // Like a divider, a rollup has no apiName to key on.
                     key: `rollup-${index}`,
@@ -883,13 +913,10 @@ export default class ND_DynamicSection extends NavigationMixin(LightningElement)
                 && holds(item, colorSite, this._conditionContext, item.apiName);
             const alertColor = item.color || DEFAULT_ALERT_COLOR;
 
-            // C. Layout Logic
-            let sizeClass = 'slds-size_1-of-2';
-
-            if (this.sectionSettings.columns === 1 || item.colSpan === 2) {
-                sizeClass = 'slds-size_1-of-1';
-            }
-
+            // C. Layout Logic. The span-to-SLDS-class decision lives in the schema module so
+            // the rollup branch above, this branch and the builder's Width dropdown cannot
+            // drift — it used to be this ternary written out twice.
+            const sizeClass = sizeClassFor(item.colSpan, this.sectionSettings.columns);
             const cssClass = `slds-col ${sizeClass} nd-field-row`;
 
             // D. Record-Link corner icon (isRecordLink only — isUrl renders its

@@ -19,8 +19,11 @@
             <div if:true={ND_isOpen} class="nd-body">
 
                 <!-- Nothing configured. A blank card gives whoever just dropped the
-                     component no idea what to do next, so point at the tool. -->
-                <template if:true={isUnconfigured}>
+                     component no idea what to do next, so point at the tool. Suppressed
+                     inside an Experience Cloud site, where the reader is a customer who
+                     cannot reach either the App Launcher or the builder — see
+                     isCommunityContext. -->
+                <template if:true={showSetupPrompt}>
                     <div class="nd-setup">
                         <p class="nd-setup-title">This section has no fields yet</p>
                         <!-- Each sentence stays on ONE line. LWC collapses the whitespace

@@ -6,6 +6,12 @@
     <description>Configurable detail section. Open "Section Config Builder" from the App Launcher to build its configuration, then paste the result into Field JSON Configuration.</description>
     <targets>
         <target>lightning__RecordPage</target>
+        <!-- Experience Cloud. lightningCommunity__Page puts the component in the
+             Experience Builder palette; lightningCommunity__Default is what lets it have
+             properties there. Targets are additive, so the Lightning record pages this
+             already sits on are untouched. -->
+        <target>lightningCommunity__Page</target>
+        <target>lightningCommunity__Default</target>
     </targets>
     <targetConfigs>
         <targetConfig targets="lightning__RecordPage">
@@ -36,6 +42,49 @@
             <property name="ND_jsonConfigString" type="String"
                       label="Field JSON Configuration"
                       description="Built by the Section Config Builder (App Launcher). Paste its Copy JSON output here."/>
+        </targetConfig>
+
+        <!-- Experience Cloud (Aura site, e.g. the AvioBook Customer Portal).
+
+             A site does NOT inject recordId or objectApiName the way a Lightning record
+             page does, so both have to be declared here and bound to {!recordId} /
+             {!objectApiName} in the Experience Builder property panel. Without them
+             nd_wireFields has no object to build a field list against and the card comes
+             up empty — which looks like a broken component rather than a missing binding.
+
+             The same warning as above applies to these three: once the component is on a
+             portal page the platform will not let the tags be removed without stripping
+             it from that page first. These are the minimum a site instance needs. Do not
+             add a fourth.
+
+             Nothing else is needed for the portal. Every widget that calls Apex — the
+             owner picker and "take it!", isOpenProblem, isEmailList, childRollup — is
+             opt-in per row, so a portal config that omits those rows makes no Apex call
+             at all and needs no class access, permission set or profile change. Rows
+             marked read-only cannot make the card dirty, so Save and Cancel never
+             render either. -->
+        <targetConfig targets="lightningCommunity__Default">
+            <property name="recordId" type="String"
+                      label="Record Id"
+                      default="{!recordId}"/>
+            <!-- ⚠️ A LITERAL object name, NOT {!objectApiName}. Salesforce documents that
+                 expression as resolving "only when you place or invoke the component in an
+                 explicit record context" and "only for components where the {!objectApiName}
+                 is in the route" — and a portal route is /<prefix>/s/case/<id>, whose segment
+                 is the object's URL name, not its API name. So it silently arrives unset, and
+                 one missing value blanks the WHOLE card: no describe means nd_wireFields
+                 returns undefined and never fires getRecord, while
+                 lightning-record-edit-form cannot load either. Labels still render from the
+                 JSON, so it looks like a component that loaded and found nothing rather than
+                 one that was never told its object. Cost an afternoon in UAT on 2026-09-04.
+                 {!recordId} above has no such caveat and does resolve. -->
+            <property name="objectApiName" type="String"
+                      label="Object API Name"
+                      default="Case"
+                      description="The object's API name, typed literally — Case. Change it if this page is for another object. Do NOT use {!objectApiName}: it only resolves when the API name is in the page route, and when it fails the whole card renders empty."/>
+            <property name="ND_jsonConfigString" type="String"
+                      label="Field JSON Configuration"
+                      description="Built by the Section Config Builder (App Launcher, in Salesforce — not in the site). Paste its Copy JSON output here."/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>
